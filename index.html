@@ -1,0 +1,3631 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUPYGO — Meet. Go out. Make friends.</title>
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<style>
+:root {
+  --primary:#7c3aed;
+  --primary-dark:#5b21b6;
+  --secondary:#ec4899;
+  --dark:#171522;
+  --text:#292638;
+  --muted:#777386;
+  --light:#f7f5fb;
+  --white:#ffffff;
+  --border:#e8e4ef;
+  --shadow:0 10px 35px rgba(42,24,70,.10);
+  --radius:20px;
+}
+
+* {
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+}
+
+html {
+  scroll-behavior:smooth;
+}
+
+body {
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--light);
+  color:var(--text);
+  line-height:1.5;
+}
+
+/* =========================
+   HEADER
+========================= */
+
+header {
+  position:sticky;
+  top:0;
+  z-index:2000;
+  background:rgba(255,255,255,.97);
+  backdrop-filter:blur(12px);
+  border-bottom:1px solid var(--border);
+}
+
+.header-inner {
+  max-width:1250px;
+  margin:0 auto;
+  min-height:68px;
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:8px 20px;
+  gap:16px;
+}
+
+/* LOGO */
+
+.logo-aupygo {
+  position:relative;
+  display:inline-flex;
+  align-items:center;
+  font-size:28px;
+  font-weight:900;
+  letter-spacing:-2px;
+  cursor:pointer;
+  user-select:none;
+  flex-shrink:0;
+}
+
+.logo-a {color:#7c3aed}
+.logo-u {color:#9333ea}
+.logo-p {color:#c026d3}
+.logo-y {color:#ec4899}
+.logo-g {color:#f472b6}
+.logo-o {color:#f9a8d4}
+
+.location-pin {
+  position:absolute;
+  right:-6px;
+  top:-4px;
+  width:11px;
+  height:11px;
+  background:linear-gradient(135deg,#7c3aed,#ec4899);
+  border-radius:50% 50% 50% 0;
+  transform:rotate(-45deg);
+}
+
+.location-pin::after {
+  content:"";
+  position:absolute;
+  width:4px;
+  height:4px;
+  background:#fff;
+  border-radius:50%;
+  top:3.5px;
+  left:3.5px;
+}
+
+/* NAVIGATION — ICÔNES UNIQUEMENT */
+
+nav {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  flex:1;
+  overflow-x:auto;
+}
+
+nav::-webkit-scrollbar {
+  display:none;
+}
+
+nav button {
+  border:0;
+  background:transparent;
+  width:44px;
+  height:44px;
+  padding:0;
+  border-radius:12px;
+  cursor:pointer;
+  color:var(--muted);
+  font-weight:600;
+  font-size:22px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  position:relative;
+  transition:.2s;
+  flex-shrink:0;
+}
+
+nav button:hover {
+  background:#f4f0ff;
+  color:var(--primary);
+  transform:translateY(-1px);
+}
+
+nav button.active {
+  background:#f0e9ff;
+  color:var(--primary);
+  box-shadow:inset 0 0 0 1.5px #d8c7ff;
+}
+
+nav button .icon {
+  font-size:21px;
+  line-height:1;
+}
+
+/* Badge FREE / STANDARD / PREMIUM */
+
+.plan-badge {
+  position:absolute;
+  right:-5px;
+  top:-5px;
+  background:linear-gradient(135deg,#7c3aed,#ec4899);
+  color:#fff;
+  font-size:8px;
+  font-weight:700;
+  line-height:1;
+  padding:4px 5px;
+  border-radius:10px;
+  margin:0;
+  min-width:28px;
+  text-align:center;
+}
+
+/* LANGUE */
+
+.lang-select {
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:6px 8px;
+  background:#fff;
+  font-size:12px;
+  color:var(--text);
+  cursor:pointer;
+  flex-shrink:0;
+  max-width:110px;
+}
+
+/* =========================
+   MAIN
+========================= */
+
+main {
+  max-width:1250px;
+  margin:0 auto;
+  padding:30px 20px 60px;
+}
+
+.page {
+  display:none;
+}
+
+.page.active {
+  display:block;
+}
+
+/* HERO */
+
+.hero {
+  display:grid;
+  grid-template-columns:1.1fr .9fr;
+  align-items:center;
+  gap:40px;
+  margin-bottom:30px;
+}
+
+.hero h1 {
+  font-size:clamp(36px,6vw,68px);
+  line-height:.95;
+  letter-spacing:-3px;
+  margin:12px 0 16px;
+}
+
+.gradient {
+  background:linear-gradient(135deg,#7c3aed,#ec4899);
+  -webkit-background-clip:text;
+  color:transparent;
+}
+
+.hero p {
+  font-size:17px;
+  color:var(--muted);
+  max-width:520px;
+  margin-bottom:12px;
+}
+
+.hero-card {
+  background:#fff;
+  border-radius:24px;
+  padding:24px;
+  box-shadow:var(--shadow);
+  cursor:pointer;
+  transition:.2s;
+}
+
+.hero-card:hover {
+  transform:translateY(-3px);
+  box-shadow:0 14px 40px rgba(42,24,70,.15);
+}
+
+.hero-visual {
+  height:300px;
+  border-radius:20px;
+  background:
+    radial-gradient(circle at 25% 25%,#f0abfc,transparent 25%),
+    radial-gradient(circle at 75% 70%,#bae6fd,transparent 28%),
+    linear-gradient(135deg,#ede9fe,#fdf2f8);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  position:relative;
+  overflow:hidden;
+}
+
+.global-aupy {
+  width:260px;
+  height:260px;
+  position:relative;
+}
+
+.country-person {
+  position:absolute;
+  width:52px;
+  height:52px;
+  border-radius:50%;
+  background:#fff;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  box-shadow:0 5px 14px rgba(42,24,70,.14);
+  border:3px solid #fff;
+  z-index:2;
+}
+
+.face {
+  font-size:30px;
+  line-height:1;
+}
+
+.country-flag {
+  position:absolute;
+  right:-5px;
+  bottom:-4px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:#fff;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:12px;
+  box-shadow:0 2px 5px rgba(0,0,0,.15);
+}
+
+.person-1 {
+  top:6px;
+  left:50%;
+  transform:translateX(-50%);
+}
+
+.person-2 {
+  top:38px;
+  right:24px;
+}
+
+.person-3 {
+  top:100px;
+  right:4px;
+}
+
+.person-4 {
+  bottom:38px;
+  right:24px;
+}
+
+.person-5 {
+  bottom:6px;
+  left:50%;
+  transform:translateX(-50%);
+}
+
+.person-6 {
+  bottom:38px;
+  left:24px;
+}
+
+.person-7 {
+  top:100px;
+  left:4px;
+}
+
+.person-8 {
+  top:38px;
+  left:24px;
+}
+
+.world-symbol {
+  position:absolute;
+  left:50%;
+  top:50%;
+  transform:translate(-50%,-50%);
+  width:78px;
+  height:78px;
+  background:#fff;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:42px;
+  box-shadow:0 8px 24px rgba(42,24,70,.16);
+  border:3px solid #fff;
+  z-index:5;
+}
+
+/* BOUTONS */
+
+.btn {
+  border:0;
+  padding:12px 18px;
+  border-radius:12px;
+  font-weight:700;
+  cursor:pointer;
+  transition:.2s;
+  font-size:14px;
+}
+
+.btn:hover {
+  transform:translateY(-1px);
+}
+
+.btn-primary {
+  background:linear-gradient(135deg,#7c3aed,#ec4899);
+  color:#fff;
+}
+
+.btn-secondary {
+  background:#eee9f8;
+  color:var(--primary);
+}
+
+.btn-test {
+  background:#f0fdf4;
+  color:#166534;
+  border:1px solid #bbf7d0;
+  margin-top:8px;
+  width:100%;
+}
+
+.btn-test:hover {
+  background:#dcfce7;
+}
+
+.btn-locked {
+  background:#f3f4f6;
+  color:#9ca3af;
+  cursor:not-allowed;
+  width:100%;
+  margin-top:10px;
+}
+
+/* CARTES */
+
+.grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+  margin-top:24px;
+}
+
+.card {
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:var(--radius);
+  padding:20px;
+  box-shadow:var(--shadow);
+}
+
+.card h3 {
+  margin-bottom:8px;
+}
+
+.section-title {
+  margin-bottom:20px;
+}
+
+.section-title h2 {
+  font-size:28px;
+  margin-bottom:6px;
+}
+
+.section-title p {
+  color:var(--muted);
+  font-size:15px;
+}
+
+/* MAP */
+
+.map-container {
+  position:relative;
+  background:#fff;
+  border-radius:20px;
+  padding:8px;
+  box-shadow:var(--shadow);
+}
+
+#map {
+  height:520px;
+  width:100%;
+  border-radius:14px;
+}
+
+.map-controls {
+  position:absolute;
+  z-index:1000;
+  top:20px;
+  right:20px;
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+}
+
+.map-control-btn {
+  width:40px;
+  height:40px;
+  border:0;
+  border-radius:10px;
+  background:#fff;
+  font-size:20px;
+  font-weight:bold;
+  cursor:pointer;
+  box-shadow:0 3px 12px rgba(0,0,0,.12);
+}
+
+.map-control-btn:hover {
+  background:#f3edff;
+  color:var(--primary);
+}
+
+.map-privacy {
+  position:absolute;
+  z-index:1000;
+  bottom:20px;
+  left:20px;
+  max-width:340px;
+  background:rgba(255,255,255,.95);
+  padding:10px 14px;
+  border-radius:12px;
+  box-shadow:0 3px 12px rgba(0,0,0,.1);
+  font-size:12px;
+}
+
+.map-filter {
+  display:flex;
+  gap:8px;
+  flex-wrap:wrap;
+  margin-bottom:14px;
+}
+
+.map-filter button {
+  border:1px solid var(--border);
+  background:#fff;
+  border-radius:10px;
+  padding:8px 12px;
+  cursor:pointer;
+  font-weight:600;
+  font-size:13px;
+}
+
+.map-filter button.active {
+  background:var(--primary);
+  color:#fff;
+}
+
+.map-filter button:disabled {
+  opacity:.45;
+  cursor:not-allowed;
+}
+
+.aupy-marker {
+  width:44px;
+  height:44px;
+  border-radius:50%;
+  background:#ffd54f;
+  border:3px solid #fff;
+  box-shadow:0 3px 12px rgba(0,0,0,.2);
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:24px;
+}
+
+/* PROFIL */
+
+.profile-layout {
+  display:grid;
+  grid-template-columns:300px 1fr;
+  gap:20px;
+}
+
+.avatar {
+  width:110px;
+  height:110px;
+  border-radius:50%;
+  margin:0 auto 12px;
+  background:#ffd54f;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:52px;
+}
+
+.form-group {
+  margin-bottom:16px;
+}
+
+.form-group label {
+  display:block;
+  margin-bottom:6px;
+  font-weight:700;
+  font-size:14px;
+}
+
+input,
+select,
+textarea {
+  width:100%;
+  padding:11px 12px;
+  border-radius:10px;
+  border:1px solid var(--border);
+  font:inherit;
+  outline:none;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color:var(--primary);
+}
+
+.gender-grid {
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+}
+
+.gender-option {
+  border:1px solid var(--border);
+  background:#fff;
+  border-radius:12px;
+  padding:12px;
+  cursor:pointer;
+  font-weight:600;
+  text-align:center;
+}
+
+.gender-option.selected {
+  border:2px solid var(--primary);
+  background:#f4edff;
+}
+
+.hobby-grid {
+  display:grid;
+  grid-template-columns:repeat(5,1fr);
+  gap:8px;
+}
+
+.hobby {
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:10px 4px;
+  background:#fff;
+  cursor:pointer;
+  text-align:center;
+  font-size:12px;
+}
+
+.hobby .emoji {
+  display:block;
+  font-size:20px;
+  margin-bottom:3px;
+}
+
+.hobby.selected {
+  border:2px solid var(--primary);
+  background:#f4edff;
+}
+
+/* PLANS */
+
+.plans {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:18px;
+}
+
+.plan {
+  background:#fff;
+  border-radius:18px;
+  padding:22px;
+  border:1px solid var(--border);
+  position:relative;
+}
+
+.plan.featured {
+  border:2px solid var(--primary);
+  transform:translateY(-4px);
+}
+
+.plan.active-plan {
+  border:2px solid #22c55e;
+  box-shadow:0 0 0 3px rgba(34,197,94,.15);
+}
+
+.price {
+  font-size:32px;
+  font-weight:900;
+  margin:10px 0;
+}
+
+.plan ul {
+  padding-left:18px;
+  line-height:1.8;
+  color:var(--muted);
+  font-size:14px;
+  margin-bottom:14px;
+}
+
+.active-badge {
+  position:absolute;
+  top:12px;
+  right:12px;
+  background:#22c55e;
+  color:#fff;
+  font-size:10px;
+  font-weight:800;
+  padding:3px 8px;
+  border-radius:12px;
+}
+
+/* EVENTS */
+
+.event-grid {
+  display:grid;
+  grid-template-columns:repeat(3,1fr);
+  gap:16px;
+}
+
+.event {
+  background:#fff;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+
+.event-cover {
+  height:130px;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  font-size:48px;
+  background:linear-gradient(135deg,#ddd6fe,#fce7f3);
+}
+
+.event-body {
+  padding:16px;
+}
+
+.event-details {
+  font-size:14px;
+  color:var(--muted);
+  margin:8px 0;
+}
+
+.event-details.locked-text {
+  color:#9ca3af;
+  font-style:italic;
+}
+
+.badge {
+  display:inline-block;
+  padding:4px 8px;
+  border-radius:14px;
+  background:#f1eafd;
+  color:var(--primary);
+  font-size:11px;
+  font-weight:700;
+}
+
+.badge-paid {
+  background:#fff3d6;
+  color:#a16207;
+}
+
+/* CALENDRIER */
+
+.calendar {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  gap:6px;
+}
+
+.day {
+  min-height:80px;
+  background:#fff;
+  border:1px solid var(--border);
+  border-radius:8px;
+  padding:6px;
+}
+
+.day strong {
+  display:block;
+  margin-bottom:4px;
+  font-size:13px;
+}
+
+.agenda-event {
+  font-size:10px;
+  padding:3px 4px;
+  border-radius:5px;
+  background:#eee9ff;
+  color:var(--primary);
+}
+
+.locked {
+  position:relative;
+}
+
+.locked::after {
+  content:"🔒 Disponible à partir de STANDARD";
+  position:absolute;
+  inset:0;
+  background:rgba(255,255,255,.88);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  color:var(--primary);
+  border-radius:var(--radius);
+  text-align:center;
+  padding:16px;
+  font-size:14px;
+}
+
+/* MESSAGES */
+
+.message-box {
+  display:grid;
+  grid-template-columns:260px 1fr;
+  height:460px;
+  background:#fff;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:var(--shadow);
+}
+
+.conversations {
+  border-right:1px solid var(--border);
+}
+
+.conversation {
+  padding:14px;
+  border-bottom:1px solid var(--border);
+  cursor:pointer;
+  font-size:14px;
+}
+
+.chat {
+  display:flex;
+  flex-direction:column;
+}
+
+.chat-header {
+  padding:14px;
+  border-bottom:1px solid var(--border);
+  font-weight:700;
+}
+
+.chat-messages {
+  flex:1;
+  padding:16px;
+  overflow-y:auto;
+}
+
+.bubble {
+  max-width:75%;
+  padding:10px 12px;
+  margin-bottom:8px;
+  border-radius:12px;
+  background:#f1eef7;
+  font-size:14px;
+}
+
+.bubble.me {
+  margin-left:auto;
+  background:#e9d5ff;
+}
+
+.chat-input {
+  display:flex;
+  gap:8px;
+  padding:10px;
+  border-top:1px solid var(--border);
+}
+
+.chat-input input {
+  flex:1;
+}
+
+/* NOTICES */
+
+.notice {
+  padding:14px;
+  border-radius:12px;
+  background:#f3edff;
+  border:1px solid #ddd0fa;
+  margin:16px 0;
+  font-size:14px;
+}
+
+.notice.warning {
+  background:#fff8e7;
+  border-color:#fde68a;
+}
+
+.notice.security {
+  background:#ecfdf5;
+  border-color:#bbf7d0;
+}
+
+/* TOAST */
+
+.toast-container {
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  z-index:9999;
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+}
+
+.toast {
+  background:var(--dark);
+  color:#fff;
+  padding:12px 16px;
+  border-radius:12px;
+  box-shadow:0 6px 20px rgba(0,0,0,.2);
+  font-weight:600;
+  font-size:14px;
+  animation:slideIn .25s ease;
+  max-width:300px;
+}
+
+.toast.success {
+  background:#166534;
+}
+
+.toast.error {
+  background:#991b1b;
+}
+
+@keyframes slideIn {
+  from {
+    transform:translateY(16px);
+    opacity:0;
+  }
+  to {
+    transform:translateY(0);
+    opacity:1;
+  }
+}
+
+/* FOOTER */
+
+footer {
+  background:var(--dark);
+  color:#fff;
+  padding:36px 20px;
+}
+
+.footer-inner {
+  max-width:1250px;
+  margin:0 auto;
+  display:flex;
+  justify-content:space-between;
+  gap:24px;
+}
+
+.footer-muted {
+  color:#aaa4b5;
+  font-size:14px;
+  margin-top:6px;
+}
+
+/* =========================
+   RESPONSIVE
+========================= */
+
+@media(max-width:900px) {
+
+  .hero {
+    grid-template-columns:1fr;
+  }
+
+  .grid,
+  .event-grid,
+  .plans {
+    grid-template-columns:1fr 1fr;
+  }
+
+  .profile-layout {
+    grid-template-columns:1fr;
+  }
+
+  .hobby-grid {
+    grid-template-columns:repeat(3,1fr);
+  }
+}
+
+@media(max-width:650px) {
+
+  .header-inner {
+    flex-wrap:wrap;
+  }
+
+  nav {
+    order:3;
+    width:100%;
+    justify-content:space-around;
+  }
+
+  nav button {
+    width:40px;
+    height:40px;
+  }
+
+  nav button .icon {
+    font-size:20px;
+  }
+
+  .plan-badge {
+    font-size:7px;
+    min-width:25px;
+    padding:3px 4px;
+  }
+
+  main {
+    padding:20px 14px 50px;
+  }
+
+  .grid,
+  .event-grid,
+  .plans {
+    grid-template-columns:1fr;
+  }
+
+  .plan.featured {
+    transform:none;
+  }
+
+  .hobby-grid {
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  #map {
+    height:420px;
+  }
+
+  .message-box {
+    grid-template-columns:1fr;
+    height:auto;
+  }
+
+  .conversations {
+    display:none;
+  }
+
+  .calendar {
+    grid-template-columns:repeat(2,1fr);
+  }
+
+  .footer-inner {
+    flex-direction:column;
+  }
+
+  .logo-aupygo {
+    font-size:22px;
+  }
+}
+</style>
+</head>
+
+<body>
+
+<!-- =========================
+     HEADER
+========================= -->
+
+<header>
+  <div class="header-inner">
+
+    <div class="logo-aupygo" onclick="go('home')" title="AUPYGO">
+      <span class="logo-a">A</span>
+      <span class="logo-u">U</span>
+      <span class="logo-p">P</span>
+      <span class="logo-y">Y</span>
+      <span class="logo-g">G</span>
+      <span class="logo-o">O</span>
+      <div class="location-pin"></div>
+    </div>
+
+    <!-- ICÔNES UNIQUEMENT -->
+
+    <nav>
+
+      <button
+        onclick="go('home')"
+        class="active"
+        data-nav="home"
+        title="Accueil"
+        aria-label="Accueil">
+        <span class="icon">🏠</span>
+      </button>
+
+      <button
+        onclick="go('map')"
+        data-nav="map"
+        title="Carte"
+        aria-label="Carte">
+        <span class="icon">🗺️</span>
+      </button>
+
+      <button
+        onclick="go('events')"
+        data-nav="events"
+        title="Sorties"
+        aria-label="Sorties">
+        <span class="icon">🎉</span>
+      </button>
+
+      <button
+        onclick="go('messages')"
+        data-nav="messages"
+        title="Messages"
+        aria-label="Messages">
+        <span class="icon">💬</span>
+      </button>
+
+      <button
+        onclick="go('profile')"
+        data-nav="profile"
+        title="Profil"
+        aria-label="Profil">
+        <span class="icon">👤</span>
+      </button>
+
+      <button
+        onclick="go('plans')"
+        data-nav="plans"
+        title="Abonnement"
+        aria-label="Abonnement">
+
+        <span class="icon">💎</span>
+
+        <span
+          class="plan-badge"
+          id="headerPlan">
+          FREE
+        </span>
+
+      </button>
+
+    </nav>
+
+    <select
+      class="lang-select"
+      id="language"
+      onchange="changeLanguage(this.value)"
+      title="Langue">
+
+      <option value="fr">🇫🇷 FR</option>
+      <option value="en">🇬🇧 EN</option>
+      <option value="pt">🇧🇷 PT</option>
+      <option value="es">🇪🇸 ES</option>
+      <option value="de">🇩🇪 DE</option>
+      <option value="it">🇮🇹 IT</option>
+      <option value="zh">🇨🇳 ZH</option>
+      <option value="ru">🇷🇺 RU</option>
+
+    </select>
+
+  </div>
+</header>
+
+<main>
+
+<!-- =========================
+     ACCUEIL
+========================= -->
+
+<section id="home" class="page active">
+
+  <div class="hero">
+
+    <div>
+
+      <span class="badge">
+        🌍 Worldwide Au Pair Community
+      </span>
+
+      <h1>
+        <span class="gradient">Meet.</span><br>
+        Go out.<br>
+        Make friends.
+      </h1>
+
+      <p>
+        <strong>The community made for au pairs.</strong>
+      </p>
+
+      <p>
+        Découvre les au pairs autour de toi,
+        participe à des sorties et crée de nouvelles amitiés.
+      </p>
+
+      <button
+        class="btn btn-primary"
+        onclick="go('map')">
+        🌍 Découvrir la communauté
+      </button>
+
+      <button
+        class="btn btn-secondary"
+        onclick="go('plans')"
+        style="margin-left:8px">
+        Voir les abonnements
+      </button>
+
+    </div>
+
+    <div
+      class="hero-card"
+      onclick="go('map')"
+      title="Voir la communauté sur la carte">
+
+      <div class="hero-visual">
+
+        <div class="global-aupy">
+
+          <div class="country-person person-1">
+            <div class="face">👩</div>
+            <span class="country-flag">🇫🇷</span>
+          </div>
+
+          <div class="country-person person-2">
+            <div class="face">👨</div>
+            <span class="country-flag">🇧🇷</span>
+          </div>
+
+          <div class="country-person person-3">
+            <div class="face">👩</div>
+            <span class="country-flag">🇯🇵</span>
+          </div>
+
+          <div class="country-person person-4">
+            <div class="face">👨</div>
+            <span class="country-flag">🇬🇧</span>
+          </div>
+
+          <div class="country-person person-5">
+            <div class="face">👩</div>
+            <span class="country-flag">🇩🇪</span>
+          </div>
+
+          <div class="country-person person-6">
+            <div class="face">👨</div>
+            <span class="country-flag">🇨🇭</span>
+          </div>
+
+          <div class="country-person person-7">
+            <div class="face">👩</div>
+            <span class="country-flag">🇺🇸</span>
+          </div>
+
+          <div class="country-person person-8">
+            <div class="face">👨</div>
+            <span class="country-flag">🇪🇸</span>
+          </div>
+
+          <div class="world-symbol">
+            🌍
+          </div>
+
+        </div>
+
+      </div>
+
+      <h3 style="margin-top:14px">
+        Une communauté mondiale
+      </h3>
+
+      <p
+        class="footer-muted"
+        style="font-size:14px;margin-top:6px">
+        AUPYGO rassemble les au pairs du monde entier.
+        Clique pour explorer la carte →
+      </p>
+
+    </div>
+
+  </div>
+
+  <div class="notice security">
+
+    🔒 <strong>Confidentialité & sécurité :</strong><br>
+
+    AUPYGO n'affiche jamais la position GPS exacte.
+    Les positions sont approximatives.
+
+    <br><br>
+
+    👤 <strong>Aucune photo personnelle n'est affichée.</strong>
+    Tous les profils utilisent des avatars universels.
+
+  </div>
+
+  <div class="grid">
+
+    <div class="card">
+      <h3>🗺️ Découvrir</h3>
+      <p>
+        Trouve les au pairs autour de toi en préservant leur confidentialité.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>🎉 Sortir</h3>
+      <p>
+        Cafés, randonnées, restaurants et activités avec la communauté.
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>🤝 Se retrouver</h3>
+      <p>
+        Échange et crée de vraies amitiés sans jugement sur les photos.
+      </p>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     CARTE
+========================= -->
+
+<section id="map" class="page">
+
+  <div class="section-title">
+
+    <h2>🗺️ La communauté AUPYGO</h2>
+
+    <p>
+      Découvre les au pairs près de toi.
+    </p>
+
+  </div>
+
+  <div class="map-filter">
+
+    <button
+      id="btnAround"
+      class="active"
+      onclick="mapMode('around',this)">
+      📍 Autour de moi
+    </button>
+
+    <button
+      id="btnRegion"
+      onclick="mapMode('region',this)">
+      🗺️ Ma région
+    </button>
+
+    <button
+      id="btnWorld"
+      onclick="mapMode('world',this)">
+      🌍 Monde
+    </button>
+
+  </div>
+
+  <div
+    class="notice"
+    id="mapPlanNotice">
+    Découvre les au pairs près de toi.
+  </div>
+
+  <div class="map-container">
+
+    <div id="map"></div>
+
+    <div class="map-controls">
+
+      <button
+        class="map-control-btn"
+        onclick="zoomIn()">+</button>
+
+      <button
+        class="map-control-btn"
+        onclick="zoomOut()">−</button>
+
+      <button
+        class="map-control-btn"
+        onclick="resetMap()">🎯</button>
+
+    </div>
+
+    <div class="map-privacy">
+      🔒 Les marqueurs sont approximatifs.
+      Aucune position GPS exacte.
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     SORTIES
+========================= -->
+
+<section id="events" class="page">
+
+  <div class="section-title">
+
+    <h2>🎉 Sorties & événements</h2>
+
+    <p>
+      Des activités pour la communauté des au pairs.
+    </p>
+
+  </div>
+
+  <div class="notice warning">
+
+    ⚠️ Pour les restaurants,
+    la réservation doit être confirmée par l'organisateur.
+
+  </div>
+
+  <div
+    id="eventsFreeNotice"
+    class="notice"
+    style="display:none">
+
+    🔒 <strong>Forfait FREE</strong> :
+    tu vois qu’il y a des sorties,
+    mais les lieux, participants et inscriptions
+    sont réservés au forfait <strong>STANDARD</strong> et plus.
+
+  </div>
+
+  <div
+    class="card"
+    style="margin-bottom:20px"
+    id="agendaBox">
+
+    <h3>📅 Mon agenda AUPYGO</h3>
+
+    <div
+      id="agendaNotice"
+      class="notice">
+
+      ⭐ Disponible à partir du forfait
+      <strong>STANDARD</strong>.
+
+    </div>
+
+    <div
+      class="calendar"
+      style="margin-top:15px">
+
+      <div class="day"><strong>Lun</strong></div>
+      <div class="day"><strong>Mar</strong></div>
+      <div class="day"><strong>Mer</strong></div>
+      <div class="day"><strong>Jeu</strong></div>
+      <div class="day"><strong>Ven</strong></div>
+      <div class="day"><strong>Sam</strong></div>
+      <div class="day"><strong>Dim</strong></div>
+
+      <div class="day">
+        <strong>8</strong>
+        <div class="agenda-event">☕ Café AUPYGO</div>
+      </div>
+
+      <div class="day">
+        <strong>15</strong>
+        <div class="agenda-event">🥾 Randonnée</div>
+      </div>
+
+      <div class="day">
+        <strong>22</strong>
+        <div class="agenda-event">🍝 Lunch AUPYGO</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div
+    class="event-grid"
+    id="eventGrid">
+
+    <div
+      class="event"
+      data-event="cafe">
+
+      <div class="event-cover">☕</div>
+
+      <div class="event-body">
+
+        <span class="badge">Café</span>
+
+        <h3 style="margin:8px 0">
+          Café entre au pairs
+        </h3>
+
+        <p
+          class="event-details"
+          data-detail>
+          📍 Genève · 👥 Max 5 · 🕐 Sam 15:00
+        </p>
+
+        <p
+          class="event-details locked-text"
+          data-locked
+          style="display:none">
+
+          🔒 Lieu et participants réservés
+          au forfait STANDARD
+
+        </p>
+
+        <button
+          class="btn btn-primary event-join"
+          style="margin-top:10px"
+          onclick="joinEvent('Café entre au pairs')">
+
+          Participer
+
+        </button>
+
+        <button
+          class="btn btn-locked event-upgrade"
+          style="display:none"
+          onclick="go('plans')">
+
+          🔒 Passer à STANDARD
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div
+      class="event"
+      data-event="rando">
+
+      <div class="event-cover">🥾</div>
+
+      <div class="event-body">
+
+        <span class="badge">Extérieur</span>
+
+        <h3 style="margin:8px 0">
+          Randonnée & pique-nique
+        </h3>
+
+        <p
+          class="event-details"
+          data-detail>
+
+          📍 Annecy · 👥 Max 30 · 🕐 Dim 11:00
+
+        </p>
+
+        <p
+          class="event-details locked-text"
+          data-locked
+          style="display:none">
+
+          🔒 Lieu et participants réservés
+          au forfait STANDARD
+
+        </p>
+
+        <button
+          class="btn btn-primary event-join"
+          style="margin-top:10px"
+          onclick="joinEvent('Randonnée')">
+
+          Participer
+
+        </button>
+
+        <button
+          class="btn btn-locked event-upgrade"
+          style="display:none"
+          onclick="go('plans')">
+
+          🔒 Passer à STANDARD
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div
+      class="event"
+      data-event="lunch">
+
+      <div class="event-cover">🍝</div>
+
+      <div class="event-body">
+
+        <span class="badge">Restaurant</span>
+
+        <h3 style="margin:8px 0">
+          Lunch entre au pairs
+        </h3>
+
+        <p
+          class="event-details"
+          data-detail>
+
+          📍 Lyon · 👥 Max 10 · 🕐 Sam 12:30
+
+        </p>
+
+        <p
+          class="event-details locked-text"
+          data-locked
+          style="display:none">
+
+          🔒 Lieu et participants réservés
+          au forfait STANDARD
+
+        </p>
+
+        <button
+          class="btn btn-primary event-join"
+          style="margin-top:10px"
+          onclick="joinRestaurantEvent()">
+
+          Rejoindre
+
+        </button>
+
+        <button
+          class="btn btn-locked event-upgrade"
+          style="display:none"
+          onclick="go('plans')">
+
+          🔒 Passer à STANDARD
+
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div
+      class="event"
+      data-event="special">
+
+      <div class="event-cover">⭐</div>
+
+      <div class="event-body">
+
+        <span class="badge badge-paid">
+          Événement AUPYGO
+        </span>
+
+        <h3 style="margin:8px 0">
+          Sortie spéciale AUPYGO
+        </h3>
+
+        <p
+          class="event-details"
+          data-detail>
+
+          📍 Paris · Places limitées · Payant
+
+        </p>
+
+        <p
+          class="event-details locked-text"
+          data-locked
+          style="display:none">
+
+          🔒 Lieu et participants réservés
+          au forfait STANDARD
+
+        </p>
+
+        <button
+          class="btn btn-primary event-join"
+          style="margin-top:10px"
+          onclick="paidEvent()">
+
+          Voir
+
+        </button>
+
+        <button
+          class="btn btn-locked event-upgrade"
+          style="display:none"
+          onclick="go('plans')">
+
+          🔒 Passer à STANDARD
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     MESSAGES
+========================= -->
+
+<section id="messages" class="page">
+
+  <div class="section-title">
+
+    <h2>💬 Messages privés</h2>
+
+    <p>
+      Échange avec les au pairs.
+    </p>
+
+  </div>
+
+  <div
+    class="notice"
+    id="messagesNotice">
+
+    💎 Réservé aux membres
+    <strong>PREMIUM</strong>.
+
+  </div>
+
+  <div
+    class="message-box"
+    id="messagesBox">
+
+    <div class="conversations">
+
+      <div class="conversation">
+        👩 <strong>Maria</strong><br>
+        <small>Salut ! 😊</small>
+      </div>
+
+      <div class="conversation">
+        👨 <strong>Lucas</strong><br>
+        <small>Tu viens à la sortie ?</small>
+      </div>
+
+      <div class="conversation">
+        👩 <strong>Camila</strong><br>
+        <small>Hello 👋</small>
+      </div>
+
+    </div>
+
+    <div class="chat">
+
+      <div class="chat-header">
+        👤 Maria
+      </div>
+
+      <div class="chat-messages">
+
+        <div class="bubble">
+          Salut ! 😊
+        </div>
+
+        <div class="bubble me">
+          Salut Maria !
+        </div>
+
+        <div class="bubble">
+          Tu vas à la sortie samedi ?
+        </div>
+
+      </div>
+
+      <div class="chat-input">
+
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Écrire un message...">
+
+        <button
+          class="btn btn-primary"
+          onclick="sendMessage()">
+
+          Envoyer
+
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     PROFIL
+========================= -->
+
+<section id="profile" class="page">
+
+  <div class="section-title">
+
+    <h2>👤 Mon profil</h2>
+
+    <p>
+      Présente-toi à la communauté.
+    </p>
+
+  </div>
+
+  <div class="notice">
+
+    👤 <strong>Photos désactivées</strong> —
+    Chaque membre est représenté par un avatar universel.
+
+  </div>
+
+  <div class="profile-layout">
+
+    <div
+      class="card"
+      style="text-align:center">
+
+      <div
+        class="avatar"
+        id="profileAvatar">
+        👩
+      </div>
+
+      <h3 id="profileName">
+        Sophie
+      </h3>
+
+      <p
+        style="color:var(--muted)"
+        id="profileMeta">
+
+        Au pair · 24 ans
+
+      </p>
+
+      <div
+        class="notice security"
+        style="margin-top:12px">
+
+        🛡️ Profil protégé
+
+      </div>
+
+    </div>
+
+
+    <div class="card">
+
+      <div class="form-group">
+
+        <label>Prénom</label>
+
+        <input
+          id="firstName"
+          type="text"
+          value="Sophie">
+
+      </div>
+
+      <div class="form-group">
+
+        <label>Âge</label>
+
+        <input
+          id="age"
+          type="number"
+          value="24"
+          min="18"
+          max="99">
+
+      </div>
+
+      <div class="form-group">
+
+        <label>Genre</label>
+
+        <div class="gender-grid">
+
+          <button
+            type="button"
+            class="gender-option selected"
+            onclick="selectGender(this,'Femme')">
+
+            👩 Femme
+
+          </button>
+
+          <button
+            type="button"
+            class="gender-option"
+            onclick="selectGender(this,'Homme')">
+
+            👨 Homme
+
+          </button>
+
+        </div>
+
+      </div>
+
+      <div class="form-group">
+
+        <label>Pays d'origine</label>
+
+        <input
+          id="country"
+          list="countries"
+          placeholder="Ton pays...">
+
+        <datalist id="countries">
+
+          <option value="France">
+          <option value="Brésil">
+          <option value="Espagne">
+          <option value="Allemagne">
+          <option value="Italie">
+          <option value="Suisse">
+          <option value="Royaume-Uni">
+          <option value="États-Unis">
+          <option value="Portugal">
+          <option value="Canada">
+          <option value="Japon">
+          <option value="Australie">
+
+        </datalist>
+
+      </div>
+
+      <div class="form-group">
+
+        <label>
+          Hobbies (max 3)
+        </label>
+
+        <div class="hobby-grid">
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Plage')">
+
+            <span class="emoji">🏖️</span>
+            Plage
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Lire')">
+
+            <span class="emoji">📚</span>
+            Lire
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Films')">
+
+            <span class="emoji">🎬</span>
+            Films
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Voyager')">
+
+            <span class="emoji">✈️</span>
+            Voyager
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Cuisine')">
+
+            <span class="emoji">🍳</span>
+            Cuisine
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Sport')">
+
+            <span class="emoji">🏋️</span>
+            Sport
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Danse')">
+
+            <span class="emoji">💃</span>
+            Danse
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Musique')">
+
+            <span class="emoji">🎵</span>
+            Musique
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Photo')">
+
+            <span class="emoji">📸</span>
+            Photo
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Nature')">
+
+            <span class="emoji">🌿</span>
+            Nature
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Café')">
+
+            <span class="emoji">☕</span>
+            Café
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Randonnée')">
+
+            <span class="emoji">🥾</span>
+            Rando
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Animaux')">
+
+            <span class="emoji">🐶</span>
+            Animaux
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Art')">
+
+            <span class="emoji">🎨</span>
+            Art
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Yoga')">
+
+            <span class="emoji">🧘</span>
+            Yoga
+
+          </button>
+
+          <button
+            type="button"
+            class="hobby"
+            onclick="toggleHobby(this,'Autre')">
+
+            <span class="emoji">✨</span>
+            Autre
+
+          </button>
+
+        </div>
+
+        <input
+          id="otherHobby"
+          type="text"
+          placeholder="Autre hobby..."
+          style="display:none;margin-top:8px">
+
+      </div>
+
+      <div class="form-group">
+
+        <label>À propos de moi</label>
+
+        <textarea
+          id="bio"
+          rows="3"
+          placeholder="Présente-toi..."></textarea>
+
+      </div>
+
+      <button
+        class="btn btn-primary"
+        onclick="saveProfile()">
+
+        💾 Enregistrer
+
+      </button>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     PLANS
+========================= -->
+
+<section id="plans" class="page">
+
+  <div class="section-title">
+
+    <h2>
+      💜 Choisis ton expérience AUPYGO
+    </h2>
+
+    <p>
+      Commence gratuitement, débloque plus ensuite.
+    </p>
+
+  </div>
+
+  <div class="notice security">
+
+    🧪 <strong>Mode test :</strong>
+    Clique sur « Tester ce forfait »
+    pour activer les fonctionnalités sans email.
+
+  </div>
+
+  <div class="plans">
+
+    <!-- FREE -->
+
+    <div
+      class="plan"
+      id="plan-FREE">
+
+      <div
+        class="active-badge"
+        id="badge-FREE"
+        style="display:none">
+
+        ACTIF
+
+      </div>
+
+      <span class="badge">
+        FREE
+      </span>
+
+      <h2 style="margin:10px 0 0">
+        Découverte
+      </h2>
+
+      <div class="price">
+        0 €
+      </div>
+
+      <ul>
+
+        <li>Communauté autour de toi</li>
+        <li>Carte locale</li>
+        <li>Créer un profil</li>
+        <li>Voir les sorties</li>
+
+      </ul>
+
+      <button
+        class="btn btn-secondary"
+        onclick="selectPlan('FREE')">
+
+        Continuer gratuitement
+
+      </button>
+
+      <button
+        class="btn btn-test"
+        onclick="activateTestPlan('FREE')">
+
+        🧪 Tester ce forfait
+
+      </button>
+
+    </div>
+
+
+    <!-- STANDARD -->
+
+    <div
+      class="plan featured"
+      id="plan-STANDARD">
+
+      <div
+        class="active-badge"
+        id="badge-STANDARD"
+        style="display:none">
+
+        ACTIF
+
+      </div>
+
+      <span class="badge">
+        STANDARD
+      </span>
+
+      <h2 style="margin:10px 0 0">
+        Standard
+      </h2>
+
+      <div class="price">
+
+        9,90 €
+        <small style="font-size:14px">
+          /mois
+        </small>
+
+      </div>
+
+      <ul>
+
+        <li>Tout FREE</li>
+        <li>Carte régionale élargie</li>
+        <li>Agenda AUPYGO</li>
+        <li>Lieux & participation aux sorties</li>
+        <li>Notifications</li>
+
+      </ul>
+
+      <button
+        class="btn btn-primary"
+        onclick="selectPlan('STANDARD')">
+
+        Choisir STANDARD
+
+      </button>
+
+      <button
+        class="btn btn-test"
+        onclick="activateTestPlan('STANDARD')">
+
+        🧪 Tester ce forfait
+
+      </button>
+
+    </div>
+
+
+    <!-- PREMIUM -->
+
+    <div
+      class="plan"
+      id="plan-PREMIUM">
+
+      <div
+        class="active-badge"
+        id="badge-PREMIUM"
+        style="display:none">
+
+        ACTIF
+
+      </div>
+
+      <span class="badge">
+        PREMIUM
+      </span>
+
+      <h2 style="margin:10px 0 0">
+        Premium
+      </h2>
+
+      <div class="price">
+
+        12,85 €
+        <small style="font-size:14px">
+          /mois
+        </small>
+
+      </div>
+
+      <ul>
+
+        <li>Tout STANDARD</li>
+        <li>Carte mondiale</li>
+        <li>Messages privés</li>
+        <li>Communication mondiale</li>
+        <li>Fonctions exclusives</li>
+
+      </ul>
+
+      <button
+        class="btn btn-primary"
+        onclick="selectPlan('PREMIUM')">
+
+        Choisir PREMIUM
+
+      </button>
+
+      <button
+        class="btn btn-test"
+        onclick="activateTestPlan('PREMIUM')">
+
+        🧪 Tester ce forfait
+
+      </button>
+
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+
+
+<!-- =========================
+     FOOTER
+========================= -->
+
+<footer>
+
+  <div class="footer-inner">
+
+    <div>
+
+      <div
+        class="logo-aupygo"
+        style="font-size:24px">
+
+        <span class="logo-a">A</span>
+        <span class="logo-u">U</span>
+        <span class="logo-p">P</span>
+        <span class="logo-y">Y</span>
+        <span class="logo-g">G</span>
+        <span class="logo-o">O</span>
+
+        <div class="location-pin"></div>
+
+      </div>
+
+      <p class="footer-muted">
+        Meet. Go out. Make friends.
+      </p>
+
+      <p class="footer-muted">
+        🔒 No personal photos · Privacy first · Real-life connections
+      </p>
+
+    </div>
+
+    <div>
+
+      <strong>AUPYGO</strong>
+
+      <p class="footer-muted">
+        For au pairs, by au pairs.
+      </p>
+
+    </div>
+
+  </div>
+
+</footer>
+
+
+<div
+  class="toast-container"
+  id="toastContainer">
+</div>
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+
+<script>
+
+/* =========================
+   DONNÉES
+========================= */
+
+const userLocation = {
+  lat:46.2044,
+  lng:6.1432,
+  city:'Genève'
+};
+
+const RADIUS = {
+  FREE:30,
+  STANDARD:3000,
+  PREMIUM:null
+};
+
+let currentPlan =
+  localStorage.getItem('aupygo_plan') || 'FREE';
+
+let map,
+    markersLayer;
+
+
+/* =========================
+   FORFAITS
+========================= */
+
+function activateTestPlan(plan) {
+
+  currentPlan = plan;
+
+  localStorage.setItem(
+    'aupygo_plan',
+    plan
+  );
+
+  updatePlanUI();
+
+  showToast(
+    '🧪 Forfait ' + plan + ' activé en mode test',
+    'success'
+  );
+}
+
+
+function updatePlanUI() {
+
+  document.getElementById(
+    'headerPlan'
+  ).textContent = currentPlan;
+
+  ['FREE','STANDARD','PREMIUM'].forEach(p => {
+
+    const card =
+      document.getElementById('plan-' + p);
+
+    const badge =
+      document.getElementById('badge-' + p);
+
+    if(card) {
+      card.classList.toggle(
+        'active-plan',
+        p === currentPlan
+      );
+    }
+
+    if(badge) {
+      badge.style.display =
+        p === currentPlan
+        ? 'block'
+        : 'none';
+    }
+
+  });
+
+
+  const agendaBox =
+    document.getElementById('agendaBox');
+
+  const agendaNotice =
+    document.getElementById('agendaNotice');
+
+  if(currentPlan === 'FREE') {
+
+    agendaBox.classList.add('locked');
+
+    agendaNotice.innerHTML =
+      '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
+
+  } else {
+
+    agendaBox.classList.remove('locked');
+
+    agendaNotice.innerHTML =
+      '✅ Agenda débloqué (' +
+      currentPlan +
+      ')';
+
+  }
+
+
+  const messagesBox =
+    document.getElementById('messagesBox');
+
+  const messagesNotice =
+    document.getElementById('messagesNotice');
+
+  if(currentPlan !== 'PREMIUM') {
+
+    messagesBox.style.opacity = '0.5';
+
+    messagesBox.style.pointerEvents = 'none';
+
+    messagesNotice.innerHTML =
+      '💎 Réservé aux membres <strong>PREMIUM</strong>.';
+
+  } else {
+
+    messagesBox.style.opacity = '1';
+
+    messagesBox.style.pointerEvents = 'auto';
+
+    messagesNotice.innerHTML =
+      '✅ Messagerie débloquée (PREMIUM)';
+
+  }
+
+
+  const isFree =
+    currentPlan === 'FREE';
+
+  const freeNotice =
+    document.getElementById(
+      'eventsFreeNotice'
+    );
+
+  if(freeNotice) {
+    freeNotice.style.display =
+      isFree ? 'block' : 'none';
+  }
+
+
+  document
+    .querySelectorAll('#eventGrid .event')
+    .forEach(event => {
+
+      const detail =
+        event.querySelector('[data-detail]');
+
+      const locked =
+        event.querySelector('[data-locked]');
+
+      const joinBtn =
+        event.querySelector('.event-join');
+
+      const upgradeBtn =
+        event.querySelector('.event-upgrade');
+
+
+      if(isFree) {
+
+        if(detail)
+          detail.style.display = 'none';
+
+        if(locked)
+          locked.style.display = 'block';
+
+        if(joinBtn)
+          joinBtn.style.display = 'none';
+
+        if(upgradeBtn)
+          upgradeBtn.style.display = 'block';
+
+      } else {
+
+        if(detail)
+          detail.style.display = 'block';
+
+        if(locked)
+          locked.style.display = 'none';
+
+        if(joinBtn)
+          joinBtn.style.display = 'inline-block';
+
+        if(upgradeBtn)
+          upgradeBtn.style.display = 'none';
+
+      }
+
+    });
+
+
+  applyMapRestrictions();
+
+}
+
+
+/* =========================
+   CARTE
+========================= */
+
+function kmToDegrees(km) {
+  return km / 111;
+}
+
+
+function getMaxBoundsForPlan() {
+
+  const radiusKm =
+    RADIUS[currentPlan];
+
+  if(!radiusKm)
+    return null;
+
+  const d =
+    kmToDegrees(radiusKm);
+
+  const {
+    lat,
+    lng
+  } = userLocation;
+
+  return L.latLngBounds(
+    [
+      lat - d,
+      lng - d
+    ],
+    [
+      lat + d,
+      lng + d
+    ]
+  );
+}
+
+
+function getDefaultZoomForPlan() {
+
+  if(currentPlan === 'FREE')
+    return 11;
+
+  if(currentPlan === 'STANDARD')
+    return 5;
+
+  return 2;
+}
+
+
+function applyMapRestrictions() {
+
+  if(!map)
+    return;
+
+  const btnAround =
+    document.getElementById('btnAround');
+
+  const btnRegion =
+    document.getElementById('btnRegion');
+
+  const btnWorld =
+    document.getElementById('btnWorld');
+
+  const mapNotice =
+    document.getElementById('mapPlanNotice');
+
+
+  if(currentPlan === 'FREE') {
+
+    mapNotice.innerHTML =
+      '📍 Découvre les au pairs <strong>autour de toi</strong>.';
+
+    btnAround.disabled = false;
+    btnAround.classList.add('active');
+
+    btnRegion.disabled = true;
+    btnRegion.title =
+      'Disponible avec STANDARD';
+
+    btnWorld.disabled = true;
+    btnWorld.title =
+      'Disponible avec PREMIUM';
+
+  }
+
+  else if(currentPlan === 'STANDARD') {
+
+    mapNotice.innerHTML =
+      '🗺️ Explore ta <strong>région</strong> et au-delà.';
+
+    btnAround.disabled = false;
+
+    btnRegion.disabled = false;
+    btnRegion.classList.add('active');
+
+    btnWorld.disabled = true;
+    btnWorld.title =
+      'Disponible avec PREMIUM';
+
+  }
+
+  else {
+
+    mapNotice.innerHTML =
+      '🌍 Carte <strong>mondiale</strong> débloquée.';
+
+    btnAround.disabled = false;
+    btnRegion.disabled = false;
+
+    btnWorld.disabled = false;
+    btnWorld.classList.add('active');
+
+  }
+
+
+  const bounds =
+    getMaxBoundsForPlan();
+
+  if(bounds) {
+
+    map.setMaxBounds(bounds);
+
+    map.setMinZoom(
+      getDefaultZoomForPlan() - 1
+    );
+
+    map.setMaxZoom(14);
+
+    if(!bounds.contains(map.getCenter())) {
+
+      map.setView(
+        [
+          userLocation.lat,
+          userLocation.lng
+        ],
+        getDefaultZoomForPlan()
+      );
+
+    }
+
+  } else {
+
+    map.setMaxBounds(null);
+
+    map.setMinZoom(2);
+
+    map.setMaxZoom(18);
+
+  }
+
+}
+
+
+/* =========================
+   PLANS
+========================= */
+
+function selectPlan(plan) {
+
+  if(plan === 'FREE') {
+
+    showToast(
+      'Forfait FREE actif'
+    );
+
+  }
+
+  else if(plan === 'STANDARD') {
+
+    showToast(
+      'STANDARD — 9,90 €/mois (paiement bientôt)'
+    );
+
+  }
+
+  else {
+
+    showToast(
+      'PREMIUM — 12,85 €/mois (paiement bientôt)'
+    );
+
+  }
+
+}
+
+
+/* =========================
+   TOAST
+========================= */
+
+function showToast(msg,type) {
+
+  const c =
+    document.getElementById(
+      'toastContainer'
+    );
+
+  const t =
+    document.createElement('div');
+
+  t.className =
+    'toast' +
+    (type ? ' ' + type : '');
+
+  t.textContent = msg;
+
+  c.appendChild(t);
+
+  setTimeout(() => {
+
+    t.style.opacity = '0';
+
+    setTimeout(
+      () => t.remove(),
+      300
+    );
+
+  },3000);
+
+}
+
+
+/* =========================
+   NAVIGATION
+========================= */
+
+function go(page) {
+
+  document
+    .querySelectorAll('.page')
+    .forEach(p =>
+      p.classList.remove('active')
+    );
+
+  const el =
+    document.getElementById(page);
+
+  if(el)
+    el.classList.add('active');
+
+
+  document
+    .querySelectorAll('nav button')
+    .forEach(b => {
+
+      b.classList.remove('active');
+
+      if(
+        b.dataset.nav === page
+      ) {
+
+        b.classList.add('active');
+
+      }
+
+    });
+
+
+  window.scrollTo({
+    top:0,
+    behavior:'smooth'
+  });
+
+
+  if(page === 'map' && map) {
+
+    setTimeout(() => {
+
+      map.invalidateSize();
+
+      applyMapRestrictions();
+
+      map.setView(
+        [
+          userLocation.lat,
+          userLocation.lng
+        ],
+        getDefaultZoomForPlan()
+      );
+
+    },200);
+
+  }
+
+}
+
+
+/* =========================
+   LOCALISATIONS
+========================= */
+
+const aupyLocations = [
+
+  {
+    city:"Paris",
+    lat:48.8566,
+    lng:2.3522,
+    users:14,
+    gender:"Femme"
+  },
+
+  {
+    city:"London",
+    lat:51.5074,
+    lng:-0.1278,
+    users:22,
+    gender:"Homme"
+  },
+
+  {
+    city:"Geneva",
+    lat:46.2044,
+    lng:6.1432,
+    users:9,
+    gender:"Femme"
+  },
+
+  {
+    city:"Zurich",
+    lat:47.3769,
+    lng:8.5417,
+    users:11,
+    gender:"Homme"
+  },
+
+  {
+    city:"Madrid",
+    lat:40.4168,
+    lng:-3.7038,
+    users:17,
+    gender:"Homme"
+  },
+
+  {
+    city:"Lisbon",
+    lat:38.7223,
+    lng:-9.1393,
+    users:12,
+    gender:"Femme"
+  },
+
+  {
+    city:"São Paulo",
+    lat:-23.5505,
+    lng:-46.6333,
+    users:26,
+    gender:"Femme"
+  },
+
+  {
+    city:"New York",
+    lat:40.7128,
+    lng:-74.006,
+    users:31,
+    gender:"Homme"
+  },
+
+  {
+    city:"Miami",
+    lat:25.7617,
+    lng:-80.1918,
+    users:15,
+    gender:"Femme"
+  },
+
+  {
+    city:"Sydney",
+    lat:-33.8688,
+    lng:151.2093,
+    users:13,
+    gender:"Femme"
+  },
+
+  {
+    city:"Tokyo",
+    lat:35.6762,
+    lng:139.6503,
+    users:10,
+    gender:"Femme"
+  },
+
+  {
+    city:"Toronto",
+    lat:43.6532,
+    lng:-79.3832,
+    users:12,
+    gender:"Homme"
+  }
+
+];
+
+
+/* =========================
+   INITIALISATION CARTE
+========================= */
+
+function initMap() {
+
+  map =
+    L.map('map', {
+
+      zoomControl:false,
+
+      minZoom:2,
+
+      maxBoundsViscosity:1.0
+
+    })
+    .setView(
+      [
+        userLocation.lat,
+        userLocation.lng
+      ],
+      getDefaultZoomForPlan()
+    );
+
+
+  L.tileLayer(
+    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
+    {
+
+      attribution:
+        '&copy; OpenStreetMap'
+
+    }
+  ).addTo(map);
+
+
+  markersLayer =
+    L.layerGroup()
+    .addTo(map);
+
+
+  renderMarkers();
+
+  applyMapRestrictions();
+
+}
+
+
+function createIcon(gender) {
+
+  const emoji =
+    gender === 'Homme'
+    ? '👨'
+    : '👩';
+
+
+  return L.divIcon({
+
+    className:'',
+
+    html:
+      '<div class="aupy-marker">' +
+      emoji +
+      '</div>',
+
+    iconSize:[44,44],
+
+    iconAnchor:[22,44]
+
+  });
+
+}
+
+
+function renderMarkers() {
+
+  markersLayer.clearLayers();
+
+  aupyLocations.forEach(loc => {
+
+    const m =
+      L.marker(
+        [
+          loc.lat,
+          loc.lng
+        ],
+        {
+          icon:createIcon(
+            loc.gender
+          )
+        }
+      );
+
+
+    m.bindPopup(
+
+      '<strong>🌍 ' +
+      loc.city +
+      '</strong><br>👥 ' +
+      loc.users +
+      ' au pairs<br>' +
+
+      '<button onclick="openCity(\'' +
+      loc.city +
+      '\')" ' +
+
+      'style="margin-top:8px;' +
+      'background:#7c3aed;' +
+      'color:#fff;' +
+      'border:0;' +
+      'padding:6px 10px;' +
+      'border-radius:8px;' +
+      'cursor:pointer">' +
+
+      'Découvrir' +
+
+      '</button>'
+
+    );
+
+
+    markersLayer.addLayer(m);
+
+  });
+
+}
+
+
+function zoomIn() {
+
+  if(map)
+    map.zoomIn();
+
+}
+
+
+function zoomOut() {
+
+  if(map)
+    map.zoomOut();
+
+}
+
+
+function resetMap() {
+
+  if(!map)
+    return;
+
+  map.setView(
+    [
+      userLocation.lat,
+      userLocation.lng
+    ],
+    getDefaultZoomForPlan()
+  );
+
+}
+
+
+function mapMode(mode,btn) {
+
+  if(
+    currentPlan === 'FREE' &&
+    mode !== 'around'
+  ) {
+
+    showToast(
+      '🔒 Disponible avec un forfait supérieur',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  if(
+    currentPlan === 'STANDARD' &&
+    mode === 'world'
+  ) {
+
+    showToast(
+      '🔒 Carte mondiale réservée au PREMIUM',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  document
+    .querySelectorAll(
+      '.map-filter button'
+    )
+    .forEach(b =>
+      b.classList.remove('active')
+    );
+
+
+  if(btn)
+    btn.classList.add('active');
+
+
+  const {
+    lat,
+    lng
+  } = userLocation;
+
+
+  if(mode === 'around')
+    map.setView(
+      [lat,lng],
+      11
+    );
+
+  else if(mode === 'region')
+    map.setView(
+      [lat,lng],
+      5
+    );
+
+  else
+    map.setView(
+      [20,0],
+      2
+    );
+
+}
+
+
+function openCity(city) {
+
+  showToast(
+    city +
+    ' — profils selon forfait (prototype)'
+  );
+
+}
+
+
+/* =========================
+   PROFIL
+========================= */
+
+let selectedGender = 'Femme';
+
+
+function selectGender(btn,gender) {
+
+  document
+    .querySelectorAll(
+      '.gender-option'
+    )
+    .forEach(b =>
+      b.classList.remove('selected')
+    );
+
+
+  btn.classList.add('selected');
+
+  selectedGender = gender;
+
+
+  document.getElementById(
+    'profileAvatar'
+  ).textContent =
+    gender === 'Homme'
+    ? '👨'
+    : '👩';
+
+}
+
+
+const selectedHobbies = [];
+
+
+function toggleHobby(btn,hobby) {
+
+  const i =
+    selectedHobbies.indexOf(hobby);
+
+
+  if(i >= 0) {
+
+    selectedHobbies.splice(i,1);
+
+    btn.classList.remove('selected');
+
+  }
+
+  else {
+
+    if(
+      selectedHobbies.length >= 3
+    ) {
+
+      showToast(
+        'Maximum 3 hobbies',
+        'error'
+      );
+
+      return;
+
+    }
+
+    selectedHobbies.push(hobby);
+
+    btn.classList.add('selected');
+
+  }
+
+
+  document.getElementById(
+    'otherHobby'
+  ).style.display =
+    selectedHobbies.includes('Autre')
+    ? 'block'
+    : 'none';
+
+}
+
+
+function saveProfile() {
+
+  const name =
+    document
+      .getElementById('firstName')
+      .value
+      .trim();
+
+
+  if(!name) {
+
+    showToast(
+      'Indique ton prénom',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  const age =
+    document.getElementById(
+      'age'
+    ).value;
+
+
+  localStorage.setItem(
+
+    'aupygo_profile',
+
+    JSON.stringify({
+
+      firstName:name,
+
+      age:age,
+
+      gender:selectedGender,
+
+      country:
+        document.getElementById(
+          'country'
+        ).value,
+
+      bio:
+        document.getElementById(
+          'bio'
+        ).value,
+
+      hobbies:selectedHobbies
+
+    })
+
+  );
+
+
+  document.getElementById(
+    'profileName'
+  ).textContent = name;
+
+
+  document.getElementById(
+    'profileMeta'
+  ).textContent =
+    'Au pair · ' +
+    age +
+    ' ans';
+
+
+  showToast(
+    'Profil enregistré !',
+    'success'
+  );
+
+}
+
+
+function loadProfile() {
+
+  try {
+
+    const p =
+      JSON.parse(
+        localStorage.getItem(
+          'aupygo_profile'
+        ) || '{}'
+      );
+
+
+    if(p.firstName) {
+
+      document.getElementById(
+        'firstName'
+      ).value = p.firstName;
+
+      document.getElementById(
+        'profileName'
+      ).textContent =
+        p.firstName;
+
+    }
+
+
+    if(p.age) {
+
+      document.getElementById(
+        'age'
+      ).value = p.age;
+
+      document.getElementById(
+        'profileMeta'
+      ).textContent =
+        'Au pair · ' +
+        p.age +
+        ' ans';
+
+    }
+
+
+    if(p.gender) {
+
+      selectedGender =
+        p.gender;
+
+      document.getElementById(
+        'profileAvatar'
+      ).textContent =
+        p.gender === 'Homme'
+        ? '👨'
+        : '👩';
+
+    }
+
+  }
+
+  catch(e) {}
+
+}
+
+
+/* =========================
+   EVENEMENTS
+========================= */
+
+function joinEvent(name) {
+
+  if(
+    currentPlan === 'FREE'
+  ) {
+
+    showToast(
+      '🔒 Participation réservée au forfait STANDARD',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  showToast(
+    '🎉 ' +
+    name +
+    ' — ajouté (prototype)',
+    'success'
+  );
+
+}
+
+
+function joinRestaurantEvent() {
+
+  if(
+    currentPlan === 'FREE'
+  ) {
+
+    showToast(
+      '🔒 Participation réservée au forfait STANDARD',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  showToast(
+    '🍽️ Réservation à confirmer par l\'organisateur'
+  );
+
+}
+
+
+function paidEvent() {
+
+  if(
+    currentPlan === 'FREE'
+  ) {
+
+    showToast(
+      '🔒 Détails réservés au forfait STANDARD',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  showToast(
+    '⭐ Sortie spéciale AUPYGO (bientôt)'
+  );
+
+}
+
+
+/* =========================
+   MESSAGES
+========================= */
+
+function sendMessage() {
+
+  if(
+    currentPlan !== 'PREMIUM'
+  ) {
+
+    showToast(
+      '💎 Messagerie réservée au PREMIUM',
+      'error'
+    );
+
+    return;
+
+  }
+
+
+  const input =
+    document.getElementById(
+      'messageInput'
+    );
+
+
+  if(!input.value.trim())
+    return;
+
+
+  showToast(
+    'Message envoyé !',
+    'success'
+  );
+
+
+  input.value = '';
+
+}
+
+
+/* =========================
+   LANGUES
+========================= */
+
+/*
+   IMPORTANT :
+   La navigation contient maintenant
+   uniquement les icônes.
+
+   Le changement de langue ne modifie
+   donc plus les boutons de navigation.
+*/
+
+function changeLanguage(lang) {
+
+  localStorage.setItem(
+    'aupygo_lang',
+    lang
+  );
+
+}
+
+
+/* =========================
+   DÉMARRAGE
+========================= */
+
+document.addEventListener(
+  'DOMContentLoaded',
+  () => {
+
+    initMap();
+
+    loadProfile();
+
+    updatePlanUI();
+
+
+    const lang =
+      localStorage.getItem(
+        'aupygo_lang'
+      );
+
+
+    if(lang) {
+
+      document.getElementById(
+        'language'
+      ).value = lang;
+
+    }
+
+  }
+);
+
+</script>
+
+</body>
+</html>
