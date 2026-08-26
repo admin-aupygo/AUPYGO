@@ -2410,11 +2410,12 @@ const SUPABASE_URL =
 const SUPABASE_ANON_KEY =
   'TA_CLE_PUBLISHABLE';
 
-const supabase =
-  window.supabase.createClient(
-    SUPABASE_URL,
-    SUPABASE_ANON_KEY
-  );
+// CDN expose un objet global "supabase" avec createClient
+const { createClient } = supabase;
+const supabaseClient = createClient(
+  SUPABASE_URL,
+  SUPABASE_ANON_KEY
+);
 
 /* =========================
    DONNÉES
@@ -3370,10 +3371,10 @@ async function saveProfile() {
   };
 
   const { error } =
-    await supabase
-      .from('profiles')
-      .insert([profile]);
-
+  await supabaseClient
+    .from('profiles')
+    .insert([profile]);
+  
   if (error) {
 
     console.error(error);
