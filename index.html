@@ -2396,8 +2396,25 @@ footer {
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
 <script>
+
+/* =========================
+   SUPABASE
+========================= */
+
+const SUPABASE_URL =
+  'https://zdjcjzsmoinrkcezgivs.supabase.co';
+
+const SUPABASE_ANON_KEY =
+  'TA_CLE_PUBLISHABLE';
+
+const supabase =
+  window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY
+  );
 
 /* =========================
    DONNÉES
@@ -3313,80 +3330,77 @@ function toggleHobby(btn,hobby) {
 }
 
 
-function saveProfile() {
+async function saveProfile() {
 
   const name =
-    document
-      .getElementById('firstName')
-      .value
-      .trim();
+    document.getElementById('firstName').value.trim();
 
+  if (!name) {
+    showToast('Indique ton prénom', 'error');
+    return;
+  }
 
-  if(!name) {
+  const profile = {
+
+    display_name: name,
+
+    age: Number(
+      document.getElementById('age').value
+    ),
+
+    gender: selectedGender,
+
+    country:
+      document.getElementById('country').value,
+
+    city: userLocation.city,
+
+    bio:
+      document.getElementById('bio').value,
+
+    interests:
+      selectedHobbies.join(','),
+
+    avatar:
+      selectedGender === 'Homme'
+        ? '👨'
+        : '👩',
+
+    subscription: currentPlan
+  };
+
+  const { error } =
+    await supabase
+      .from('profiles')
+      .insert([profile]);
+
+  if (error) {
+
+    console.error(error);
 
     showToast(
-      'Indique ton prénom',
+      'Erreur : ' + error.message,
       'error'
     );
 
     return;
-
   }
-
-
-  const age =
-    document.getElementById(
-      'age'
-    ).value;
-
-
-  localStorage.setItem(
-
-    'aupygo_profile',
-
-    JSON.stringify({
-
-      firstName:name,
-
-      age:age,
-
-      gender:selectedGender,
-
-      country:
-        document.getElementById(
-          'country'
-        ).value,
-
-      bio:
-        document.getElementById(
-          'bio'
-        ).value,
-
-      hobbies:selectedHobbies
-
-    })
-
-  );
-
 
   document.getElementById(
     'profileName'
   ).textContent = name;
 
-
   document.getElementById(
     'profileMeta'
   ).textContent =
     'Au pair · ' +
-    age +
+    profile.age +
     ' ans';
 
-
   showToast(
-    'Profil enregistré !',
+    'Profil enregistré sur Supabase',
     'success'
   );
-
 }
 
 
