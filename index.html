@@ -1633,6 +1633,10 @@ footer {
 
       <button class="btn btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
 
+      <button class="btn" style="background:#fee2e2;color:#991b1b;width:100%;margin-top:10px" onclick="handleDeleteProfile()">
+        🗑️ Supprimer mon profil
+      </button>
+
     </div>
 
   </div>
@@ -2009,6 +2013,40 @@ async function refreshAuthUI() {
     loggedIn.style.display = 'none';
 
   }
+
+  updateNavVisibility();
+}
+
+
+/* =========================
+   VISIBILITÉ DE LA NAVIGATION
+========================= */
+
+// Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
+const RESTRICTED_NAV_PAGES = ['map','events','messages','profile'];
+
+function getActivePage() {
+  const activePage = document.querySelector('.page.active');
+  return activePage ? activePage.id : 'home';
+}
+
+function updateNavVisibility() {
+
+  document.querySelectorAll('nav button').forEach(b => {
+
+    const page = b.dataset.nav;
+
+    if (RESTRICTED_NAV_PAGES.includes(page)) {
+      b.style.display = currentUser ? 'flex' : 'none';
+    }
+
+  });
+
+  // Si on est sur une page qui vient d'être verrouillée (ex: déconnexion), retour à l'accueil
+  if (!currentUser && RESTRICTED_NAV_PAGES.includes(getActivePage())) {
+    go('home');
+  }
+
 }
 
 
@@ -2543,6 +2581,56 @@ async function saveProfile() {
 }
 
 
+async function handleDeleteProfile() {
+
+  if (!currentUser) {
+    showToast('Tu dois être connecté pour supprimer ton profil', 'error');
+    return;
+  }
+
+  const confirmed = confirm('Supprimer définitivement ton profil AUPYGO ? Cette action est irréversible.');
+
+  if (!confirmed) return;
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .delete()
+    .eq('id', currentUser.id);
+
+  if (error) {
+    console.error(error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  await supabaseClient.auth.signOut();
+
+  currentUser = null;
+  currentPlan = 'FREE';
+  localStorage.removeItem('aupygo_plan');
+  localStorage.removeItem('aupygo_profile');
+
+  // Réinitialise le formulaire affiché à l'écran
+  document.getElementById('firstName').value = '';
+  document.getElementById('age').value = '';
+  document.getElementById('bio').value = '';
+  document.getElementById('country').value = '';
+  document.getElementById('profileName').textContent = '';
+  document.getElementById('profileMeta').textContent = '';
+  selectedHobbies.length = 0;
+  document.querySelectorAll('.hobby.selected').forEach(b => b.classList.remove('selected'));
+  document.getElementById('otherHobby').style.display = 'none';
+
+  updatePlanUI();
+  await refreshAuthUI();
+
+  showToast('Ton profil a été supprimé', 'success');
+
+  go('home');
+
+}
+
+
 function loadProfile() {
 
   try {
@@ -2659,6 +2747,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   initMap();
   loadProfile();
   updatePlanUI();
+  updateNavVisibility(); // masque tout de suite les onglets restreints avant de savoir si on est connecté
   await refreshAuthUI();
 
   // Garde l'UI de connexion synchronisée (autre onglet, expiration de session, etc.)
