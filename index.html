@@ -305,47 +305,14 @@ main {
   box-shadow:0 2px 5px rgba(0,0,0,.15);
 }
 
-.person-1 {
-  top:6px;
-  left:50%;
-  transform:translateX(-50%);
-}
-
-.person-2 {
-  top:38px;
-  right:24px;
-}
-
-.person-3 {
-  top:100px;
-  right:4px;
-}
-
-.person-4 {
-  bottom:38px;
-  right:24px;
-}
-
-.person-5 {
-  bottom:6px;
-  left:50%;
-  transform:translateX(-50%);
-}
-
-.person-6 {
-  bottom:38px;
-  left:24px;
-}
-
-.person-7 {
-  top:100px;
-  left:4px;
-}
-
-.person-8 {
-  top:38px;
-  left:24px;
-}
+.person-1 { top:6px; left:50%; transform:translateX(-50%); }
+.person-2 { top:38px; right:24px; }
+.person-3 { top:100px; right:4px; }
+.person-4 { bottom:38px; right:24px; }
+.person-5 { bottom:6px; left:50%; transform:translateX(-50%); }
+.person-6 { bottom:38px; left:24px; }
+.person-7 { top:100px; left:4px; }
+.person-8 { top:38px; left:24px; }
 
 .world-symbol {
   position:absolute;
@@ -389,18 +356,6 @@ main {
 .btn-secondary {
   background:#eee9f8;
   color:var(--primary);
-}
-
-.btn-test {
-  background:#f0fdf4;
-  color:#166534;
-  border:1px solid #bbf7d0;
-  margin-top:8px;
-  width:100%;
-}
-
-.btn-test:hover {
-  background:#dcfce7;
 }
 
 .btn-locked {
@@ -690,6 +645,27 @@ textarea:focus {
   border-radius:12px;
 }
 
+/* AUTH (inscription / connexion) */
+
+.auth-card {
+  max-width:480px;
+  margin-bottom:24px;
+}
+
+.auth-tabs {
+  display:flex;
+  gap:8px;
+  margin-bottom:16px;
+}
+
+.auth-tabs button {
+  flex:1;
+}
+
+.auth-status {
+  font-size:14px;
+}
+
 /* EVENTS */
 
 .event-grid {
@@ -913,14 +889,8 @@ textarea:focus {
 }
 
 @keyframes slideIn {
-  from {
-    transform:translateY(16px);
-    opacity:0;
-  }
-  to {
-    transform:translateY(0);
-    opacity:1;
-  }
+  from { transform:translateY(16px); opacity:0; }
+  to { transform:translateY(0); opacity:1; }
 }
 
 /* FOOTER */
@@ -1066,71 +1036,34 @@ footer {
 
     <nav>
 
-      <button
-        onclick="go('home')"
-        class="active"
-        data-nav="home"
-        title="Accueil"
-        aria-label="Accueil">
+      <button onclick="go('home')" class="active" data-nav="home" title="Accueil" aria-label="Accueil">
         <span class="icon">🏠</span>
       </button>
 
-      <button
-        onclick="go('map')"
-        data-nav="map"
-        title="Carte"
-        aria-label="Carte">
+      <button onclick="go('map')" data-nav="map" title="Carte" aria-label="Carte">
         <span class="icon">🗺️</span>
       </button>
 
-      <button
-        onclick="go('events')"
-        data-nav="events"
-        title="Sorties"
-        aria-label="Sorties">
+      <button onclick="go('events')" data-nav="events" title="Sorties" aria-label="Sorties">
         <span class="icon">🎉</span>
       </button>
 
-      <button
-        onclick="go('messages')"
-        data-nav="messages"
-        title="Messages"
-        aria-label="Messages">
+      <button onclick="go('messages')" data-nav="messages" title="Messages" aria-label="Messages">
         <span class="icon">💬</span>
       </button>
 
-      <button
-        onclick="go('profile')"
-        data-nav="profile"
-        title="Profil"
-        aria-label="Profil">
+      <button onclick="go('profile')" data-nav="profile" title="Profil" aria-label="Profil">
         <span class="icon">👤</span>
       </button>
 
-      <button
-        onclick="go('plans')"
-        data-nav="plans"
-        title="Abonnement"
-        aria-label="Abonnement">
-
+      <button onclick="go('plans')" data-nav="plans" title="Abonnement" aria-label="Abonnement">
         <span class="icon">💎</span>
-
-        <span
-          class="plan-badge"
-          id="headerPlan">
-          FREE
-        </span>
-
+        <span class="plan-badge" id="headerPlan">FREE</span>
       </button>
 
     </nav>
 
-    <select
-      class="lang-select"
-      id="language"
-      onchange="changeLanguage(this.value)"
-      title="Langue">
-
+    <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
       <option value="fr">🇫🇷 FR</option>
       <option value="en">🇬🇧 EN</option>
       <option value="pt">🇧🇷 PT</option>
@@ -1139,7 +1072,6 @@ footer {
       <option value="it">🇮🇹 IT</option>
       <option value="zh">🇨🇳 ZH</option>
       <option value="ru">🇷🇺 RU</option>
-
     </select>
 
   </div>
@@ -1157,9 +1089,7 @@ footer {
 
     <div>
 
-      <span class="badge">
-        🌍 Worldwide Au Pair Community
-      </span>
+      <span class="badge">🌍 Worldwide Au Pair Community</span>
 
       <h1>
         <span class="gradient">Meet.</span><br>
@@ -1167,34 +1097,24 @@ footer {
         Make friends.
       </h1>
 
-      <p>
-        <strong>The community made for au pairs.</strong>
-      </p>
+      <p><strong>The community made for au pairs.</strong></p>
 
       <p>
         Découvre les au pairs autour de toi,
         participe à des sorties et crée de nouvelles amitiés.
       </p>
 
-      <button
-        class="btn btn-primary"
-        onclick="go('map')">
+      <button class="btn btn-primary" onclick="go('map')">
         🌍 Découvrir la communauté
       </button>
 
-      <button
-        class="btn btn-secondary"
-        onclick="go('plans')"
-        style="margin-left:8px">
+      <button class="btn btn-secondary" onclick="go('plans')" style="margin-left:8px">
         Voir les abonnements
       </button>
 
     </div>
 
-    <div
-      class="hero-card"
-      onclick="go('map')"
-      title="Voir la communauté sur la carte">
+    <div class="hero-card" onclick="go('map')" title="Voir la communauté sur la carte">
 
       <div class="hero-visual">
 
@@ -1240,21 +1160,15 @@ footer {
             <span class="country-flag">🇪🇸</span>
           </div>
 
-          <div class="world-symbol">
-            🌍
-          </div>
+          <div class="world-symbol">🌍</div>
 
         </div>
 
       </div>
 
-      <h3 style="margin-top:14px">
-        Une communauté mondiale
-      </h3>
+      <h3 style="margin-top:14px">Une communauté mondiale</h3>
 
-      <p
-        class="footer-muted"
-        style="font-size:14px;margin-top:6px">
+      <p class="footer-muted" style="font-size:14px;margin-top:6px">
         AUPYGO rassemble les au pairs du monde entier.
         Clique pour explorer la carte →
       </p>
@@ -1281,23 +1195,17 @@ footer {
 
     <div class="card">
       <h3>🗺️ Découvrir</h3>
-      <p>
-        Trouve les au pairs autour de toi en préservant leur confidentialité.
-      </p>
+      <p>Trouve les au pairs autour de toi en préservant leur confidentialité.</p>
     </div>
 
     <div class="card">
       <h3>🎉 Sortir</h3>
-      <p>
-        Cafés, randonnées, restaurants et activités avec la communauté.
-      </p>
+      <p>Cafés, randonnées, restaurants et activités avec la communauté.</p>
     </div>
 
     <div class="card">
       <h3>🤝 Se retrouver</h3>
-      <p>
-        Échange et crée de vraies amitiés sans jugement sur les photos.
-      </p>
+      <p>Échange et crée de vraies amitiés sans jugement sur les photos.</p>
     </div>
 
   </div>
@@ -1312,41 +1220,19 @@ footer {
 <section id="map" class="page">
 
   <div class="section-title">
-
     <h2>🗺️ La communauté AUPYGO</h2>
-
-    <p>
-      Découvre les au pairs près de toi.
-    </p>
-
+    <p>Découvre les au pairs près de toi.</p>
   </div>
 
   <div class="map-filter">
 
-    <button
-      id="btnAround"
-      class="active"
-      onclick="mapMode('around',this)">
-      📍 Autour de moi
-    </button>
-
-    <button
-      id="btnRegion"
-      onclick="mapMode('region',this)">
-      🗺️ Ma région
-    </button>
-
-    <button
-      id="btnWorld"
-      onclick="mapMode('world',this)">
-      🌍 Monde
-    </button>
+    <button id="btnAround" class="active" onclick="mapMode('around',this)">📍 Autour de moi</button>
+    <button id="btnRegion" onclick="mapMode('region',this)">🗺️ Ma région</button>
+    <button id="btnWorld" onclick="mapMode('world',this)">🌍 Monde</button>
 
   </div>
 
-  <div
-    class="notice"
-    id="mapPlanNotice">
+  <div class="notice" id="mapPlanNotice">
     Découvre les au pairs près de toi.
   </div>
 
@@ -1355,19 +1241,9 @@ footer {
     <div id="map"></div>
 
     <div class="map-controls">
-
-      <button
-        class="map-control-btn"
-        onclick="zoomIn()">+</button>
-
-      <button
-        class="map-control-btn"
-        onclick="zoomOut()">−</button>
-
-      <button
-        class="map-control-btn"
-        onclick="resetMap()">🎯</button>
-
+      <button class="map-control-btn" onclick="zoomIn()">+</button>
+      <button class="map-control-btn" onclick="zoomOut()">−</button>
+      <button class="map-control-btn" onclick="resetMap()">🎯</button>
     </div>
 
     <div class="map-privacy">
@@ -1387,53 +1263,31 @@ footer {
 <section id="events" class="page">
 
   <div class="section-title">
-
     <h2>🎉 Sorties & événements</h2>
-
-    <p>
-      Des activités pour la communauté des au pairs.
-    </p>
-
+    <p>Des activités pour la communauté des au pairs.</p>
   </div>
 
   <div class="notice warning">
-
     ⚠️ Pour les restaurants,
     la réservation doit être confirmée par l'organisateur.
-
   </div>
 
-  <div
-    id="eventsFreeNotice"
-    class="notice"
-    style="display:none">
-
+  <div id="eventsFreeNotice" class="notice" style="display:none">
     🔒 <strong>Forfait FREE</strong> :
-    tu vois qu’il y a des sorties,
+    tu vois qu'il y a des sorties,
     mais les lieux, participants et inscriptions
     sont réservés au forfait <strong>STANDARD</strong> et plus.
-
   </div>
 
-  <div
-    class="card"
-    style="margin-bottom:20px"
-    id="agendaBox">
+  <div class="card" style="margin-bottom:20px" id="agendaBox">
 
     <h3>📅 Mon agenda AUPYGO</h3>
 
-    <div
-      id="agendaNotice"
-      class="notice">
-
-      ⭐ Disponible à partir du forfait
-      <strong>STANDARD</strong>.
-
+    <div id="agendaNotice" class="notice">
+      ⭐ Disponible à partir du forfait <strong>STANDARD</strong>.
     </div>
 
-    <div
-      class="calendar"
-      style="margin-top:15px">
+    <div class="calendar" style="margin-top:15px">
 
       <div class="day"><strong>Lun</strong></div>
       <div class="day"><strong>Mar</strong></div>
@@ -1462,13 +1316,9 @@ footer {
 
   </div>
 
-  <div
-    class="event-grid"
-    id="eventGrid">
+  <div class="event-grid" id="eventGrid">
 
-    <div
-      class="event"
-      data-event="cafe">
+    <div class="event" data-event="cafe">
 
       <div class="event-cover">☕</div>
 
@@ -1476,42 +1326,22 @@ footer {
 
         <span class="badge">Café</span>
 
-        <h3 style="margin:8px 0">
-          Café entre au pairs
-        </h3>
+        <h3 style="margin:8px 0">Café entre au pairs</h3>
 
-        <p
-          class="event-details"
-          data-detail>
+        <p class="event-details" data-detail>
           📍 Genève · 👥 Max 5 · 🕐 Sam 15:00
         </p>
 
-        <p
-          class="event-details locked-text"
-          data-locked
-          style="display:none">
-
-          🔒 Lieu et participants réservés
-          au forfait STANDARD
-
+        <p class="event-details locked-text" data-locked style="display:none">
+          🔒 Lieu et participants réservés au forfait STANDARD
         </p>
 
-        <button
-          class="btn btn-primary event-join"
-          style="margin-top:10px"
-          onclick="joinEvent('Café entre au pairs')">
-
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinEvent('Café entre au pairs')">
           Participer
-
         </button>
 
-        <button
-          class="btn btn-locked event-upgrade"
-          style="display:none"
-          onclick="go('plans')">
-
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')">
           🔒 Passer à STANDARD
-
         </button>
 
       </div>
@@ -1519,9 +1349,7 @@ footer {
     </div>
 
 
-    <div
-      class="event"
-      data-event="rando">
+    <div class="event" data-event="rando">
 
       <div class="event-cover">🥾</div>
 
@@ -1529,44 +1357,22 @@ footer {
 
         <span class="badge">Extérieur</span>
 
-        <h3 style="margin:8px 0">
-          Randonnée & pique-nique
-        </h3>
+        <h3 style="margin:8px 0">Randonnée & pique-nique</h3>
 
-        <p
-          class="event-details"
-          data-detail>
-
+        <p class="event-details" data-detail>
           📍 Annecy · 👥 Max 30 · 🕐 Dim 11:00
-
         </p>
 
-        <p
-          class="event-details locked-text"
-          data-locked
-          style="display:none">
-
-          🔒 Lieu et participants réservés
-          au forfait STANDARD
-
+        <p class="event-details locked-text" data-locked style="display:none">
+          🔒 Lieu et participants réservés au forfait STANDARD
         </p>
 
-        <button
-          class="btn btn-primary event-join"
-          style="margin-top:10px"
-          onclick="joinEvent('Randonnée')">
-
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinEvent('Randonnée')">
           Participer
-
         </button>
 
-        <button
-          class="btn btn-locked event-upgrade"
-          style="display:none"
-          onclick="go('plans')">
-
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')">
           🔒 Passer à STANDARD
-
         </button>
 
       </div>
@@ -1574,9 +1380,7 @@ footer {
     </div>
 
 
-    <div
-      class="event"
-      data-event="lunch">
+    <div class="event" data-event="lunch">
 
       <div class="event-cover">🍝</div>
 
@@ -1584,44 +1388,22 @@ footer {
 
         <span class="badge">Restaurant</span>
 
-        <h3 style="margin:8px 0">
-          Lunch entre au pairs
-        </h3>
+        <h3 style="margin:8px 0">Lunch entre au pairs</h3>
 
-        <p
-          class="event-details"
-          data-detail>
-
+        <p class="event-details" data-detail>
           📍 Lyon · 👥 Max 10 · 🕐 Sam 12:30
-
         </p>
 
-        <p
-          class="event-details locked-text"
-          data-locked
-          style="display:none">
-
-          🔒 Lieu et participants réservés
-          au forfait STANDARD
-
+        <p class="event-details locked-text" data-locked style="display:none">
+          🔒 Lieu et participants réservés au forfait STANDARD
         </p>
 
-        <button
-          class="btn btn-primary event-join"
-          style="margin-top:10px"
-          onclick="joinRestaurantEvent()">
-
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRestaurantEvent()">
           Rejoindre
-
         </button>
 
-        <button
-          class="btn btn-locked event-upgrade"
-          style="display:none"
-          onclick="go('plans')">
-
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')">
           🔒 Passer à STANDARD
-
         </button>
 
       </div>
@@ -1629,56 +1411,30 @@ footer {
     </div>
 
 
-    <div
-      class="event"
-      data-event="special">
+    <div class="event" data-event="special">
 
       <div class="event-cover">⭐</div>
 
       <div class="event-body">
 
-        <span class="badge badge-paid">
-          Événement AUPYGO
-        </span>
+        <span class="badge badge-paid">Événement AUPYGO</span>
 
-        <h3 style="margin:8px 0">
-          Sortie spéciale AUPYGO
-        </h3>
+        <h3 style="margin:8px 0">Sortie spéciale AUPYGO</h3>
 
-        <p
-          class="event-details"
-          data-detail>
-
+        <p class="event-details" data-detail>
           📍 Paris · Places limitées · Payant
-
         </p>
 
-        <p
-          class="event-details locked-text"
-          data-locked
-          style="display:none">
-
-          🔒 Lieu et participants réservés
-          au forfait STANDARD
-
+        <p class="event-details locked-text" data-locked style="display:none">
+          🔒 Lieu et participants réservés au forfait STANDARD
         </p>
 
-        <button
-          class="btn btn-primary event-join"
-          style="margin-top:10px"
-          onclick="paidEvent()">
-
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="paidEvent()">
           Voir
-
         </button>
 
-        <button
-          class="btn btn-locked event-upgrade"
-          style="display:none"
-          onclick="go('plans')">
-
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')">
           🔒 Passer à STANDARD
-
         </button>
 
       </div>
@@ -1697,27 +1453,15 @@ footer {
 <section id="messages" class="page">
 
   <div class="section-title">
-
     <h2>💬 Messages privés</h2>
-
-    <p>
-      Échange avec les au pairs.
-    </p>
-
+    <p>Échange avec les au pairs.</p>
   </div>
 
-  <div
-    class="notice"
-    id="messagesNotice">
-
-    💎 Réservé aux membres
-    <strong>PREMIUM</strong>.
-
+  <div class="notice" id="messagesNotice">
+    💎 Réservé aux membres <strong>PREMIUM</strong>.
   </div>
 
-  <div
-    class="message-box"
-    id="messagesBox">
+  <div class="message-box" id="messagesBox">
 
     <div class="conversations">
 
@@ -1740,40 +1484,23 @@ footer {
 
     <div class="chat">
 
-      <div class="chat-header">
-        👤 Maria
-      </div>
+      <div class="chat-header">👤 Maria</div>
 
       <div class="chat-messages">
 
-        <div class="bubble">
-          Salut ! 😊
-        </div>
+        <div class="bubble">Salut ! 😊</div>
 
-        <div class="bubble me">
-          Salut Maria !
-        </div>
+        <div class="bubble me">Salut Maria !</div>
 
-        <div class="bubble">
-          Tu vas à la sortie samedi ?
-        </div>
+        <div class="bubble">Tu vas à la sortie samedi ?</div>
 
       </div>
 
       <div class="chat-input">
 
-        <input
-          id="messageInput"
-          type="text"
-          placeholder="Écrire un message...">
+        <input id="messageInput" type="text" placeholder="Écrire un message...">
 
-        <button
-          class="btn btn-primary"
-          onclick="sendMessage()">
-
-          Envoyer
-
-        </button>
+        <button class="btn btn-primary" onclick="sendMessage()">Envoyer</button>
 
       </div>
 
@@ -1791,52 +1518,27 @@ footer {
 <section id="profile" class="page">
 
   <div class="section-title">
-
     <h2>👤 Mon profil</h2>
-
-    <p>
-      Présente-toi à la communauté.
-    </p>
-
+    <p>Présente-toi à la communauté.</p>
   </div>
 
   <div class="notice">
-
     👤 <strong>Photos désactivées</strong> —
     Chaque membre est représenté par un avatar universel.
-
   </div>
 
   <div class="profile-layout">
 
-    <div
-      class="card"
-      style="text-align:center">
+    <div class="card" style="text-align:center">
 
-      <div
-        class="avatar"
-        id="profileAvatar">
-        👩
-      </div>
+      <div class="avatar" id="profileAvatar">👩</div>
 
-      <h3 id="profileName">
-        Sophie
-      </h3>
+      <h3 id="profileName">Sophie</h3>
 
-      <p
-        style="color:var(--muted)"
-        id="profileMeta">
+      <p style="color:var(--muted)" id="profileMeta">Au pair · 24 ans</p>
 
-        Au pair · 24 ans
-
-      </p>
-
-      <div
-        class="notice security"
-        style="margin-top:12px">
-
+      <div class="notice security" style="margin-top:12px">
         🛡️ Profil protégé
-
       </div>
 
     </div>
@@ -1845,27 +1547,13 @@ footer {
     <div class="card">
 
       <div class="form-group">
-
         <label>Prénom</label>
-
-        <input
-          id="firstName"
-          type="text"
-          value="Sophie">
-
+        <input id="firstName" type="text" value="Sophie">
       </div>
 
       <div class="form-group">
-
         <label>Âge</label>
-
-        <input
-          id="age"
-          type="number"
-          value="24"
-          min="18"
-          max="99">
-
+        <input id="age" type="number" value="24" min="18" max="99">
       </div>
 
       <div class="form-group">
@@ -1874,22 +1562,12 @@ footer {
 
         <div class="gender-grid">
 
-          <button
-            type="button"
-            class="gender-option selected"
-            onclick="selectGender(this,'Femme')">
-
+          <button type="button" class="gender-option selected" onclick="selectGender(this,'Femme')">
             👩 Femme
-
           </button>
 
-          <button
-            type="button"
-            class="gender-option"
-            onclick="selectGender(this,'Homme')">
-
+          <button type="button" class="gender-option" onclick="selectGender(this,'Homme')">
             👨 Homme
-
           </button>
 
         </div>
@@ -1900,13 +1578,9 @@ footer {
 
         <label>Pays d'origine</label>
 
-        <input
-          id="country"
-          list="countries"
-          placeholder="Ton pays...">
+        <input id="country" list="countries" placeholder="Ton pays...">
 
         <datalist id="countries">
-
           <option value="France">
           <option value="Brésil">
           <option value="Espagne">
@@ -1919,207 +1593,45 @@ footer {
           <option value="Canada">
           <option value="Japon">
           <option value="Australie">
-
         </datalist>
 
       </div>
 
       <div class="form-group">
 
-        <label>
-          Hobbies (max 3)
-        </label>
+        <label>Hobbies (max 3)</label>
 
         <div class="hobby-grid">
 
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Plage')">
-
-            <span class="emoji">🏖️</span>
-            Plage
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Lire')">
-
-            <span class="emoji">📚</span>
-            Lire
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Films')">
-
-            <span class="emoji">🎬</span>
-            Films
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Voyager')">
-
-            <span class="emoji">✈️</span>
-            Voyager
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Cuisine')">
-
-            <span class="emoji">🍳</span>
-            Cuisine
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Sport')">
-
-            <span class="emoji">🏋️</span>
-            Sport
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Danse')">
-
-            <span class="emoji">💃</span>
-            Danse
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Musique')">
-
-            <span class="emoji">🎵</span>
-            Musique
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Photo')">
-
-            <span class="emoji">📸</span>
-            Photo
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Nature')">
-
-            <span class="emoji">🌿</span>
-            Nature
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Café')">
-
-            <span class="emoji">☕</span>
-            Café
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Randonnée')">
-
-            <span class="emoji">🥾</span>
-            Rando
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Animaux')">
-
-            <span class="emoji">🐶</span>
-            Animaux
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Art')">
-
-            <span class="emoji">🎨</span>
-            Art
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Yoga')">
-
-            <span class="emoji">🧘</span>
-            Yoga
-
-          </button>
-
-          <button
-            type="button"
-            class="hobby"
-            onclick="toggleHobby(this,'Autre')">
-
-            <span class="emoji">✨</span>
-            Autre
-
-          </button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Plage')"><span class="emoji">🏖️</span>Plage</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Lire')"><span class="emoji">📚</span>Lire</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Films')"><span class="emoji">🎬</span>Films</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Voyager')"><span class="emoji">✈️</span>Voyager</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Cuisine')"><span class="emoji">🍳</span>Cuisine</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Sport')"><span class="emoji">🏋️</span>Sport</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Danse')"><span class="emoji">💃</span>Danse</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Musique')"><span class="emoji">🎵</span>Musique</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Photo')"><span class="emoji">📸</span>Photo</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Nature')"><span class="emoji">🌿</span>Nature</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Café')"><span class="emoji">☕</span>Café</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Randonnée')"><span class="emoji">🥾</span>Rando</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Animaux')"><span class="emoji">🐶</span>Animaux</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Art')"><span class="emoji">🎨</span>Art</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Yoga')"><span class="emoji">🧘</span>Yoga</button>
+          <button type="button" class="hobby" onclick="toggleHobby(this,'Autre')"><span class="emoji">✨</span>Autre</button>
 
         </div>
 
-        <input
-          id="otherHobby"
-          type="text"
-          placeholder="Autre hobby..."
-          style="display:none;margin-top:8px">
+        <input id="otherHobby" type="text" placeholder="Autre hobby..." style="display:none;margin-top:8px">
 
       </div>
 
       <div class="form-group">
-
         <label>À propos de moi</label>
-
-        <textarea
-          id="bio"
-          rows="3"
-          placeholder="Présente-toi..."></textarea>
-
+        <textarea id="bio" rows="3" placeholder="Présente-toi..."></textarea>
       </div>
 
-      <button
-        class="btn btn-primary"
-        onclick="saveProfile()">
-
-        💾 Enregistrer
-
-      </button>
+      <button class="btn btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
 
     </div>
 
@@ -2135,22 +1647,65 @@ footer {
 <section id="plans" class="page">
 
   <div class="section-title">
-
-    <h2>
-      💜 Choisis ton expérience AUPYGO
-    </h2>
-
-    <p>
-      Commence gratuitement, débloque plus ensuite.
-    </p>
-
+    <h2>💜 Choisis ton expérience AUPYGO</h2>
+    <p>Commence gratuitement, débloque plus ensuite.</p>
   </div>
 
-  <div class="notice security">
+  <!-- Bloc inscription / connexion (remplace l'ancien mode test) -->
+  <div class="card auth-card" id="authCard">
 
-    🧪 <strong>Mode test :</strong>
-    Clique sur « Tester ce forfait »
-    pour activer les fonctionnalités sans email.
+    <div id="authLoggedOut">
+
+      <div class="auth-tabs">
+        <button type="button" class="btn btn-primary" id="tabSignup" onclick="switchAuthTab('signup')">Inscription</button>
+        <button type="button" class="btn btn-secondary" id="tabLogin" onclick="switchAuthTab('login')">Connexion</button>
+      </div>
+
+      <div id="signupForm">
+
+        <div class="form-group">
+          <label>Adresse email</label>
+          <input id="signupEmail" type="email" placeholder="toi@email.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input id="signupPassword" type="password" placeholder="6 caractères minimum" autocomplete="new-password">
+        </div>
+
+        <button class="btn btn-primary" style="width:100%" onclick="handleSignup()">Créer mon compte</button>
+
+      </div>
+
+      <div id="loginForm" style="display:none">
+
+        <div class="form-group">
+          <label>Adresse email</label>
+          <input id="loginEmail" type="email" placeholder="toi@email.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label>Mot de passe</label>
+          <input id="loginPassword" type="password" placeholder="Ton mot de passe" autocomplete="current-password">
+        </div>
+
+        <button class="btn btn-primary" style="width:100%" onclick="handleLogin()">Se connecter</button>
+
+      </div>
+
+    </div>
+
+    <div id="authLoggedIn" style="display:none">
+
+      <p class="auth-status">
+        ✅ Connecté en tant que <strong id="authUserEmail"></strong>
+      </p>
+
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="handleLogout()">
+        Se déconnecter
+      </button>
+
+    </div>
 
   </div>
 
@@ -2158,177 +1713,74 @@ footer {
 
     <!-- FREE -->
 
-    <div
-      class="plan"
-      id="plan-FREE">
+    <div class="plan" id="plan-FREE">
 
-      <div
-        class="active-badge"
-        id="badge-FREE"
-        style="display:none">
+      <div class="active-badge" id="badge-FREE" style="display:none">ACTIF</div>
 
-        ACTIF
+      <span class="badge">FREE</span>
 
-      </div>
+      <h2 style="margin:10px 0 0">Découverte</h2>
 
-      <span class="badge">
-        FREE
-      </span>
-
-      <h2 style="margin:10px 0 0">
-        Découverte
-      </h2>
-
-      <div class="price">
-        0 €
-      </div>
+      <div class="price">0 €</div>
 
       <ul>
-
         <li>Communauté autour de toi</li>
         <li>Carte locale</li>
         <li>Créer un profil</li>
         <li>Voir les sorties</li>
-
       </ul>
 
-      <button
-        class="btn btn-secondary"
-        onclick="selectPlan('FREE')">
-
-        Continuer gratuitement
-
-      </button>
-
-      <button
-        class="btn btn-test"
-        onclick="activateTestPlan('FREE')">
-
-        🧪 Tester ce forfait
-
-      </button>
+      <button class="btn btn-secondary" onclick="selectPlan('FREE')">Continuer gratuitement</button>
 
     </div>
 
 
     <!-- STANDARD -->
 
-    <div
-      class="plan featured"
-      id="plan-STANDARD">
+    <div class="plan featured" id="plan-STANDARD">
 
-      <div
-        class="active-badge"
-        id="badge-STANDARD"
-        style="display:none">
+      <div class="active-badge" id="badge-STANDARD" style="display:none">ACTIF</div>
 
-        ACTIF
+      <span class="badge">STANDARD</span>
 
-      </div>
+      <h2 style="margin:10px 0 0">Standard</h2>
 
-      <span class="badge">
-        STANDARD
-      </span>
-
-      <h2 style="margin:10px 0 0">
-        Standard
-      </h2>
-
-      <div class="price">
-
-        9,90 €
-        <small style="font-size:14px">
-          /mois
-        </small>
-
-      </div>
+      <div class="price">9,90 € <small style="font-size:14px">/mois</small></div>
 
       <ul>
-
         <li>Tout FREE</li>
         <li>Carte régionale élargie</li>
         <li>Agenda AUPYGO</li>
         <li>Lieux & participation aux sorties</li>
         <li>Notifications</li>
-
       </ul>
 
-      <button
-        class="btn btn-primary"
-        onclick="selectPlan('STANDARD')">
-
-        Choisir STANDARD
-
-      </button>
-
-      <button
-        class="btn btn-test"
-        onclick="activateTestPlan('STANDARD')">
-
-        🧪 Tester ce forfait
-
-      </button>
+      <button class="btn btn-primary" onclick="selectPlan('STANDARD')">Choisir STANDARD</button>
 
     </div>
 
 
     <!-- PREMIUM -->
 
-    <div
-      class="plan"
-      id="plan-PREMIUM">
+    <div class="plan" id="plan-PREMIUM">
 
-      <div
-        class="active-badge"
-        id="badge-PREMIUM"
-        style="display:none">
+      <div class="active-badge" id="badge-PREMIUM" style="display:none">ACTIF</div>
 
-        ACTIF
+      <span class="badge">PREMIUM</span>
 
-      </div>
+      <h2 style="margin:10px 0 0">Premium</h2>
 
-      <span class="badge">
-        PREMIUM
-      </span>
-
-      <h2 style="margin:10px 0 0">
-        Premium
-      </h2>
-
-      <div class="price">
-
-        12,85 €
-        <small style="font-size:14px">
-          /mois
-        </small>
-
-      </div>
+      <div class="price">12,85 € <small style="font-size:14px">/mois</small></div>
 
       <ul>
-
         <li>Tout STANDARD</li>
         <li>Carte mondiale</li>
         <li>Messages privés</li>
         <li>Communication mondiale</li>
         <li>Fonctions exclusives</li>
-
       </ul>
 
-      <button
-        class="btn btn-primary"
-        onclick="selectPlan('PREMIUM')">
-
-        Choisir PREMIUM
-
-      </button>
-
-      <button
-        class="btn btn-test"
-        onclick="activateTestPlan('PREMIUM')">
-
-        🧪 Tester ce forfait
-
-      </button>
+      <button class="btn btn-primary" onclick="selectPlan('PREMIUM')">Choisir PREMIUM</button>
 
     </div>
 
@@ -2349,28 +1801,19 @@ footer {
 
     <div>
 
-      <div
-        class="logo-aupygo"
-        style="font-size:24px">
-
+      <div class="logo-aupygo" style="font-size:24px">
         <span class="logo-a">A</span>
         <span class="logo-u">U</span>
         <span class="logo-p">P</span>
         <span class="logo-y">Y</span>
         <span class="logo-g">G</span>
         <span class="logo-o">O</span>
-
         <div class="location-pin"></div>
-
       </div>
 
-      <p class="footer-muted">
-        Meet. Go out. Make friends.
-      </p>
+      <p class="footer-muted">Meet. Go out. Make friends.</p>
 
-      <p class="footer-muted">
-        🔒 No personal photos · Privacy first · Real-life connections
-      </p>
+      <p class="footer-muted">🔒 No personal photos · Privacy first · Real-life connections</p>
 
     </div>
 
@@ -2378,9 +1821,7 @@ footer {
 
       <strong>AUPYGO</strong>
 
-      <p class="footer-muted">
-        For au pairs, by au pairs.
-      </p>
+      <p class="footer-muted">For au pairs, by au pairs.</p>
 
     </div>
 
@@ -2389,10 +1830,7 @@ footer {
 </footer>
 
 
-<div
-  class="toast-container"
-  id="toastContainer">
-</div>
+<div class="toast-container" id="toastContainer"></div>
 
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -2404,18 +1842,12 @@ footer {
    SUPABASE
 ========================= */
 
-const SUPABASE_URL =
-  'https://zdjcjzsmoinrkcezgivs.supabase.co';
-
-const SUPABASE_ANON_KEY =
-  'sb_publishable_DzwtV1O2qUsZ6_JslOVpEg_BHoyy-Xi';
+const SUPABASE_URL = 'https://zdjcjzsmoinrkcezgivs.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_DzwtV1O2qUsZ6_JslOVpEg_BHoyy-Xi';
 
 // CDN expose un objet global "supabase" avec createClient
 const { createClient } = supabase;
-const supabaseClient = createClient(
-  SUPABASE_URL,
-  SUPABASE_ANON_KEY
-);
+const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* =========================
    DONNÉES
@@ -2433,180 +1865,236 @@ const RADIUS = {
   PREMIUM:null
 };
 
-let currentPlan =
-  localStorage.getItem('aupygo_plan') || 'FREE';
+let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
+let currentUser = null;
 
-let map,
-    markersLayer;
+let map, markersLayer;
+
+
+/* =========================
+   AUTHENTIFICATION
+========================= */
+
+function switchAuthTab(tab) {
+
+  const signupForm = document.getElementById('signupForm');
+  const loginForm = document.getElementById('loginForm');
+  const tabSignup = document.getElementById('tabSignup');
+  const tabLogin = document.getElementById('tabLogin');
+
+  if (tab === 'signup') {
+    signupForm.style.display = 'block';
+    loginForm.style.display = 'none';
+    tabSignup.classList.add('btn-primary');
+    tabSignup.classList.remove('btn-secondary');
+    tabLogin.classList.add('btn-secondary');
+    tabLogin.classList.remove('btn-primary');
+  } else {
+    signupForm.style.display = 'none';
+    loginForm.style.display = 'block';
+    tabLogin.classList.add('btn-primary');
+    tabLogin.classList.remove('btn-secondary');
+    tabSignup.classList.add('btn-secondary');
+    tabSignup.classList.remove('btn-primary');
+  }
+}
+
+
+async function handleSignup() {
+
+  const email = document.getElementById('signupEmail').value.trim();
+  const password = document.getElementById('signupPassword').value;
+
+  if (!email || !password) {
+    showToast('Indique un email et un mot de passe', 'error');
+    return;
+  }
+
+  if (password.length < 6) {
+    showToast('Le mot de passe doit faire au moins 6 caractères', 'error');
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+
+  if (error) {
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  if (data.session) {
+    showToast('Compte créé et connecté !', 'success');
+  } else {
+    showToast('Compte créé ! Vérifie ta boîte mail pour confirmer.', 'success');
+  }
+
+  document.getElementById('signupEmail').value = '';
+  document.getElementById('signupPassword').value = '';
+
+  await refreshAuthUI();
+}
+
+
+async function handleLogin() {
+
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+
+  if (!email || !password) {
+    showToast('Indique ton email et ton mot de passe', 'error');
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+
+  if (error) {
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  showToast('Connexion réussie', 'success');
+
+  document.getElementById('loginEmail').value = '';
+  document.getElementById('loginPassword').value = '';
+
+  await refreshAuthUI();
+}
+
+
+async function handleLogout() {
+
+  await supabaseClient.auth.signOut();
+
+  currentUser = null;
+  currentPlan = 'FREE';
+  localStorage.removeItem('aupygo_plan');
+
+  updatePlanUI();
+  await refreshAuthUI();
+
+  showToast('Déconnecté');
+}
+
+
+async function refreshAuthUI() {
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  currentUser = user;
+
+  const loggedOut = document.getElementById('authLoggedOut');
+  const loggedIn = document.getElementById('authLoggedIn');
+
+  if (user) {
+
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    document.getElementById('authUserEmail').textContent = user.email;
+
+    // Charge le forfait déjà sauvegardé pour ce compte, s'il existe
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('subscription')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.subscription) {
+      currentPlan = profile.subscription;
+      localStorage.setItem('aupygo_plan', currentPlan);
+      updatePlanUI();
+    }
+
+  } else {
+
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+
+  }
+}
 
 
 /* =========================
    FORFAITS
 ========================= */
 
-function activateTestPlan(plan) {
-
-  currentPlan = plan;
-
-  localStorage.setItem(
-    'aupygo_plan',
-    plan
-  );
-
-  updatePlanUI();
-
-  showToast(
-    '🧪 Forfait ' + plan + ' activé en mode test',
-    'success'
-  );
-}
-
-
 function updatePlanUI() {
 
-  document.getElementById(
-    'headerPlan'
-  ).textContent = currentPlan;
+  document.getElementById('headerPlan').textContent = currentPlan;
 
   ['FREE','STANDARD','PREMIUM'].forEach(p => {
 
-    const card =
-      document.getElementById('plan-' + p);
-
-    const badge =
-      document.getElementById('badge-' + p);
+    const card = document.getElementById('plan-' + p);
+    const badge = document.getElementById('badge-' + p);
 
     if(card) {
-      card.classList.toggle(
-        'active-plan',
-        p === currentPlan
-      );
+      card.classList.toggle('active-plan', p === currentPlan);
     }
 
     if(badge) {
-      badge.style.display =
-        p === currentPlan
-        ? 'block'
-        : 'none';
+      badge.style.display = p === currentPlan ? 'block' : 'none';
     }
 
   });
 
 
-  const agendaBox =
-    document.getElementById('agendaBox');
-
-  const agendaNotice =
-    document.getElementById('agendaNotice');
+  const agendaBox = document.getElementById('agendaBox');
+  const agendaNotice = document.getElementById('agendaNotice');
 
   if(currentPlan === 'FREE') {
-
     agendaBox.classList.add('locked');
-
-    agendaNotice.innerHTML =
-      '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
-
+    agendaNotice.innerHTML = '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
   } else {
-
     agendaBox.classList.remove('locked');
-
-    agendaNotice.innerHTML =
-      '✅ Agenda débloqué (' +
-      currentPlan +
-      ')';
-
+    agendaNotice.innerHTML = '✅ Agenda débloqué (' + currentPlan + ')';
   }
 
 
-  const messagesBox =
-    document.getElementById('messagesBox');
-
-  const messagesNotice =
-    document.getElementById('messagesNotice');
+  const messagesBox = document.getElementById('messagesBox');
+  const messagesNotice = document.getElementById('messagesNotice');
 
   if(currentPlan !== 'PREMIUM') {
-
     messagesBox.style.opacity = '0.5';
-
     messagesBox.style.pointerEvents = 'none';
-
-    messagesNotice.innerHTML =
-      '💎 Réservé aux membres <strong>PREMIUM</strong>.';
-
+    messagesNotice.innerHTML = '💎 Réservé aux membres <strong>PREMIUM</strong>.';
   } else {
-
     messagesBox.style.opacity = '1';
-
     messagesBox.style.pointerEvents = 'auto';
-
-    messagesNotice.innerHTML =
-      '✅ Messagerie débloquée (PREMIUM)';
-
+    messagesNotice.innerHTML = '✅ Messagerie débloquée (PREMIUM)';
   }
 
 
-  const isFree =
-    currentPlan === 'FREE';
+  const isFree = currentPlan === 'FREE';
 
-  const freeNotice =
-    document.getElementById(
-      'eventsFreeNotice'
-    );
+  const freeNotice = document.getElementById('eventsFreeNotice');
 
   if(freeNotice) {
-    freeNotice.style.display =
-      isFree ? 'block' : 'none';
+    freeNotice.style.display = isFree ? 'block' : 'none';
   }
 
 
-  document
-    .querySelectorAll('#eventGrid .event')
-    .forEach(event => {
+  document.querySelectorAll('#eventGrid .event').forEach(event => {
 
-      const detail =
-        event.querySelector('[data-detail]');
+    const detail = event.querySelector('[data-detail]');
+    const locked = event.querySelector('[data-locked]');
+    const joinBtn = event.querySelector('.event-join');
+    const upgradeBtn = event.querySelector('.event-upgrade');
 
-      const locked =
-        event.querySelector('[data-locked]');
+    if(isFree) {
 
-      const joinBtn =
-        event.querySelector('.event-join');
+      if(detail) detail.style.display = 'none';
+      if(locked) locked.style.display = 'block';
+      if(joinBtn) joinBtn.style.display = 'none';
+      if(upgradeBtn) upgradeBtn.style.display = 'block';
 
-      const upgradeBtn =
-        event.querySelector('.event-upgrade');
+    } else {
 
+      if(detail) detail.style.display = 'block';
+      if(locked) locked.style.display = 'none';
+      if(joinBtn) joinBtn.style.display = 'inline-block';
+      if(upgradeBtn) upgradeBtn.style.display = 'none';
 
-      if(isFree) {
+    }
 
-        if(detail)
-          detail.style.display = 'none';
-
-        if(locked)
-          locked.style.display = 'block';
-
-        if(joinBtn)
-          joinBtn.style.display = 'none';
-
-        if(upgradeBtn)
-          upgradeBtn.style.display = 'block';
-
-      } else {
-
-        if(detail)
-          detail.style.display = 'block';
-
-        if(locked)
-          locked.style.display = 'none';
-
-        if(joinBtn)
-          joinBtn.style.display = 'inline-block';
-
-        if(upgradeBtn)
-          upgradeBtn.style.display = 'none';
-
-      }
-
-    });
+  });
 
 
   applyMapRestrictions();
@@ -2625,40 +2113,25 @@ function kmToDegrees(km) {
 
 function getMaxBoundsForPlan() {
 
-  const radiusKm =
-    RADIUS[currentPlan];
+  const radiusKm = RADIUS[currentPlan];
 
-  if(!radiusKm)
-    return null;
+  if(!radiusKm) return null;
 
-  const d =
-    kmToDegrees(radiusKm);
+  const d = kmToDegrees(radiusKm);
 
-  const {
-    lat,
-    lng
-  } = userLocation;
+  const { lat, lng } = userLocation;
 
   return L.latLngBounds(
-    [
-      lat - d,
-      lng - d
-    ],
-    [
-      lat + d,
-      lng + d
-    ]
+    [lat - d, lng - d],
+    [lat + d, lng + d]
   );
 }
 
 
 function getDefaultZoomForPlan() {
 
-  if(currentPlan === 'FREE')
-    return 11;
-
-  if(currentPlan === 'STANDARD')
-    return 5;
+  if(currentPlan === 'FREE') return 11;
+  if(currentPlan === 'STANDARD') return 5;
 
   return 2;
 }
@@ -2666,44 +2139,31 @@ function getDefaultZoomForPlan() {
 
 function applyMapRestrictions() {
 
-  if(!map)
-    return;
+  if(!map) return;
 
-  const btnAround =
-    document.getElementById('btnAround');
-
-  const btnRegion =
-    document.getElementById('btnRegion');
-
-  const btnWorld =
-    document.getElementById('btnWorld');
-
-  const mapNotice =
-    document.getElementById('mapPlanNotice');
+  const btnAround = document.getElementById('btnAround');
+  const btnRegion = document.getElementById('btnRegion');
+  const btnWorld = document.getElementById('btnWorld');
+  const mapNotice = document.getElementById('mapPlanNotice');
 
 
   if(currentPlan === 'FREE') {
 
-    mapNotice.innerHTML =
-      '📍 Découvre les au pairs <strong>autour de toi</strong>.';
+    mapNotice.innerHTML = '📍 Découvre les au pairs <strong>autour de toi</strong>.';
 
     btnAround.disabled = false;
     btnAround.classList.add('active');
 
     btnRegion.disabled = true;
-    btnRegion.title =
-      'Disponible avec STANDARD';
+    btnRegion.title = 'Disponible avec STANDARD';
 
     btnWorld.disabled = true;
-    btnWorld.title =
-      'Disponible avec PREMIUM';
+    btnWorld.title = 'Disponible avec PREMIUM';
 
   }
-
   else if(currentPlan === 'STANDARD') {
 
-    mapNotice.innerHTML =
-      '🗺️ Explore ta <strong>région</strong> et au-delà.';
+    mapNotice.innerHTML = '🗺️ Explore ta <strong>région</strong> et au-delà.';
 
     btnAround.disabled = false;
 
@@ -2711,15 +2171,12 @@ function applyMapRestrictions() {
     btnRegion.classList.add('active');
 
     btnWorld.disabled = true;
-    btnWorld.title =
-      'Disponible avec PREMIUM';
+    btnWorld.title = 'Disponible avec PREMIUM';
 
   }
-
   else {
 
-    mapNotice.innerHTML =
-      '🌍 Carte <strong>mondiale</strong> débloquée.';
+    mapNotice.innerHTML = '🌍 Carte <strong>mondiale</strong> débloquée.';
 
     btnAround.disabled = false;
     btnRegion.disabled = false;
@@ -2730,37 +2187,22 @@ function applyMapRestrictions() {
   }
 
 
-  const bounds =
-    getMaxBoundsForPlan();
+  const bounds = getMaxBoundsForPlan();
 
   if(bounds) {
 
     map.setMaxBounds(bounds);
-
-    map.setMinZoom(
-      getDefaultZoomForPlan() - 1
-    );
-
+    map.setMinZoom(getDefaultZoomForPlan() - 1);
     map.setMaxZoom(14);
 
     if(!bounds.contains(map.getCenter())) {
-
-      map.setView(
-        [
-          userLocation.lat,
-          userLocation.lng
-        ],
-        getDefaultZoomForPlan()
-      );
-
+      map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
     }
 
   } else {
 
     map.setMaxBounds(null);
-
     map.setMinZoom(2);
-
     map.setMaxZoom(18);
 
   }
@@ -2772,30 +2214,36 @@ function applyMapRestrictions() {
    PLANS
 ========================= */
 
-function selectPlan(plan) {
+async function selectPlan(plan) {
+
+  if (!currentUser) {
+    showToast('Crée un compte ou connecte-toi pour choisir un forfait', 'error');
+    document.getElementById('authCard').scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  currentPlan = plan;
+  localStorage.setItem('aupygo_plan', plan);
+  updatePlanUI();
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert({ id: currentUser.id, subscription: plan }, { onConflict:'id' });
+
+  if (error) {
+    console.error(error);
+    showToast('Erreur lors de la sauvegarde du forfait : ' + error.message, 'error');
+    return;
+  }
 
   if(plan === 'FREE') {
-
-    showToast(
-      'Forfait FREE actif'
-    );
-
+    showToast('Forfait FREE actif', 'success');
   }
-
   else if(plan === 'STANDARD') {
-
-    showToast(
-      'STANDARD — 9,90 €/mois (paiement bientôt)'
-    );
-
+    showToast('STANDARD — 9,90 €/mois (paiement bientôt)', 'success');
   }
-
   else {
-
-    showToast(
-      'PREMIUM — 12,85 €/mois (paiement bientôt)'
-    );
-
+    showToast('PREMIUM — 12,85 €/mois (paiement bientôt)', 'success');
   }
 
 }
@@ -2807,31 +2255,19 @@ function selectPlan(plan) {
 
 function showToast(msg,type) {
 
-  const c =
-    document.getElementById(
-      'toastContainer'
-    );
+  const c = document.getElementById('toastContainer');
 
-  const t =
-    document.createElement('div');
+  const t = document.createElement('div');
 
-  t.className =
-    'toast' +
-    (type ? ' ' + type : '');
+  t.className = 'toast' + (type ? ' ' + type : '');
 
   t.textContent = msg;
 
   c.appendChild(t);
 
   setTimeout(() => {
-
     t.style.opacity = '0';
-
-    setTimeout(
-      () => t.remove(),
-      300
-    );
-
+    setTimeout(() => t.remove(), 300);
   },3000);
 
 }
@@ -2843,58 +2279,33 @@ function showToast(msg,type) {
 
 function go(page) {
 
-  document
-    .querySelectorAll('.page')
-    .forEach(p =>
-      p.classList.remove('active')
-    );
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
-  const el =
-    document.getElementById(page);
+  const el = document.getElementById(page);
 
-  if(el)
-    el.classList.add('active');
+  if(el) el.classList.add('active');
 
 
-  document
-    .querySelectorAll('nav button')
-    .forEach(b => {
+  document.querySelectorAll('nav button').forEach(b => {
 
-      b.classList.remove('active');
+    b.classList.remove('active');
 
-      if(
-        b.dataset.nav === page
-      ) {
+    if(b.dataset.nav === page) {
+      b.classList.add('active');
+    }
 
-        b.classList.add('active');
-
-      }
-
-    });
-
-
-  window.scrollTo({
-    top:0,
-    behavior:'smooth'
   });
+
+
+  window.scrollTo({ top:0, behavior:'smooth' });
 
 
   if(page === 'map' && map) {
 
     setTimeout(() => {
-
       map.invalidateSize();
-
       applyMapRestrictions();
-
-      map.setView(
-        [
-          userLocation.lat,
-          userLocation.lng
-        ],
-        getDefaultZoomForPlan()
-      );
-
+      map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
     },200);
 
   }
@@ -2908,101 +2319,18 @@ function go(page) {
 
 const aupyLocations = [
 
-  {
-    city:"Paris",
-    lat:48.8566,
-    lng:2.3522,
-    users:14,
-    gender:"Femme"
-  },
-
-  {
-    city:"London",
-    lat:51.5074,
-    lng:-0.1278,
-    users:22,
-    gender:"Homme"
-  },
-
-  {
-    city:"Geneva",
-    lat:46.2044,
-    lng:6.1432,
-    users:9,
-    gender:"Femme"
-  },
-
-  {
-    city:"Zurich",
-    lat:47.3769,
-    lng:8.5417,
-    users:11,
-    gender:"Homme"
-  },
-
-  {
-    city:"Madrid",
-    lat:40.4168,
-    lng:-3.7038,
-    users:17,
-    gender:"Homme"
-  },
-
-  {
-    city:"Lisbon",
-    lat:38.7223,
-    lng:-9.1393,
-    users:12,
-    gender:"Femme"
-  },
-
-  {
-    city:"São Paulo",
-    lat:-23.5505,
-    lng:-46.6333,
-    users:26,
-    gender:"Femme"
-  },
-
-  {
-    city:"New York",
-    lat:40.7128,
-    lng:-74.006,
-    users:31,
-    gender:"Homme"
-  },
-
-  {
-    city:"Miami",
-    lat:25.7617,
-    lng:-80.1918,
-    users:15,
-    gender:"Femme"
-  },
-
-  {
-    city:"Sydney",
-    lat:-33.8688,
-    lng:151.2093,
-    users:13,
-    gender:"Femme"
-  },
-
-  {
-    city:"Tokyo",
-    lat:35.6762,
-    lng:139.6503,
-    users:10,
-    gender:"Femme"
-  },
-
-  {
-    city:"Toronto",
-    lat:43.6532,
-    lng:-79.3832,
-    users:12,
-    gender:"Homme"
-  }
+  { city:"Paris", lat:48.8566, lng:2.3522, users:14, gender:"Femme" },
+  { city:"London", lat:51.5074, lng:-0.1278, users:22, gender:"Homme" },
+  { city:"Geneva", lat:46.2044, lng:6.1432, users:9, gender:"Femme" },
+  { city:"Zurich", lat:47.3769, lng:8.5417, users:11, gender:"Homme" },
+  { city:"Madrid", lat:40.4168, lng:-3.7038, users:17, gender:"Homme" },
+  { city:"Lisbon", lat:38.7223, lng:-9.1393, users:12, gender:"Femme" },
+  { city:"São Paulo", lat:-23.5505, lng:-46.6333, users:26, gender:"Femme" },
+  { city:"New York", lat:40.7128, lng:-74.006, users:31, gender:"Homme" },
+  { city:"Miami", lat:25.7617, lng:-80.1918, users:15, gender:"Femme" },
+  { city:"Sydney", lat:-33.8688, lng:151.2093, users:13, gender:"Femme" },
+  { city:"Tokyo", lat:35.6762, lng:139.6503, users:10, gender:"Femme" },
+  { city:"Toronto", lat:43.6532, lng:-79.3832, users:12, gender:"Homme" }
 
 ];
 
@@ -3013,43 +2341,22 @@ const aupyLocations = [
 
 function initMap() {
 
-  map =
-    L.map('map', {
-
-      zoomControl:false,
-
-      minZoom:2,
-
-      maxBoundsViscosity:1.0
-
-    })
-    .setView(
-      [
-        userLocation.lat,
-        userLocation.lng
-      ],
-      getDefaultZoomForPlan()
-    );
+  map = L.map('map', {
+    zoomControl:false,
+    minZoom:2,
+    maxBoundsViscosity:1.0
+  }).setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
 
 
-  L.tileLayer(
-    'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',
-    {
-
-      attribution:
-        '&copy; OpenStreetMap'
-
-    }
-  ).addTo(map);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'&copy; OpenStreetMap'
+  }).addTo(map);
 
 
-  markersLayer =
-    L.layerGroup()
-    .addTo(map);
+  markersLayer = L.layerGroup().addTo(map);
 
 
   renderMarkers();
-
   applyMapRestrictions();
 
 }
@@ -3057,25 +2364,13 @@ function initMap() {
 
 function createIcon(gender) {
 
-  const emoji =
-    gender === 'Homme'
-    ? '👨'
-    : '👩';
-
+  const emoji = gender === 'Homme' ? '👨' : '👩';
 
   return L.divIcon({
-
     className:'',
-
-    html:
-      '<div class="aupy-marker">' +
-      emoji +
-      '</div>',
-
+    html:'<div class="aupy-marker">' + emoji + '</div>',
     iconSize:[44,44],
-
     iconAnchor:[22,44]
-
   });
 
 }
@@ -3087,46 +2382,15 @@ function renderMarkers() {
 
   aupyLocations.forEach(loc => {
 
-    const m =
-      L.marker(
-        [
-          loc.lat,
-          loc.lng
-        ],
-        {
-          icon:createIcon(
-            loc.gender
-          )
-        }
-      );
-
+    const m = L.marker([loc.lat, loc.lng], { icon:createIcon(loc.gender) });
 
     m.bindPopup(
-
-      '<strong>🌍 ' +
-      loc.city +
-      '</strong><br>👥 ' +
-      loc.users +
-      ' au pairs<br>' +
-
-      '<button onclick="openCity(\'' +
-      loc.city +
-      '\')" ' +
-
-      'style="margin-top:8px;' +
-      'background:#7c3aed;' +
-      'color:#fff;' +
-      'border:0;' +
-      'padding:6px 10px;' +
-      'border-radius:8px;' +
-      'cursor:pointer">' +
-
+      '<strong>🌍 ' + loc.city + '</strong><br>👥 ' + loc.users + ' au pairs<br>' +
+      '<button onclick="openCity(\'' + loc.city + '\')" ' +
+      'style="margin-top:8px;background:#7c3aed;color:#fff;border:0;padding:6px 10px;border-radius:8px;cursor:pointer">' +
       'Découvrir' +
-
       '</button>'
-
     );
-
 
     markersLayer.addLayer(m);
 
@@ -3136,116 +2400,48 @@ function renderMarkers() {
 
 
 function zoomIn() {
-
-  if(map)
-    map.zoomIn();
-
+  if(map) map.zoomIn();
 }
 
 
 function zoomOut() {
-
-  if(map)
-    map.zoomOut();
-
+  if(map) map.zoomOut();
 }
 
 
 function resetMap() {
-
-  if(!map)
-    return;
-
-  map.setView(
-    [
-      userLocation.lat,
-      userLocation.lng
-    ],
-    getDefaultZoomForPlan()
-  );
-
+  if(!map) return;
+  map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
 }
 
 
 function mapMode(mode,btn) {
 
-  if(
-    currentPlan === 'FREE' &&
-    mode !== 'around'
-  ) {
-
-    showToast(
-      '🔒 Disponible avec un forfait supérieur',
-      'error'
-    );
-
+  if(currentPlan === 'FREE' && mode !== 'around') {
+    showToast('🔒 Disponible avec un forfait supérieur', 'error');
     return;
-
   }
 
-
-  if(
-    currentPlan === 'STANDARD' &&
-    mode === 'world'
-  ) {
-
-    showToast(
-      '🔒 Carte mondiale réservée au PREMIUM',
-      'error'
-    );
-
+  if(currentPlan === 'STANDARD' && mode === 'world') {
+    showToast('🔒 Carte mondiale réservée au PREMIUM', 'error');
     return;
-
   }
 
+  document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
 
-  document
-    .querySelectorAll(
-      '.map-filter button'
-    )
-    .forEach(b =>
-      b.classList.remove('active')
-    );
+  if(btn) btn.classList.add('active');
 
+  const { lat, lng } = userLocation;
 
-  if(btn)
-    btn.classList.add('active');
-
-
-  const {
-    lat,
-    lng
-  } = userLocation;
-
-
-  if(mode === 'around')
-    map.setView(
-      [lat,lng],
-      11
-    );
-
-  else if(mode === 'region')
-    map.setView(
-      [lat,lng],
-      5
-    );
-
-  else
-    map.setView(
-      [20,0],
-      2
-    );
+  if(mode === 'around') map.setView([lat,lng], 11);
+  else if(mode === 'region') map.setView([lat,lng], 5);
+  else map.setView([20,0], 2);
 
 }
 
 
 function openCity(city) {
-
-  showToast(
-    city +
-    ' — profils selon forfait (prototype)'
-  );
-
+  showToast(city + ' — profils selon forfait (prototype)');
 }
 
 
@@ -3258,26 +2454,12 @@ let selectedGender = 'Femme';
 
 function selectGender(btn,gender) {
 
-  document
-    .querySelectorAll(
-      '.gender-option'
-    )
-    .forEach(b =>
-      b.classList.remove('selected')
-    );
-
+  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
 
   btn.classList.add('selected');
-
   selectedGender = gender;
 
-
-  document.getElementById(
-    'profileAvatar'
-  ).textContent =
-    gender === 'Homme'
-    ? '👨'
-    : '👩';
+  document.getElementById('profileAvatar').textContent = gender === 'Homme' ? '👨' : '👩';
 
 }
 
@@ -3287,106 +2469,77 @@ const selectedHobbies = [];
 
 function toggleHobby(btn,hobby) {
 
-  const i =
-    selectedHobbies.indexOf(hobby);
-
+  const i = selectedHobbies.indexOf(hobby);
 
   if(i >= 0) {
 
     selectedHobbies.splice(i,1);
-
     btn.classList.remove('selected');
 
-  }
+  } else {
 
-  else {
-
-    if(
-      selectedHobbies.length >= 3
-    ) {
-
-      showToast(
-        'Maximum 3 hobbies',
-        'error'
-      );
-
+    if(selectedHobbies.length >= 3) {
+      showToast('Maximum 3 hobbies', 'error');
       return;
-
     }
 
     selectedHobbies.push(hobby);
-
     btn.classList.add('selected');
 
   }
 
-
-  document.getElementById(
-    'otherHobby'
-  ).style.display =
-    selectedHobbies.includes('Autre')
-    ? 'block'
-    : 'none';
+  document.getElementById('otherHobby').style.display =
+    selectedHobbies.includes('Autre') ? 'block' : 'none';
 
 }
 
 
 async function saveProfile() {
 
-  const name =
-    document.getElementById('firstName').value.trim();
+  const name = document.getElementById('firstName').value.trim();
 
   if (!name) {
     showToast('Indique ton prénom', 'error');
     return;
   }
 
- // Récupère l'utilisateur connecté
-const { data: { user } } = await supabaseClient.auth.getUser();
+  // Récupère l'utilisateur connecté
+  const { data: { user } } = await supabaseClient.auth.getUser();
 
-if (!user) {
-  showToast('Erreur : utilisateur non connecté', 'error');
-  return;
-}
+  if (!user) {
+    showToast('Crée un compte ou connecte-toi pour enregistrer ton profil', 'error');
+    go('plans');
+    return;
+  }
 
-const profile = {
-  id: user.id,                    // ← LIGNE OBLIGATOIRE
-  display_name: name,
-  age: Number(document.getElementById('age').value),
-  gender: selectedGender,
-  country: document.getElementById('country').value,
-  city: userLocation.city,
-  bio: document.getElementById('bio').value,
-  interests: selectedHobbies.join(','),
-  avatar: selectedGender === 'Homme' ? '👨' : '👩',
-  subscription: currentPlan
-};
+  const profile = {
+    id: user.id,
+    display_name: name,
+    age: Number(document.getElementById('age').value),
+    gender: selectedGender,
+    country: document.getElementById('country').value,
+    city: userLocation.city,
+    bio: document.getElementById('bio').value,
+    interests: selectedHobbies.join(','),
+    avatar: selectedGender === 'Homme' ? '👨' : '👩',
+    subscription: currentPlan
+  };
 
-const { error } = await supabaseClient
-  .from('profiles')
-  .insert([profile]);
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert([profile], { onConflict:'id' });
 
-if (error) {
-  console.error(error);
-  showToast('Erreur : ' + error.message, 'error');
-  return;
-}
+  if (error) {
+    console.error(error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
 
-  document.getElementById(
-    'profileName'
-  ).textContent = name;
+  document.getElementById('profileName').textContent = name;
+  document.getElementById('profileMeta').textContent = 'Au pair · ' + profile.age + ' ans';
 
-  document.getElementById(
-    'profileMeta'
-  ).textContent =
-    'Au pair · ' +
-    profile.age +
-    ' ans';
+  showToast('Profil enregistré sur Supabase', 'success');
 
-  showToast(
-    'Profil enregistré sur Supabase',
-    'success'
-  );
 }
 
 
@@ -3394,60 +2547,24 @@ function loadProfile() {
 
   try {
 
-    const p =
-      JSON.parse(
-        localStorage.getItem(
-          'aupygo_profile'
-        ) || '{}'
-      );
-
+    const p = JSON.parse(localStorage.getItem('aupygo_profile') || '{}');
 
     if(p.firstName) {
-
-      document.getElementById(
-        'firstName'
-      ).value = p.firstName;
-
-      document.getElementById(
-        'profileName'
-      ).textContent =
-        p.firstName;
-
+      document.getElementById('firstName').value = p.firstName;
+      document.getElementById('profileName').textContent = p.firstName;
     }
-
 
     if(p.age) {
-
-      document.getElementById(
-        'age'
-      ).value = p.age;
-
-      document.getElementById(
-        'profileMeta'
-      ).textContent =
-        'Au pair · ' +
-        p.age +
-        ' ans';
-
+      document.getElementById('age').value = p.age;
+      document.getElementById('profileMeta').textContent = 'Au pair · ' + p.age + ' ans';
     }
 
-
     if(p.gender) {
-
-      selectedGender =
-        p.gender;
-
-      document.getElementById(
-        'profileAvatar'
-      ).textContent =
-        p.gender === 'Homme'
-        ? '👨'
-        : '👩';
-
+      selectedGender = p.gender;
+      document.getElementById('profileAvatar').textContent = p.gender === 'Homme' ? '👨' : '👩';
     }
 
   }
-
   catch(e) {}
 
 }
@@ -3459,72 +2576,36 @@ function loadProfile() {
 
 function joinEvent(name) {
 
-  if(
-    currentPlan === 'FREE'
-  ) {
-
-    showToast(
-      '🔒 Participation réservée au forfait STANDARD',
-      'error'
-    );
-
+  if(currentPlan === 'FREE') {
+    showToast('🔒 Participation réservée au forfait STANDARD', 'error');
     return;
-
   }
 
-
-  showToast(
-    '🎉 ' +
-    name +
-    ' — ajouté (prototype)',
-    'success'
-  );
+  showToast('🎉 ' + name + ' — ajouté (prototype)', 'success');
 
 }
 
 
 function joinRestaurantEvent() {
 
-  if(
-    currentPlan === 'FREE'
-  ) {
-
-    showToast(
-      '🔒 Participation réservée au forfait STANDARD',
-      'error'
-    );
-
+  if(currentPlan === 'FREE') {
+    showToast('🔒 Participation réservée au forfait STANDARD', 'error');
     return;
-
   }
 
-
-  showToast(
-    '🍽️ Réservation à confirmer par l\'organisateur'
-  );
+  showToast('🍽️ Réservation à confirmer par l\'organisateur');
 
 }
 
 
 function paidEvent() {
 
-  if(
-    currentPlan === 'FREE'
-  ) {
-
-    showToast(
-      '🔒 Détails réservés au forfait STANDARD',
-      'error'
-    );
-
+  if(currentPlan === 'FREE') {
+    showToast('🔒 Détails réservés au forfait STANDARD', 'error');
     return;
-
   }
 
-
-  showToast(
-    '⭐ Sortie spéciale AUPYGO (bientôt)'
-  );
+  showToast('⭐ Sortie spéciale AUPYGO (bientôt)');
 
 }
 
@@ -3535,35 +2616,16 @@ function paidEvent() {
 
 function sendMessage() {
 
-  if(
-    currentPlan !== 'PREMIUM'
-  ) {
-
-    showToast(
-      '💎 Messagerie réservée au PREMIUM',
-      'error'
-    );
-
+  if(currentPlan !== 'PREMIUM') {
+    showToast('💎 Messagerie réservée au PREMIUM', 'error');
     return;
-
   }
 
+  const input = document.getElementById('messageInput');
 
-  const input =
-    document.getElementById(
-      'messageInput'
-    );
+  if(!input.value.trim()) return;
 
-
-  if(!input.value.trim())
-    return;
-
-
-  showToast(
-    'Message envoyé !',
-    'success'
-  );
-
+  showToast('Message envoyé !', 'success');
 
   input.value = '';
 
@@ -3584,12 +2646,7 @@ function sendMessage() {
 */
 
 function changeLanguage(lang) {
-
-  localStorage.setItem(
-    'aupygo_lang',
-    lang
-  );
-
+  localStorage.setItem('aupygo_lang', lang);
 }
 
 
@@ -3597,33 +2654,25 @@ function changeLanguage(lang) {
    DÉMARRAGE
 ========================= */
 
-document.addEventListener(
-  'DOMContentLoaded',
-  () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
-    initMap();
+  initMap();
+  loadProfile();
+  updatePlanUI();
+  await refreshAuthUI();
 
-    loadProfile();
+  // Garde l'UI de connexion synchronisée (autre onglet, expiration de session, etc.)
+  supabaseClient.auth.onAuthStateChange((_event, _session) => {
+    refreshAuthUI();
+  });
 
-    updatePlanUI();
+  const lang = localStorage.getItem('aupygo_lang');
 
-
-    const lang =
-      localStorage.getItem(
-        'aupygo_lang'
-      );
-
-
-    if(lang) {
-
-      document.getElementById(
-        'language'
-      ).value = lang;
-
-    }
-
+  if(lang) {
+    document.getElementById('language').value = lang;
   }
-);
+
+});
 
 </script>
 
