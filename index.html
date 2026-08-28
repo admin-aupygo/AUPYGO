@@ -3341,51 +3341,36 @@ async function saveProfile() {
     return;
   }
 
-  const profile = {
+ // Récupère l'utilisateur connecté
+const { data: { user } } = await supabaseClient.auth.getUser();
 
-    display_name: name,
+if (!user) {
+  showToast('Erreur : utilisateur non connecté', 'error');
+  return;
+}
 
-    age: Number(
-      document.getElementById('age').value
-    ),
+const profile = {
+  id: user.id,                    // ← LIGNE OBLIGATOIRE
+  display_name: name,
+  age: Number(document.getElementById('age').value),
+  gender: selectedGender,
+  country: document.getElementById('country').value,
+  city: userLocation.city,
+  bio: document.getElementById('bio').value,
+  interests: selectedHobbies.join(','),
+  avatar: selectedGender === 'Homme' ? '👨' : '👩',
+  subscription: currentPlan
+};
 
-    gender: selectedGender,
+const { error } = await supabaseClient
+  .from('profiles')
+  .insert([profile]);
 
-    country:
-      document.getElementById('country').value,
-
-    city: userLocation.city,
-
-    bio:
-      document.getElementById('bio').value,
-
-    interests:
-      selectedHobbies.join(','),
-
-    avatar:
-      selectedGender === 'Homme'
-        ? '👨'
-        : '👩',
-
-    subscription: currentPlan
-  };
-
-  const { error } =
-  await supabaseClient
-    .from('profiles')
-    .insert([profile]);
-  
-  if (error) {
-
-    console.error(error);
-
-    showToast(
-      'Erreur : ' + error.message,
-      'error'
-    );
-
-    return;
-  }
+if (error) {
+  console.error(error);
+  showToast('Erreur : ' + error.message, 'error');
+  return;
+}
 
   document.getElementById(
     'profileName'
