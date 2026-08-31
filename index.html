@@ -1871,6 +1871,7 @@ const RADIUS = {
 
 let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
 let currentUser = null;
+let profileLocked = false;
 
 let map, markersLayer;
 
@@ -1919,7 +1920,13 @@ async function handleSignup() {
     return;
   }
 
-  const { data, error } = await supabaseClient.auth.signUp({ email, password });
+  const { data, error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+    options: {
+      emailRedirectTo: window.location.origin + window.location.pathname
+    }
+  });
 
   if (error) {
     showToast('Erreur : ' + error.message, 'error');
@@ -1937,10 +1944,9 @@ async function handleSignup() {
 
   await refreshAuthUI();
 }
-  go('profile');
-showToast('Complète ton profil avant de continuer', 'success');
-  let profileLocked = false;
-  function lockIdentityFields() {
+
+
+function lockIdentityFields() {
 
   document.getElementById('firstName').readOnly = true;
   document.getElementById('age').readOnly = true;
@@ -1953,6 +1959,22 @@ showToast('Complète ton profil avant de continuer', 'success');
   });
 
   profileLocked = true;
+}
+
+
+function unlockIdentityFields() {
+
+  document.getElementById('firstName').readOnly = false;
+  document.getElementById('age').readOnly = false;
+  document.getElementById('country').readOnly = false;
+
+  document.querySelectorAll('.gender-option').forEach(btn => {
+    btn.disabled = false;
+    btn.style.opacity = '1';
+    btn.style.cursor = 'pointer';
+  });
+
+  profileLocked = false;
 }
 
 
@@ -1989,6 +2011,7 @@ async function handleLogout() {
   currentUser = null;
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
+  unlockIdentityFields();
 
   updatePlanUI();
   await refreshAuthUI();
@@ -2000,6 +2023,11 @@ async function handleLogout() {
 async function refreshAuthUI() {
 
   const { data: { user } } = await supabaseClient.auth.getUser();
+
+  // On détecte la transition "pas connecté -> connecté" : compte tout juste
+  // créé, connexion, ou retour sur la page après confirmation de l'email.
+  const justLoggedIn = !currentUser && !!user;
+
   currentUser = user;
 
   const loggedOut = document.getElementById('authLoggedOut');
@@ -2011,10 +2039,10 @@ async function refreshAuthUI() {
     loggedIn.style.display = 'block';
     document.getElementById('authUserEmail').textContent = user.email;
 
-    // Charge le forfait déjà sauvegardé pour ce compte, s'il existe
+    // Charge le profil déjà sauvegardé pour ce compte, s'il existe
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('subscription')
+      .select('subscription, display_name, age, gender, country, bio, interests')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -2024,14 +2052,61 @@ async function refreshAuthUI() {
       updatePlanUI();
     }
 
+    if (profile && profile.display_name) {
+
+      // Un profil existe déjà : on affiche les infos et on fige les champs identité
+      document.getElementById('firstName').value = profile.display_name;
+      document.getElementById('age').value = profile.age || '';
+      document.getElementById('country').value = profile.country || '';
+      document.getElementById('bio').value = profile.bio || '';
+      document.getElementById('profileName').textContent = profile.display_name;
+      document.getElementById('profileMeta').textContent = 'Au pair · ' + (profile.age || '?') + ' ans';
+
+      if (profile.gender) {
+
+        selectedGender = profile.gender;
+        document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
+
+        document.querySelectorAll('.gender-option').forEach(btn => {
+          btn.classList.toggle('selected', btn.textContent.trim().includes(profile.gender));
+        });
+
+      }
+
+      lockIdentityFields();
+
+    } else {
+
+      unlockIdentityFields();
+
+    }
+
+    // Mise à jour de la navigation AVANT de naviguer, pour que l'onglet
+    // Profil soit déjà visible quand on y arrive.
+    updateNavVisibility();
+
+    if (justLoggedIn) {
+
+      go('profile');
+
+      showToast(
+        profile && profile.display_name
+          ? 'Bienvenue !'
+          : 'Complète ton profil avant de continuer',
+        'success'
+      );
+
+    }
+
   } else {
 
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';
+    unlockIdentityFields();
+
+    updateNavVisibility();
 
   }
-
-  updateNavVisibility();
 }
 
 
@@ -2509,6 +2584,8 @@ let selectedGender = 'Femme';
 
 function selectGender(btn,gender) {
 
+  if (profileLocked) return;
+
   document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
 
   btn.classList.add('selected');
@@ -2550,6 +2627,11 @@ function toggleHobby(btn,hobby) {
 
 
 async function saveProfile() {
+
+  if (profileLocked) {
+    showToast('Ton profil est déjà enregistré : prénom, âge, genre et pays ne sont plus modifiables', 'error');
+    return;
+  }
 
   const name = document.getElementById('firstName').value.trim();
 
@@ -2593,12 +2675,12 @@ async function saveProfile() {
   document.getElementById('profileName').textContent = name;
   document.getElementById('profileMeta').textContent = 'Au pair · ' + profile.age + ' ans';
 
-  showToast('Profil enregistré sur Supabase', 'success');
+  lockIdentityFields();
+
+  showToast('Profil enregistré. Prénom, âge, genre et pays sont désormais figés.', 'success');
 
 }
-if (!profileLocked) {
-    lockIdentityFields();
-}
+
 
 async function handleDeleteProfile() {
 
@@ -2627,7 +2709,8 @@ async function handleDeleteProfile() {
   currentUser = null;
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
-  localStorage.removeItem('aupygo_profile');
+
+  unlockIdentityFields();
 
   // Réinitialise le formulaire affiché à l'écran
   document.getElementById('firstName').value = '';
@@ -2646,33 +2729,6 @@ async function handleDeleteProfile() {
   showToast('Ton profil a été supprimé', 'success');
 
   go('home');
-
-}
-
-
-function loadProfile() {
-
-  try {
-
-    const p = JSON.parse(localStorage.getItem('aupygo_profile') || '{}');
-
-    if(p.firstName) {
-      document.getElementById('firstName').value = p.firstName;
-      document.getElementById('profileName').textContent = p.firstName;
-    }
-
-    if(p.age) {
-      document.getElementById('age').value = p.age;
-      document.getElementById('profileMeta').textContent = 'Au pair · ' + p.age + ' ans';
-    }
-
-    if(p.gender) {
-      selectedGender = p.gender;
-      document.getElementById('profileAvatar').textContent = p.gender === 'Homme' ? '👨' : '👩';
-    }
-
-  }
-  catch(e) {}
 
 }
 
@@ -2764,12 +2820,11 @@ function changeLanguage(lang) {
 document.addEventListener('DOMContentLoaded', async () => {
 
   initMap();
-  loadProfile();
   updatePlanUI();
   updateNavVisibility(); // masque tout de suite les onglets restreints avant de savoir si on est connecté
   await refreshAuthUI();
 
-  // Garde l'UI de connexion synchronisée (autre onglet, expiration de session, etc.)
+  // Garde l'UI de connexion synchronisée (autre onglet, confirmation d'email, expiration de session, etc.)
   supabaseClient.auth.onAuthStateChange((_event, _session) => {
     refreshAuthUI();
   });
