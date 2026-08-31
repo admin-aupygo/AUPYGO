@@ -1632,7 +1632,7 @@ footer {
       </div>
 
       <button class="btn btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
-
+      
       <button class="btn" style="background:#fee2e2;color:#991b1b;width:100%;margin-top:10px" onclick="handleDeleteProfile()">
         🗑️ Supprimer mon profil
       </button>
@@ -1936,6 +1936,23 @@ async function handleSignup() {
   document.getElementById('signupPassword').value = '';
 
   await refreshAuthUI();
+}
+  go('profile');
+showToast('Complète ton profil avant de continuer', 'success');
+  let profileLocked = false;
+  function lockIdentityFields() {
+
+  document.getElementById('firstName').readOnly = true;
+  document.getElementById('age').readOnly = true;
+  document.getElementById('country').readOnly = true;
+
+  document.querySelectorAll('.gender-option').forEach(btn => {
+    btn.disabled = true;
+    btn.style.opacity = '0.6';
+    btn.style.cursor = 'not-allowed';
+  });
+
+  profileLocked = true;
 }
 
 
@@ -2579,7 +2596,9 @@ async function saveProfile() {
   showToast('Profil enregistré sur Supabase', 'success');
 
 }
-
+if (!profileLocked) {
+    lockIdentityFields();
+}
 
 async function handleDeleteProfile() {
 
