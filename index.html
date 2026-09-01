@@ -1531,11 +1531,11 @@ footer {
 
     <div class="card" style="text-align:center">
 
-      <div class="avatar" id="profileAvatar">👩</div>
+      <div class="avatar" id="profileAvatar">👤</div>
 
-      <h3 id="profileName">Sophie</h3>
+      <h3 id="profileName">Ton prénom</h3>
 
-      <p style="color:var(--muted)" id="profileMeta">Au pair · 24 ans</p>
+      <p style="color:var(--muted)" id="profileMeta">Complète ton profil</p>
 
       <div class="notice security" style="margin-top:12px">
         🛡️ Profil protégé
@@ -1548,12 +1548,12 @@ footer {
 
       <div class="form-group">
         <label>Prénom</label>
-        <input id="firstName" type="text" value="Sophie">
+        <input id="firstName" type="text" placeholder="Ton prénom...">
       </div>
 
       <div class="form-group">
         <label>Âge</label>
-        <input id="age" type="number" value="24" min="18" max="99">
+        <input id="age" type="number" placeholder="Ton âge..." min="18" max="99">
       </div>
 
       <div class="form-group">
@@ -1562,7 +1562,7 @@ footer {
 
         <div class="gender-grid">
 
-          <button type="button" class="gender-option selected" onclick="selectGender(this,'Femme')">
+          <button type="button" class="gender-option" onclick="selectGender(this,'Femme')">
             👩 Femme
           </button>
 
@@ -1678,6 +1678,11 @@ footer {
         </div>
 
         <button class="btn btn-primary" style="width:100%" onclick="handleSignup()">Créer mon compte</button>
+
+        <div id="signupPendingNotice" class="notice warning" style="display:none;margin-top:14px">
+          📧 <strong>Vérifie ta boîte mail !</strong><br>
+          Pour continuer, merci de valider ton adresse email afin de confirmer ton inscription.
+        </div>
 
       </div>
 
@@ -1933,10 +1938,20 @@ async function handleSignup() {
     return;
   }
 
+  const pendingNotice = document.getElementById('signupPendingNotice');
+
   if (data.session) {
+
+    pendingNotice.style.display = 'none';
     showToast('Compte créé et connecté !', 'success');
+
   } else {
-    showToast('Compte créé ! Vérifie ta boîte mail pour confirmer.', 'success');
+
+    // Confirmation par email requise : message persistant (ne disparaît pas
+    // comme un toast) tant que l'utilisateur n'a pas confirmé son adresse.
+    pendingNotice.style.display = 'block';
+    showToast('Compte créé ! Vérifie ta boîte mail.', 'success');
+
   }
 
   document.getElementById('signupEmail').value = '';
@@ -1999,6 +2014,9 @@ async function handleLogin() {
 
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
+
+  const pendingNotice = document.getElementById('signupPendingNotice');
+  if (pendingNotice) pendingNotice.style.display = 'none';
 
   await refreshAuthUI();
 }
@@ -2086,6 +2104,9 @@ async function refreshAuthUI() {
     updateNavVisibility();
 
     if (justLoggedIn) {
+
+      const pendingNotice = document.getElementById('signupPendingNotice');
+      if (pendingNotice) pendingNotice.style.display = 'none';
 
       go('profile');
 
@@ -2579,7 +2600,7 @@ function openCity(city) {
    PROFIL
 ========================= */
 
-let selectedGender = 'Femme';
+let selectedGender = null;
 
 
 function selectGender(btn,gender) {
@@ -2637,6 +2658,18 @@ async function saveProfile() {
 
   if (!name) {
     showToast('Indique ton prénom', 'error');
+    return;
+  }
+
+  const ageValue = document.getElementById('age').value;
+
+  if (!ageValue || Number(ageValue) < 18) {
+    showToast('Indique ton âge (18 ans minimum)', 'error');
+    return;
+  }
+
+  if (!selectedGender) {
+    showToast('Choisis ton genre', 'error');
     return;
   }
 
@@ -2817,6 +2850,28 @@ function changeLanguage(lang) {
    DÉMARRAGE
 ========================= */
 
+/* =========================
+   TOUCHE ENTRÉE = VALIDATION
+========================= */
+
+function bindEnterKey(id, handler) {
+
+  const el = document.getElementById(id);
+
+  if (!el) return;
+
+  el.addEventListener('keydown', (e) => {
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handler();
+    }
+
+  });
+
+}
+
+
 document.addEventListener('DOMContentLoaded', async () => {
 
   initMap();
@@ -2828,6 +2883,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   supabaseClient.auth.onAuthStateChange((_event, _session) => {
     refreshAuthUI();
   });
+
+  // Entrée = clique sur le bouton correspondant
+  bindEnterKey('signupEmail', handleSignup);
+  bindEnterKey('signupPassword', handleSignup);
+  bindEnterKey('loginEmail', handleLogin);
+  bindEnterKey('loginPassword', handleLogin);
+  bindEnterKey('firstName', saveProfile);
+  bindEnterKey('age', saveProfile);
+  bindEnterKey('country', saveProfile);
 
   const lang = localStorage.getItem('aupygo_lang');
 
