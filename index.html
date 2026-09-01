@@ -2072,7 +2072,13 @@ async function refreshAuthUI() {
       updatePlanUI();
     }
 
-    if (profile && profile.display_name) {
+    if (
+    profile &&
+    profile.display_name &&
+    profile.age &&
+    profile.gender &&
+    profile.country
+) {
 
       // Un profil existe déjà : on affiche les infos et on fige les champs identité
       document.getElementById('firstName').value = profile.display_name;
@@ -2096,12 +2102,11 @@ async function refreshAuthUI() {
       profileSaved = true;
       lockIdentityFields();
 
-    } else {
-
-      profileSaved = false;
-      unlockIdentityFields();
-
-    }
+    }else {
+    profileSaved = false;
+    profileLocked = false;
+    unlockIdentityFields();
+}
 
     // Mise à jour de la navigation AVANT de naviguer, pour que l'onglet
     // Profil soit déjà visible quand on y arrive.
@@ -2466,19 +2471,6 @@ function go(page) {
 
   }
 
-  if(page === 'profile') {
-
-    // Applique immédiatement le bon état des champs, sans attendre
-    // le retour (asynchrone) de refreshAuthUI : évite tout écran
-    // "bloqué" le temps que la requête réseau réponde.
-    if (profileSaved) {
-      lockIdentityFields();
-    } else {
-      unlockIdentityFields();
-    }
-
-  }
-
 }
 
 
@@ -2667,11 +2659,10 @@ function toggleHobby(btn,hobby) {
 
 async function saveProfile() {
 
-  if (profileLocked) {
-    showToast('Ton profil est déjà enregistré : prénom, âge, genre et pays ne sont plus modifiables', 'error');
-    return;
-  }
-
+  if (profileSaved) {
+  showToast('Ton profil est déjà enregistré : prénom, âge, genre et pays ne sont plus modifiables', 'error');
+  return;
+}
   const name = document.getElementById('firstName').value.trim();
 
   if (!name) {
