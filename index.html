@@ -1877,6 +1877,7 @@ const RADIUS = {
 let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
 let currentUser = null;
 let profileLocked = false;
+let profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
 
 let map, markersLayer;
 
@@ -2029,6 +2030,7 @@ async function handleLogout() {
   currentUser = null;
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
+  profileSaved = false;
   unlockIdentityFields();
 
   updatePlanUI();
@@ -2091,10 +2093,12 @@ async function refreshAuthUI() {
 
       }
 
+      profileSaved = true;
       lockIdentityFields();
 
     } else {
 
+      profileSaved = false;
       unlockIdentityFields();
 
     }
@@ -2123,6 +2127,7 @@ async function refreshAuthUI() {
 
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';
+    profileSaved = false;
     unlockIdentityFields();
 
     updateNavVisibility();
@@ -2461,6 +2466,19 @@ function go(page) {
 
   }
 
+  if(page === 'profile') {
+
+    // Applique immédiatement le bon état des champs, sans attendre
+    // le retour (asynchrone) de refreshAuthUI : évite tout écran
+    // "bloqué" le temps que la requête réseau réponde.
+    if (profileSaved) {
+      lockIdentityFields();
+    } else {
+      unlockIdentityFields();
+    }
+
+  }
+
 }
 
 
@@ -2708,6 +2726,7 @@ async function saveProfile() {
   document.getElementById('profileName').textContent = name;
   document.getElementById('profileMeta').textContent = 'Au pair · ' + profile.age + ' ans';
 
+  profileSaved = true;
   lockIdentityFields();
 
   showToast('Profil enregistré. Prénom, âge, genre et pays sont désormais figés.', 'success');
@@ -2743,6 +2762,7 @@ async function handleDeleteProfile() {
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
 
+  profileSaved = false;
   unlockIdentityFields();
 
   // Réinitialise le formulaire affiché à l'écran
