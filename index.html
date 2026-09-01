@@ -1603,22 +1603,22 @@ footer {
 
         <div class="hobby-grid">
 
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Plage')"><span class="emoji">🏖️</span>Plage</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Lire')"><span class="emoji">📚</span>Lire</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Films')"><span class="emoji">🎬</span>Films</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Voyager')"><span class="emoji">✈️</span>Voyager</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Cuisine')"><span class="emoji">🍳</span>Cuisine</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Sport')"><span class="emoji">🏋️</span>Sport</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Danse')"><span class="emoji">💃</span>Danse</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Musique')"><span class="emoji">🎵</span>Musique</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Photo')"><span class="emoji">📸</span>Photo</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Nature')"><span class="emoji">🌿</span>Nature</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Café')"><span class="emoji">☕</span>Café</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Randonnée')"><span class="emoji">🥾</span>Rando</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Animaux')"><span class="emoji">🐶</span>Animaux</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Art')"><span class="emoji">🎨</span>Art</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Yoga')"><span class="emoji">🧘</span>Yoga</button>
-          <button type="button" class="hobby" onclick="toggleHobby(this,'Autre')"><span class="emoji">✨</span>Autre</button>
+          <button type="button" class="hobby" data-hobby="Plage" onclick="toggleHobby(this,'Plage')"><span class="emoji">🏖️</span>Plage</button>
+          <button type="button" class="hobby" data-hobby="Lire" onclick="toggleHobby(this,'Lire')"><span class="emoji">📚</span>Lire</button>
+          <button type="button" class="hobby" data-hobby="Films" onclick="toggleHobby(this,'Films')"><span class="emoji">🎬</span>Films</button>
+          <button type="button" class="hobby" data-hobby="Voyager" onclick="toggleHobby(this,'Voyager')"><span class="emoji">✈️</span>Voyager</button>
+          <button type="button" class="hobby" data-hobby="Cuisine" onclick="toggleHobby(this,'Cuisine')"><span class="emoji">🍳</span>Cuisine</button>
+          <button type="button" class="hobby" data-hobby="Sport" onclick="toggleHobby(this,'Sport')"><span class="emoji">🏋️</span>Sport</button>
+          <button type="button" class="hobby" data-hobby="Danse" onclick="toggleHobby(this,'Danse')"><span class="emoji">💃</span>Danse</button>
+          <button type="button" class="hobby" data-hobby="Musique" onclick="toggleHobby(this,'Musique')"><span class="emoji">🎵</span>Musique</button>
+          <button type="button" class="hobby" data-hobby="Photo" onclick="toggleHobby(this,'Photo')"><span class="emoji">📸</span>Photo</button>
+          <button type="button" class="hobby" data-hobby="Nature" onclick="toggleHobby(this,'Nature')"><span class="emoji">🌿</span>Nature</button>
+          <button type="button" class="hobby" data-hobby="Café" onclick="toggleHobby(this,'Café')"><span class="emoji">☕</span>Café</button>
+          <button type="button" class="hobby" data-hobby="Randonnée" onclick="toggleHobby(this,'Randonnée')"><span class="emoji">🥾</span>Rando</button>
+          <button type="button" class="hobby" data-hobby="Animaux" onclick="toggleHobby(this,'Animaux')"><span class="emoji">🐶</span>Animaux</button>
+          <button type="button" class="hobby" data-hobby="Art" onclick="toggleHobby(this,'Art')"><span class="emoji">🎨</span>Art</button>
+          <button type="button" class="hobby" data-hobby="Yoga" onclick="toggleHobby(this,'Yoga')"><span class="emoji">🧘</span>Yoga</button>
+          <button type="button" class="hobby" data-hobby="Autre" onclick="toggleHobby(this,'Autre')"><span class="emoji">✨</span>Autre</button>
 
         </div>
 
@@ -2033,6 +2033,21 @@ async function handleLogout() {
   profileSaved = false;
   unlockIdentityFields();
 
+  // Nettoyage de l'UI profil
+  document.getElementById('firstName').value = '';
+  document.getElementById('age').value = '';
+  document.getElementById('bio').value = '';
+  document.getElementById('country').value = '';
+  document.getElementById('profileName').textContent = 'Ton prénom';
+  document.getElementById('profileMeta').textContent = 'Complète ton profil';
+  document.getElementById('profileAvatar').textContent = '👤';
+  selectedGender = null;
+  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
+  selectedHobbies.length = 0;
+  document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
+  document.getElementById('otherHobby').style.display = 'none';
+  document.getElementById('otherHobby').value = '';
+
   updatePlanUI();
   await refreshAuthUI();
 
@@ -2072,13 +2087,7 @@ async function refreshAuthUI() {
       updatePlanUI();
     }
 
-    if (
-    profile &&
-    profile.display_name &&
-    profile.age &&
-    profile.gender &&
-    profile.country
-) {
+    if (profile && profile.display_name) {
 
       // Un profil existe déjà : on affiche les infos et on fige les champs identité
       document.getElementById('firstName').value = profile.display_name;
@@ -2099,14 +2108,33 @@ async function refreshAuthUI() {
 
       }
 
+      // Restaure les hobbies sélectionnés
+      selectedHobbies.length = 0;
+      document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
+      if (profile.interests) {
+        profile.interests.split(',').map(s => s.trim()).filter(Boolean).forEach(hobby => {
+          if (selectedHobbies.length >= 3) return;
+          selectedHobbies.push(hobby);
+          const btn = document.querySelector('.hobby[data-hobby="' + hobby + '"]');
+          if (btn) btn.classList.add('selected');
+        });
+      }
+      document.getElementById('otherHobby').style.display =
+        selectedHobbies.includes('Autre') ? 'block' : 'none';
+
       profileSaved = true;
       lockIdentityFields();
 
-    }else {
-    profileSaved = false;
-    profileLocked = false;
-    unlockIdentityFields();
-}
+    } else {
+
+      profileSaved = false;
+      unlockIdentityFields();
+      // Réinitialise l'UI hobbies si pas de profil
+      selectedHobbies.length = 0;
+      document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
+      document.getElementById('otherHobby').style.display = 'none';
+
+    }
 
     // Mise à jour de la navigation AVANT de naviguer, pour que l'onglet
     // Profil soit déjà visible quand on y arrive.
@@ -2307,6 +2335,10 @@ function applyMapRestrictions() {
   const btnWorld = document.getElementById('btnWorld');
   const mapNotice = document.getElementById('mapPlanNotice');
 
+  // Toujours nettoyer les classes active avant de réappliquer
+  [btnAround, btnRegion, btnWorld].forEach(b => {
+    if (b) b.classList.remove('active');
+  });
 
   if(currentPlan === 'FREE') {
 
@@ -2314,6 +2346,7 @@ function applyMapRestrictions() {
 
     btnAround.disabled = false;
     btnAround.classList.add('active');
+    btnAround.title = '';
 
     btnRegion.disabled = true;
     btnRegion.title = 'Disponible avec STANDARD';
@@ -2327,9 +2360,11 @@ function applyMapRestrictions() {
     mapNotice.innerHTML = '🗺️ Explore ta <strong>région</strong> et au-delà.';
 
     btnAround.disabled = false;
+    btnAround.title = '';
 
     btnRegion.disabled = false;
     btnRegion.classList.add('active');
+    btnRegion.title = '';
 
     btnWorld.disabled = true;
     btnWorld.title = 'Disponible avec PREMIUM';
@@ -2340,10 +2375,13 @@ function applyMapRestrictions() {
     mapNotice.innerHTML = '🌍 Carte <strong>mondiale</strong> débloquée.';
 
     btnAround.disabled = false;
+    btnAround.title = '';
     btnRegion.disabled = false;
+    btnRegion.title = '';
 
     btnWorld.disabled = false;
     btnWorld.classList.add('active');
+    btnWorld.title = '';
 
   }
 
@@ -2468,6 +2506,19 @@ function go(page) {
       applyMapRestrictions();
       map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
     },200);
+
+  }
+
+  if(page === 'profile') {
+
+    // Applique immédiatement le bon état des champs, sans attendre
+    // le retour (asynchrone) de refreshAuthUI : évite tout écran
+    // "bloqué" le temps que la requête réseau réponde.
+    if (profileSaved) {
+      lockIdentityFields();
+    } else {
+      unlockIdentityFields();
+    }
 
   }
 
@@ -2659,29 +2710,6 @@ function toggleHobby(btn,hobby) {
 
 async function saveProfile() {
 
-  if (profileSaved) {
-  showToast('Ton profil est déjà enregistré : prénom, âge, genre et pays ne sont plus modifiables', 'error');
-  return;
-}
-  const name = document.getElementById('firstName').value.trim();
-
-  if (!name) {
-    showToast('Indique ton prénom', 'error');
-    return;
-  }
-
-  const ageValue = document.getElementById('age').value;
-
-  if (!ageValue || Number(ageValue) < 18) {
-    showToast('Indique ton âge (18 ans minimum)', 'error');
-    return;
-  }
-
-  if (!selectedGender) {
-    showToast('Choisis ton genre', 'error');
-    return;
-  }
-
   // Récupère l'utilisateur connecté
   const { data: { user } } = await supabaseClient.auth.getUser();
 
@@ -2691,18 +2719,46 @@ async function saveProfile() {
     return;
   }
 
+  const name = document.getElementById('firstName').value.trim();
+  const ageValue = document.getElementById('age').value;
+  const country = document.getElementById('country').value;
+  const bio = document.getElementById('bio').value;
+
+  // Première création : tous les champs identité sont obligatoires
+  if (!profileSaved) {
+    if (!name) {
+      showToast('Indique ton prénom', 'error');
+      return;
+    }
+    if (!ageValue || Number(ageValue) < 18) {
+      showToast('Indique ton âge (18 ans minimum)', 'error');
+      return;
+    }
+    if (!selectedGender) {
+      showToast('Choisis ton genre', 'error');
+      return;
+    }
+  }
+
+  // Construction de l'objet à upsert
+  // Si le profil est déjà figé, on n'envoie que les champs modifiables (bio + interests)
+  // + on conserve les valeurs identité déjà présentes.
   const profile = {
     id: user.id,
-    display_name: name,
-    age: Number(document.getElementById('age').value),
-    gender: selectedGender,
-    country: document.getElementById('country').value,
-    city: userLocation.city,
-    bio: document.getElementById('bio').value,
+    bio: bio,
     interests: selectedHobbies.join(','),
-    avatar: selectedGender === 'Homme' ? '👨' : '👩',
     subscription: currentPlan
   };
+
+  if (!profileSaved) {
+    // Première sauvegarde : on enregistre aussi l'identité
+    profile.display_name = name;
+    profile.age = Number(ageValue);
+    profile.gender = selectedGender;
+    profile.country = country;
+    profile.city = userLocation.city;
+    profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
+  }
 
   const { error } = await supabaseClient
     .from('profiles')
@@ -2714,13 +2770,15 @@ async function saveProfile() {
     return;
   }
 
-  document.getElementById('profileName').textContent = name;
-  document.getElementById('profileMeta').textContent = 'Au pair · ' + profile.age + ' ans';
-
-  profileSaved = true;
-  lockIdentityFields();
-
-  showToast('Profil enregistré. Prénom, âge, genre et pays sont désormais figés.', 'success');
+  if (!profileSaved) {
+    document.getElementById('profileName').textContent = name;
+    document.getElementById('profileMeta').textContent = 'Au pair · ' + profile.age + ' ans';
+    profileSaved = true;
+    lockIdentityFields();
+    showToast('Profil enregistré. Prénom, âge, genre et pays sont désormais figés. Bio et hobbies restent modifiables.', 'success');
+  } else {
+    showToast('Bio et hobbies mis à jour.', 'success');
+  }
 
 }
 
@@ -2761,11 +2819,15 @@ async function handleDeleteProfile() {
   document.getElementById('age').value = '';
   document.getElementById('bio').value = '';
   document.getElementById('country').value = '';
-  document.getElementById('profileName').textContent = '';
-  document.getElementById('profileMeta').textContent = '';
+  document.getElementById('profileName').textContent = 'Ton prénom';
+  document.getElementById('profileMeta').textContent = 'Complète ton profil';
+  document.getElementById('profileAvatar').textContent = '👤';
+  selectedGender = null;
+  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
   selectedHobbies.length = 0;
   document.querySelectorAll('.hobby.selected').forEach(b => b.classList.remove('selected'));
   document.getElementById('otherHobby').style.display = 'none';
+  document.getElementById('otherHobby').value = '';
 
   updatePlanUI();
   await refreshAuthUI();
