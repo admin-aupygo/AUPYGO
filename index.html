@@ -2077,7 +2077,7 @@ async function refreshAuthUI() {
     // Charge le profil déjà sauvegardé pour ce compte, s'il existe
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('subscription, display_name, age, gender, country, bio, interests')
+      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -2122,9 +2122,35 @@ async function refreshAuthUI() {
       document.getElementById('otherHobby').style.display =
         selectedHobbies.includes('Autre') ? 'block' : 'none';
 
-      profileSaved = true;
-      lockIdentityFields();
+    if (profile && profile.identity_locked === true) {
 
+  document.getElementById('firstName').value = profile.display_name || '';
+  document.getElementById('age').value = profile.age || '';
+  document.getElementById('country').value = profile.country || '';
+  document.getElementById('bio').value = profile.bio || '';
+
+  profileSaved = true;
+  lockIdentityFields();
+
+} else {
+
+  if (profile) {
+
+    document.getElementById('firstName').value = profile.display_name || '';
+    document.getElementById('age').value = profile.age || '';
+    document.getElementById('country').value = profile.country || '';
+    document.getElementById('bio').value = profile.bio || '';
+
+    if (profile.gender) {
+      selectedGender = profile.gender;
+    }
+
+  }
+
+  profileSaved = false;
+  unlockIdentityFields();
+
+}
     } else {
 
       profileSaved = false;
@@ -2758,6 +2784,7 @@ async function saveProfile() {
     profile.country = country;
     profile.city = userLocation.city;
     profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
+    profile.identity_locked = true;
   }
 
   const { error } = await supabaseClient
