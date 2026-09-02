@@ -2087,7 +2087,7 @@ async function refreshAuthUI() {
       updatePlanUI();
     }
 
-    if (profile && profile.display_name) {
+    if (profile && profile.identity_locked === true) {
 
       // Un profil existe déjà : on affiche les infos et on fige les champs identité
       document.getElementById('firstName').value = profile.display_name;
