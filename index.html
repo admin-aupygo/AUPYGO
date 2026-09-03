@@ -1538,7 +1538,7 @@ footer {
       <p style="color:var(--muted)" id="profileMeta">Complète ton profil</p>
 
       <div class="notice security" style="margin-top:12px">
-       🛡️ Profil vérifié
+        🛡️ Profil vérifié
       </div>
 
     </div>
@@ -1675,6 +1675,14 @@ footer {
         <div class="form-group">
           <label>Mot de passe</label>
           <input id="signupPassword" type="password" placeholder="6 caractères minimum" autocomplete="new-password">
+        </div>
+
+        <div class="form-group">
+          <div class="cf-turnstile"
+               data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
+               data-callback="onTurnstileVerified"
+               data-expired-callback="onTurnstileExpired">
+          </div>
         </div>
 
         <button class="btn btn-primary" style="width:100%" onclick="handleSignup()">Créer mon compte</button>
@@ -1844,6 +1852,7 @@ footer {
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
 
 <script>
 
@@ -1883,6 +1892,18 @@ let profileSaved = false; // true uniquement si un profil existe déjà en base 
 // onAuthStateChange sache où rediriger, sans entrer en conflit avec
 // un appel direct à refreshAuthUI().
 let authIntent = null; // 'login' | 'signup' | null
+
+// Jeton anti-robot Cloudflare Turnstile, généré côté client au moment
+// où l'utilisateur valide le contrôle (souvent automatique et invisible).
+let turnstileToken = null;
+
+function onTurnstileVerified(token) {
+  turnstileToken = token;
+}
+
+function onTurnstileExpired() {
+  turnstileToken = null;
+}
 
 let map, markersLayer;
 
@@ -1931,15 +1952,26 @@ async function handleSignup() {
     return;
   }
 
+  if (!turnstileToken) {
+    showToast('Merci de valider le contrôle anti-robot', 'error');
+    return;
+  }
+
   authIntent = 'signup';
 
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
     options: {
-      emailRedirectTo: window.location.origin + window.location.pathname
+      emailRedirectTo: window.location.origin + window.location.pathname,
+      captchaToken: turnstileToken
     }
   });
+
+  // Un jeton Turnstile est à usage unique : on réinitialise le widget
+  // après chaque tentative, réussie ou non.
+  if (window.turnstile) window.turnstile.reset();
+  turnstileToken = null;
 
   if (error) {
     authIntent = null;
