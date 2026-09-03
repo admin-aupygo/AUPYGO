@@ -1958,7 +1958,8 @@ async function handleSignup() {
   document.getElementById('signupEmail').value = '';
   document.getElementById('signupPassword').value = '';
 
-  await refreshAuthUI();
+  // Inscription : après confirmation, l'utilisateur doit atterrir sur son profil
+  await refreshAuthUI('profile');
 }
 
 
@@ -2011,15 +2012,14 @@ async function handleLogin() {
     return;
   }
 
-  showToast('Connexion réussie', 'success');
-
   document.getElementById('loginEmail').value = '';
   document.getElementById('loginPassword').value = '';
 
   const pendingNotice = document.getElementById('signupPendingNotice');
   if (pendingNotice) pendingNotice.style.display = 'none';
 
-  await refreshAuthUI();
+  // Connexion classique : on reste/retourne sur la page d'accueil
+  await refreshAuthUI('home');
 }
 
 
@@ -2055,7 +2055,7 @@ async function handleLogout() {
 }
 
 
-async function refreshAuthUI() {
+async function refreshAuthUI(redirectPage = 'profile') {
 
   const { data: { user } } = await supabaseClient.auth.getUser();
 
@@ -2171,14 +2171,22 @@ async function refreshAuthUI() {
       const pendingNotice = document.getElementById('signupPendingNotice');
       if (pendingNotice) pendingNotice.style.display = 'none';
 
-      go('profile');
+      go(redirectPage);
 
-      showToast(
-        profile && profile.display_name
-          ? 'Bienvenue !'
-          : 'Complète ton profil avant de continuer',
-        'success'
-      );
+      if (redirectPage === 'home') {
+
+        showToast('Connexion réussie', 'success');
+
+      } else {
+
+        showToast(
+          profile && profile.display_name
+            ? 'Bienvenue !'
+            : 'Complète ton profil avant de continuer',
+          'success'
+        );
+
+      }
 
     }
 
