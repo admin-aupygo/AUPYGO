@@ -1879,6 +1879,11 @@ let currentUser = null;
 let profileLocked = false;
 let profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
 
+// Indique l'action en cours (login/signup) pour que le listener
+// onAuthStateChange sache où rediriger, sans entrer en conflit avec
+// un appel direct à refreshAuthUI().
+let authIntent = null; // 'login' | 'signup' | null
+
 let map, markersLayer;
 
 
@@ -1926,6 +1931,8 @@ async function handleSignup() {
     return;
   }
 
+  authIntent = 'signup';
+
   const { data, error } = await supabaseClient.auth.signUp({
     email,
     password,
@@ -1935,6 +1942,7 @@ async function handleSignup() {
   });
 
   if (error) {
+    authIntent = null;
     showToast('Erreur : ' + error.message, 'error');
     return;
   }
@@ -1958,8 +1966,9 @@ async function handleSignup() {
   document.getElementById('signupEmail').value = '';
   document.getElementById('signupPassword').value = '';
 
-  // Inscription : après confirmation, l'utilisateur doit atterrir sur son profil
-  await refreshAuthUI('profile');
+  // Pas d'appel direct à refreshAuthUI ici : si une session est créée
+  // immédiatement, le listener onAuthStateChange s'en charge en lisant
+  // authIntent. S'il faut confirmer l'email, rien à faire pour l'instant.
 }
 
 
@@ -2005,9 +2014,12 @@ async function handleLogin() {
     return;
   }
 
+  authIntent = 'login';
+
   const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
 
   if (error) {
+    authIntent = null;
     showToast('Erreur : ' + error.message, 'error');
     return;
   }
@@ -2018,8 +2030,9 @@ async function handleLogin() {
   const pendingNotice = document.getElementById('signupPendingNotice');
   if (pendingNotice) pendingNotice.style.display = 'none';
 
-  // Connexion classique : on reste/retourne sur la page d'accueil
-  await refreshAuthUI('home');
+  // Pas d'appel direct à refreshAuthUI ici : c'est le listener
+  // onAuthStateChange qui va se déclencher et lire authIntent = 'login'
+  // pour rediriger vers l'accueil, sans conflit de course.
 }
 
 
@@ -2840,6 +2853,15 @@ async function handleDeleteProfile() {
     return;
   }
 
+  // Supprime aussi le compte d'authentification (nécessite la fonction SQL
+  // "delete_user" créée côté Supabase, cf. documentation du projet).
+  const { error: authError } = await supabaseClient.rpc('delete_user');
+
+  if (authError) {
+    console.error(authError);
+    showToast('Profil supprimé, mais erreur lors de la suppression du compte : ' + authError.message, 'error');
+  }
+
   await supabaseClient.auth.signOut();
 
   currentUser = null;
@@ -2988,8 +3010,12 @@ document.addEventListener('DOMContentLoaded', async () => {
   await refreshAuthUI();
 
   // Garde l'UI de connexion synchronisée (autre onglet, confirmation d'email, expiration de session, etc.)
+  // C'est le SEUL endroit qui décide de la redirection après connexion,
+  // pour éviter tout conflit avec un appel direct depuis handleLogin/handleSignup.
   supabaseClient.auth.onAuthStateChange((_event, _session) => {
-    refreshAuthUI();
+    const redirectPage = authIntent === 'login' ? 'home' : 'profile';
+    authIntent = null;
+    refreshAuthUI(redirectPage);
   });
 
   // Entrée = clique sur le bouton correspondant
