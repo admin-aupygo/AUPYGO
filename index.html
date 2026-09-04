@@ -3372,16 +3372,15 @@ function bindEnterKey(id, handler) {
 }
 
 function toggleFooter(id) {
-  const boxes = ['faqBox', 'contactBox', 'cguBox', 'privacyBox', 'legalBox'];
+  const boxes = ['faqBox', 'contactBox', 'cguBox', 'privacyBox', 'legalBox', 'howItWorksBox'];
   const target = document.getElementById(id);
   if (!target) return;
 
-  // Ferme tous les autres
+  // Ferme tous les autres, bascule celui cliqué
   boxes.forEach(boxId => {
     const el = document.getElementById(boxId);
     if (!el) return;
     if (boxId === id) {
-      // Bascule celui cliqué
       el.style.display = (el.style.display === 'block') ? 'none' : 'block';
     } else {
       el.style.display = 'none';
