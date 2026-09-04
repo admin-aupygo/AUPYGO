@@ -456,85 +456,90 @@ main {
 
 /* MAP */
 
-.map-container {
-  position:relative;
-  background:#fff;
-  border-radius:20px;
-  padding:8px;
-  box-shadow:var(--shadow);
-}
-
-#map {
-  height:520px;
-  width:100%;
-  border-radius:14px;
-}
-
-.map-controls {
-  position:absolute;
-  z-index:1000;
-  top:20px;
-  right:20px;
-  display:flex;
-  flex-direction:column;
-  gap:6px;
-}
-
-.map-control-btn {
-  width:40px;
-  height:40px;
-  border:0;
-  border-radius:10px;
-  background:#fff;
-  font-size:20px;
-  font-weight:bold;
-  cursor:pointer;
-  box-shadow:0 3px 12px rgba(0,0,0,.12);
-}
-
-.map-control-btn:hover {
-  background:#f3edff;
-  color:var(--primary);
-}
-
-.map-privacy {
-  position:absolute;
-  z-index:1000;
-  bottom:20px;
-  left:20px;
-  max-width:340px;
-  background:rgba(255,255,255,.95);
-  padding:10px 14px;
-  border-radius:12px;
-  box-shadow:0 3px 12px rgba(0,0,0,.1);
-  font-size:12px;
+.map-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin-bottom: 12px;
 }
 
 .map-filter {
-  display:flex;
-  gap:8px;
-  flex-wrap:wrap;
-  margin-bottom:14px;
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  flex: 1;
 }
 
 .map-filter button {
-  border:1px solid var(--border);
-  background:#fff;
-  border-radius:10px;
-  padding:8px 12px;
-  cursor:pointer;
-  font-weight:600;
-  font-size:13px;
+  border: 1px solid var(--border);
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  min-height: 44px; /* tactile mobile */
 }
 
 .map-filter button.active {
-  background:var(--primary);
-  color:#fff;
+  background: var(--primary);
+  color: #fff;
+  border-color: var(--primary);
 }
 
 .map-filter button:disabled {
-  opacity:.45;
-  cursor:not-allowed;
+  opacity: .45;
+  cursor: not-allowed;
+}
+
+.map-zoom-btns {
+  display: flex;
+  gap: 6px;
+}
+
+.map-control-btn {
+  width: 44px;
+  height: 44px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: #fff;
+  font-size: 18px;
+  font-weight: bold;
+  cursor: pointer;
+  box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+
+.map-control-btn:hover {
+  background: #f3edff;
+  color: var(--primary);
+}
+
+.map-container {
+  position: relative;
+  background: #fff;
+  border-radius: 20px;
+  padding: 8px;
+  box-shadow: var(--shadow);
+  overflow: hidden;
+}
+
+#map {
+  height: 480px;
+  width: 100%;
+  border-radius: 14px;
+  z-index: 1;
+}
+
+.map-privacy {
+  margin-top: 12px;
+  padding: 12px 14px;
+  background: #f8f5ff;
+  border: 1px solid #e8e0f5;
+  border-radius: 12px;
+  font-size: 13px;
+  color: var(--text);
+  line-height: 1.5;
 }
 
 .aupy-marker {
@@ -1039,7 +1044,27 @@ footer {
   }
 
   #map {
-    height:420px;
+    height:380px;
+  }
+
+  .map-toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .map-filter {
+    width: 100%;
+  }
+
+  .map-filter button {
+    flex: 1;
+    text-align: center;
+    font-size: 12px;
+    padding: 10px 8px;
+  }
+
+  .map-zoom-btns {
+    justify-content: center;
   }
 
   .message-box {
@@ -1291,10 +1316,18 @@ footer {
     <p>Découvre les AUPYGO près de toi, en toute confidentialité.</p>
   </div>
 
-  <div class="map-filter">
-    <button id="btnAround" class="active" onclick="mapMode('around',this)">📍 Autour de moi</button>
-    <button id="btnRegion" onclick="mapMode('region',this)">🗺️ Ma région</button>
-    <button id="btnWorld" onclick="mapMode('world',this)">🌍 Monde</button>
+  <!-- Barre d’outils TOUJOURS visible (au-dessus de la carte) -->
+  <div class="map-toolbar">
+    <div class="map-filter">
+      <button id="btnAround" class="active" onclick="mapMode('around',this)">📍 Autour de moi</button>
+      <button id="btnRegion" onclick="mapMode('region',this)">🗺️ Ma région</button>
+      <button id="btnWorld" onclick="mapMode('world',this)">🌍 Monde</button>
+    </div>
+    <div class="map-zoom-btns">
+      <button type="button" class="map-control-btn" onclick="zoomIn()" title="Zoom +">+</button>
+      <button type="button" class="map-control-btn" onclick="zoomOut()" title="Zoom −">−</button>
+      <button type="button" class="map-control-btn" onclick="resetMap()" title="Recentrer">🎯</button>
+    </div>
   </div>
 
   <div class="notice" id="mapPlanNotice">
@@ -1302,20 +1335,12 @@ footer {
   </div>
 
   <div class="map-container">
-
     <div id="map"></div>
+  </div>
 
-    <div class="map-controls">
-      <button class="map-control-btn" onclick="zoomIn()">+</button>
-      <button class="map-control-btn" onclick="zoomOut()">−</button>
-      <button class="map-control-btn" onclick="resetMap()">🎯</button>
-    </div>
-
-    <div class="map-privacy">
-      🔒 Position approximative uniquement (~1 km).<br>
-      Ton emplacement exact n’est jamais affiché ni partagé.
-    </div>
-
+  <div class="map-privacy">
+    🔒 <strong>Privacy :</strong> position approximative uniquement (~1 km).  
+    Ton emplacement exact n’est jamais affiché ni partagé avec les autres.
   </div>
 
 </section>
@@ -3107,8 +3132,21 @@ function zoomOut() {
 
 
 function resetMap() {
-  if(!map) return;
+  if (!map) return;
+
+  // Si pas encore de géoloc, on la demande
+  if (!userLocation.hasRealGeo) {
+    requestUserLocation((ok) => {
+      if (ok && map) {
+        map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+        renderMarkers();
+      }
+    });
+    return;
+  }
+
   map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+  renderMarkers();
 }
 
 
