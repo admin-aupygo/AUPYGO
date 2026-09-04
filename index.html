@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>AUPYGO — Meet. Go out. Make friends.</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
 
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
@@ -2389,28 +2390,25 @@ async function refreshAuthUI(redirectPage = 'profile') {
       updatePlanUI();
     }
 
+    // === Chargement du profil ===
     if (profile && profile.identity_locked === true) {
-
-      // Un profil existe déjà : on affiche les infos et on fige les champs identité
-      document.getElementById('firstName').value = profile.display_name;
+      // Profil déjà créé et verrouillé
+      document.getElementById('firstName').value = profile.display_name || '';
       document.getElementById('age').value = profile.age || '';
       document.getElementById('country').value = profile.country || '';
       document.getElementById('bio').value = profile.bio || '';
-      document.getElementById('profileName').textContent = profile.display_name;
+      document.getElementById('profileName').textContent = profile.display_name || 'Ton prénom';
       document.getElementById('profileMeta').textContent = 'Au pair · ' + (profile.age || '?') + ' ans';
 
       if (profile.gender) {
-
         selectedGender = profile.gender;
         document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
-
         document.querySelectorAll('.gender-option').forEach(btn => {
           btn.classList.toggle('selected', btn.textContent.trim().includes(profile.gender));
         });
-
       }
 
-      // Restaure les hobbies sélectionnés
+      // Restaure les hobbies
       selectedHobbies.length = 0;
       document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
       if (profile.interests) {
@@ -2424,83 +2422,59 @@ async function refreshAuthUI(redirectPage = 'profile') {
       document.getElementById('otherHobby').style.display =
         selectedHobbies.includes('Autre') ? 'block' : 'none';
 
-    if (profile && profile.identity_locked === true) {
+      profileSaved = true;
+      lockIdentityFields();
 
-  document.getElementById('firstName').value = profile.display_name || '';
-  document.getElementById('age').value = profile.age || '';
-  document.getElementById('country').value = profile.country || '';
-  document.getElementById('bio').value = profile.bio || '';
-
-  profileSaved = true;
-  lockIdentityFields();
-
-} else {
-
-  if (profile) {
-
-    document.getElementById('firstName').value = profile.display_name || '';
-    document.getElementById('age').value = profile.age || '';
-    document.getElementById('country').value = profile.country || '';
-    document.getElementById('bio').value = profile.bio || '';
-
-    if (profile.gender) {
-      selectedGender = profile.gender;
-    }
-
-  }
-
-  profileSaved = false;
-  unlockIdentityFields();
-
-}
     } else {
+      // Pas encore de profil verrouillé
+      if (profile) {
+        document.getElementById('firstName').value = profile.display_name || '';
+        document.getElementById('age').value = profile.age || '';
+        document.getElementById('country').value = profile.country || '';
+        document.getElementById('bio').value = profile.bio || '';
+        if (profile.gender) {
+          selectedGender = profile.gender;
+          document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
+        }
+      }
 
       profileSaved = false;
       unlockIdentityFields();
-      // Réinitialise l'UI hobbies si pas de profil
+
+      // Réinitialise les hobbies
       selectedHobbies.length = 0;
       document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
       document.getElementById('otherHobby').style.display = 'none';
-
     }
 
-    // Mise à jour de la navigation AVANT de naviguer, pour que l'onglet
-    // Profil soit déjà visible quand on y arrive.
+    // Mise à jour de la navigation AVANT de naviguer
     updateNavVisibility();
 
     if (justLoggedIn) {
-
       const pendingNotice = document.getElementById('signupPendingNotice');
       if (pendingNotice) pendingNotice.style.display = 'none';
 
       go(redirectPage);
 
       if (redirectPage === 'home') {
-
         showToast('Connexion réussie', 'success');
-
       } else {
-
         showToast(
           profile && profile.display_name
             ? 'Bienvenue !'
             : 'Complète ton profil avant de continuer',
           'success'
         );
-
       }
-
     }
 
   } else {
-
+    // Pas connecté
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';
     profileSaved = false;
     unlockIdentityFields();
-
     updateNavVisibility();
-
   }
 }
 
