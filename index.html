@@ -1844,11 +1844,25 @@ footer {
 
 
 <div style="margin-top:25px">
-<h3>❓ FAQ</h3>
-<p><strong>AUPYGO est-il gratuit ?</strong><br>Oui, une formule FREE est disponible.</p>
-<p><strong>Les photos sont-elles visibles ?</strong><br>Non, les profils utilisent des avatars universels.</p>
-<p><strong>Ma position GPS est-elle affichée ?</strong><br>Non, seules des positions approximatives sont affichées.</p>
-<p><strong>Comment contacter AUPYGO ?</strong><br><a href="mailto:contact@aupygo.com">contact@aupygo.com</a></p>
+<button class="btn btn-secondary" onclick="toggleFAQ()">
+    ❓ FAQ
+</button>
+
+<div id="faqBox" style="display:none;margin-top:15px">
+    
+    <p><strong>AUPYGO est-il gratuit ?</strong><br>
+    Oui, une formule FREE est disponible.</p>
+
+    <p><strong>Les photos sont-elles visibles ?</strong><br>
+    Non, les profils utilisent des avatars universels.</p>
+
+    <p><strong>Ma position GPS est-elle affichée ?</strong><br>
+    Non, seules des positions approximatives sont affichées.</p>
+
+    <p><strong>Comment contacter AUPYGO ?</strong><br>
+    contact@aupygo.com</p>
+
+</div>
 <button class="btn btn-primary" onclick="window.location.href='mailto:contact@aupygo.com?subject=Contact AUPYGO'">✉️ Contact</button>
 </div>
 </footer>
@@ -3081,6 +3095,15 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 </script>
+  function toggleFAQ() {
+    const faq = document.getElementById('faqBox');
+
+    if (faq.style.display === 'none') {
+        faq.style.display = 'block';
+    } else {
+        faq.style.display = 'none';
+    }
+}
 
 </body>
 </html>
