@@ -1284,6 +1284,8 @@ footer {
      CARTE
 ========================= -->
 
+<section id="map" class="page">
+
   <div class="section-title">
     <h2>🗺️ La communauté AUPYGO</h2>
     <p>Découvre les AUPYGO près de toi, en toute confidentialité.</p>
@@ -1300,16 +1302,20 @@ footer {
   </div>
 
   <div class="map-container">
+
     <div id="map"></div>
+
     <div class="map-controls">
       <button class="map-control-btn" onclick="zoomIn()">+</button>
       <button class="map-control-btn" onclick="zoomOut()">−</button>
       <button class="map-control-btn" onclick="resetMap()">🎯</button>
     </div>
+
     <div class="map-privacy">
       🔒 Position approximative uniquement (~1 km).<br>
       Ton emplacement exact n’est jamais affiché ni partagé.
     </div>
+
   </div>
 
 </section>
@@ -1887,14 +1893,6 @@ footer {
           <input id="signupPassword" type="password" placeholder="6 caractères minimum" autocomplete="new-password">
         </div>
 
-        <div class="form-group">
-          <div class="cf-turnstile"
-               data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
-               data-callback="onTurnstileVerified"
-               data-expired-callback="onTurnstileExpired">
-          </div>
-        </div>
-
         <button class="btn btn-primary" style="width:100%" onclick="handleSignup()">Créer mon compte</button>
 
         <div id="signupPendingNotice" class="notice warning" style="display:none;margin-top:14px">
@@ -1916,16 +1914,18 @@ footer {
           <input id="loginPassword" type="password" placeholder="Ton mot de passe" autocomplete="current-password">
         </div>
 
-        <div class="form-group">
-          <div class="cf-turnstile"
-               data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
-               data-callback="onTurnstileVerified"
-               data-expired-callback="onTurnstileExpired">
-          </div>
-        </div>
-
         <button class="btn btn-primary" style="width:100%" onclick="handleLogin()">Se connecter</button>
 
+      </div>
+
+      <!-- Un seul Turnstile partagé (toujours visible) -->
+      <div class="form-group" style="margin-top:16px">
+        <div id="turnstileContainer"
+             class="cf-turnstile"
+             data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
+             data-callback="onTurnstileVerified"
+             data-expired-callback="onTurnstileExpired">
+        </div>
       </div>
 
     </div>
@@ -2144,8 +2144,7 @@ const RADIUS = {
   PREMIUM: null    // illimité
 };
 
-// Arrondit les coordonnées pour ne jamais stocker/afficher la position exacte
-// ~2 décimales = précision d’environ 1 km
+// Arrondit les coordonnées (~1 km) — jamais de position exacte
 function approximateCoords(lat, lng) {
   return {
     lat: Math.round(lat * 100) / 100,
@@ -2153,7 +2152,19 @@ function approximateCoords(lat, lng) {
   };
 }
 
-// Demande la géolocalisation au navigateur (avec consentement)
+// Distance en km (Haversine)
+function distanceKm(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2);
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+// Demande la géolocalisation (avec consentement navigateur)
 function requestUserLocation(callback) {
   if (!navigator.geolocation) {
     showToast('La géolocalisation n’est pas disponible sur cet appareil', 'error');
@@ -2164,7 +2175,7 @@ function requestUserLocation(callback) {
   showToast('Demande d’accès à ta position…', 'success');
 
   navigator.geolocation.getCurrentPosition(
-    (pos) => {
+    async (pos) => {
       const approx = approximateCoords(pos.coords.latitude, pos.coords.longitude);
       userLocation.lat = approx.lat;
       userLocation.lng = approx.lng;
@@ -2177,7 +2188,26 @@ function requestUserLocation(callback) {
         localStorage.setItem('aupygo_approx_lng', String(approx.lng));
       } catch (e) {}
 
+      // Sauvegarde approximative dans Supabase (si connecté)
+      if (currentUser) {
+        try {
+          await supabaseClient
+            .from('profiles')
+            .upsert({
+              id: currentUser.id,
+              approx_lat: approx.lat,
+              approx_lng: approx.lng
+            }, { onConflict: 'id' });
+        } catch (e) {
+          console.error('Erreur sauvegarde position:', e);
+        }
+      }
+
       showToast('Position approximative enregistrée (précision ~1 km)', 'success');
+      if (map) {
+        renderMarkers();
+        applyMapRestrictions();
+      }
       if (callback) callback(true);
     },
     (err) => {
@@ -2196,7 +2226,6 @@ function requestUserLocation(callback) {
   );
 }
 
-// Charge une position approximative déjà sauvegardée
 function loadSavedApproxLocation() {
   try {
     const lat = localStorage.getItem('aupygo_approx_lat');
@@ -2209,6 +2238,31 @@ function loadSavedApproxLocation() {
     }
   } catch (e) {}
 }
+
+let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
+let currentUser = null;
+let profileLocked = false;
+let profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
+
+// Indique l'action en cours (login/signup) pour que le listener
+// onAuthStateChange sache où rediriger, sans entrer en conflit avec
+// un appel direct à refreshAuthUI().
+let authIntent = null; // 'login' | 'signup' | null
+
+// Jeton anti-robot Cloudflare Turnstile, généré côté client au moment
+// où l'utilisateur valide le contrôle (souvent automatique et invisible).
+let turnstileToken = null;
+
+function onTurnstileVerified(token) {
+  turnstileToken = token;
+}
+
+function onTurnstileExpired() {
+  turnstileToken = null;
+}
+
+let map, markersLayer;
+
 
 /* =========================
    AUTHENTIFICATION
@@ -2235,6 +2289,12 @@ function switchAuthTab(tab) {
     tabLogin.classList.remove('btn-secondary');
     tabSignup.classList.add('btn-secondary');
     tabSignup.classList.remove('btn-primary');
+  }
+
+  // Réinitialise le captcha à chaque changement d'onglet
+  turnstileToken = null;
+  if (window.turnstile) {
+    try { window.turnstile.reset(); } catch (e) {}
   }
 }
 
@@ -2702,6 +2762,7 @@ function updatePlanUI() {
 
 
   applyMapRestrictions();
+  if (map) renderMarkers(); // met à jour les marqueurs selon le forfait
 
 }
 
@@ -2757,7 +2818,7 @@ function applyMapRestrictions() {
 
   if(currentPlan === 'FREE') {
 
-    mapNotice.innerHTML = '📍 Découvre les au pairs <strong>autour de toi</strong>.';
+    mapNotice.innerHTML = '📍 Découvre les AUPYGO <strong>autour de toi</strong> (position approximative uniquement).';
 
     btnAround.disabled = false;
     btnAround.classList.add('active');
@@ -2914,27 +2975,22 @@ function go(page) {
   window.scrollTo({ top:0, behavior:'smooth' });
 
 
-  if(page === 'map' && map) {
-
+  // La carte n’existe que dans l’onglet Carte
+  if (page === 'map' && map) {
     setTimeout(() => {
       map.invalidateSize();
       applyMapRestrictions();
+      renderMarkers(); // filtre selon forfait + position
       map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
-    },200);
-
+    }, 200);
   }
 
-  if(page === 'profile') {
-
-    // Applique immédiatement le bon état des champs, sans attendre
-    // le retour (asynchrone) de refreshAuthUI : évite tout écran
-    // "bloqué" le temps que la requête réseau réponde.
+  if (page === 'profile') {
     if (profileSaved) {
       lockIdentityFields();
     } else {
       unlockIdentityFields();
     }
-
   }
 
 }
@@ -3004,20 +3060,26 @@ function createIcon(gender) {
 
 
 function renderMarkers() {
-
+  if (!markersLayer) return;
   markersLayer.clearLayers();
 
+  const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
+
   aupyLocations.forEach(loc => {
+    // Filtre selon le forfait
+    if (maxKm !== null) {
+      const d = distanceKm(userLocation.lat, userLocation.lng, loc.lat, loc.lng);
+      if (d > maxKm) return; // trop loin → on n'affiche pas
+    }
 
-    const m = L.marker([loc.lat, loc.lng], { icon:createIcon(loc.gender) });
-
+    const m = L.marker([loc.lat, loc.lng], { icon: createIcon(loc.gender) });
     const emoji = loc.gender === 'Homme' ? '👨' : '👩';
 
     m.bindPopup(
       '<div style="text-align:center;min-width:160px">' +
       '<div style="font-size:32px;margin-bottom:4px">' + emoji + '</div>' +
       '<strong>🌍 ' + loc.city + '</strong><br>' +
-      '<span style="font-size:13px;color:#666">👥 ' + loc.users + ' au pairs</span><br><br>' +
+      '<span style="font-size:13px;color:#666">👥 ' + loc.users + ' AUPYGO</span><br><br>' +
       '<button onclick="openCity(\'' + loc.city + '\')" ' +
       'style="background:#7c3aed;color:#fff;border:0;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;margin-bottom:6px">' +
       'Voir les profils' +
@@ -3030,9 +3092,7 @@ function renderMarkers() {
     );
 
     markersLayer.addLayer(m);
-
   });
-
 }
 
 
@@ -3088,6 +3148,7 @@ function mapMode(mode, btn) {
     map.setView([20, 0], 2);
   }
 }
+
 
 function openCity(city) {
   showToast('Profils de ' + city + ' — selon ton forfait (prototype)', 'success');
@@ -3449,7 +3510,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   loadSavedApproxLocation(); // charge la position approximative déjà autorisée
   initMap();
   updatePlanUI();
-  updateNavVisibility(); // masque tout de suite les onglets restreints avant de savoir si on est connecté
+  updateNavVisibility();
   await refreshAuthUI();
 
   // Garde l'UI de connexion synchronisée (autre onglet, confirmation d'email, expiration de session, etc.)
