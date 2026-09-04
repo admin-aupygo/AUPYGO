@@ -1064,14 +1064,9 @@ footer {
     </nav>
 
     <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
-      <option value="fr">🇫🇷 FR</option>
-      <option value="en">🇬🇧 EN</option>
-      <option value="pt">🇧🇷 PT</option>
-      <option value="es">🇪🇸 ES</option>
-      <option value="de">🇩🇪 DE</option>
-      <option value="it">🇮🇹 IT</option>
-      <option value="zh">🇨🇳 ZH</option>
-      <option value="ru">🇷🇺 RU</option>
+      <option value="fr">🇫🇷 Français</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="es">🇪🇸 Español</option>
     </select>
 
   </div>
@@ -1107,10 +1102,12 @@ footer {
       <button class="btn btn-primary" onclick="go('map')">
         🌍 Découvrir la communauté
       </button>
-
-      <button class="btn btn-secondary" onclick="go('plans')" style="margin-left:8px">
-        Voir les abonnements
-      </button>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+        <button class="btn btn-secondary" onclick="go('events')">🎉 Sortir</button>
+        <button class="btn btn-secondary" onclick="go('map')">🤝 Se retrouver</button>
+        <button class="btn btn-locked" style="width:auto;margin-top:0">💬 Messages Premium</button>
+        <button class="btn btn-primary" onclick="go('map')">🗺️ Découvrir</button>
+      </div>
 
     </div>
 
@@ -1193,17 +1190,17 @@ footer {
 
   <div class="grid">
 
-    <div class="card">
+    <div class="card" onclick="go('map')" style="cursor:pointer">
       <h3>🗺️ Découvrir</h3>
       <p>Trouve les au pairs autour de toi en préservant leur confidentialité.</p>
     </div>
 
-    <div class="card">
+    <div class="card" onclick="go('events')" style="cursor:pointer">
       <h3>🎉 Sortir</h3>
       <p>Cafés, randonnées, restaurants et activités avec la communauté.</p>
     </div>
 
-    <div class="card">
+    <div class="card" onclick="go('map')" style="cursor:pointer">
       <h3>🤝 Se retrouver</h3>
       <p>Échange et crée de vraies amitiés sans jugement sur les photos.</p>
     </div>
@@ -1632,6 +1629,7 @@ footer {
       </div>
 
       <button class="btn btn-primary" onclick="saveProfile()">💾 Enregistrer</button>
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="go('plans')">💎 Voir les abonnements</button>
       
       <button class="btn" style="background:#fee2e2;color:#991b1b;width:100%;margin-top:10px" onclick="handleDeleteProfile()">
         🗑️ Supprimer mon profil
@@ -1844,6 +1842,15 @@ footer {
 
   </div>
 
+
+<div style="margin-top:25px">
+<h3>❓ FAQ</h3>
+<p><strong>AUPYGO est-il gratuit ?</strong><br>Oui, une formule FREE est disponible.</p>
+<p><strong>Les photos sont-elles visibles ?</strong><br>Non, les profils utilisent des avatars universels.</p>
+<p><strong>Ma position GPS est-elle affichée ?</strong><br>Non, seules des positions approximatives sont affichées.</p>
+<p><strong>Comment contacter AUPYGO ?</strong><br><a href="mailto:contact@aupygo.com">contact@aupygo.com</a></p>
+<button class="btn btn-primary" onclick="window.location.href='mailto:contact@aupygo.com?subject=Contact AUPYGO'">✉️ Contact</button>
+</div>
 </footer>
 
 
@@ -3005,6 +3012,12 @@ function sendMessage() {
 
 function changeLanguage(lang) {
   localStorage.setItem('aupygo_lang', lang);
+  const t={
+    fr:{title:'Meet. Go out. Make friends.'},
+    en:{title:'Meet. Go out. Make friends.'},
+    es:{title:'Conoce gente. Sal. Haz amigos.'}
+  };
+  location.reload();
 }
 
 
