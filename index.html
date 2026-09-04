@@ -1254,13 +1254,13 @@ footer {
       <h3>🎉 Sortir</h3>
       <p>Cafés, randonnées, restaurants et activités avec la communauté.</p>
       <p style="margin-top:10px;font-size:13px;color:var(--primary);font-weight:600;">
-        📅 Agenda AUPYGO inclus
+        📅 Agenda des sorties AUPYGO
       </p>
     </div>
 
     <div class="card" onclick="go('reconnect')" style="cursor:pointer">
       <h3>🤝 Se retrouver</h3>
-      <p>Retrouve les au pairs avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+      <p>Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
     </div>
 
   </div>
@@ -1510,15 +1510,21 @@ footer {
 
   <div class="section-title">
     <h2>🤝 Se retrouver</h2>
-    <p>Les au pairs avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+    <p>Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
   </div>
 
-  <div class="notice" style="background:#f0e9ff;border-color:#d8c7ff">
-    📅 <strong>Mon agenda AUPYGO inclus</strong> — Tu vois ici uniquement les sorties que vous avez en commun. Ton agenda personnel reste privé.
+  <!-- Bouton vers l’agenda privé -->
+  <div style="margin-bottom:18px">
+    <button class="btn btn-primary" style="width:100%;max-width:320px" onclick="go('profile')">
+      📅 Mon agenda privé AUPYGO
+    </button>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px">
+      Ton agenda personnel reste confidentiel. Ici, uniquement les sorties partagées avec tes amis.
+    </p>
   </div>
 
   <div class="notice" id="reconnectNotice">
-    Ici apparaissent uniquement les personnes avec qui tu as participé à une activité <strong>et</strong> qui ont accepté ta demande d’ami.
+    Ici apparaissent uniquement les AUPYGO avec qui tu as participé à une activité <strong>et</strong> qui ont accepté ta demande d’ami.
   </div>
 
   <div class="notice warning" id="reconnectFreeNotice" style="display:none">
@@ -1592,12 +1598,19 @@ footer {
 
   </div>
 
-  <div class="notice" style="margin-top:24px">
-    <strong>Comment ça marche ?</strong><br>
-    1. Participe à une sortie avec d’autres au pairs<br>
-    2. Envoie une demande d’ami depuis leur profil (sur la carte)<br>
-    3. S’ils acceptent, ils apparaissent ici<br><br>
-    <strong>🔒 Privacy :</strong> L’agenda personnel de chacun reste privé. Tu ne vois que les sorties auxquelles vous participez <em>tous les deux</em>.
+  <!-- Comment ça marche — derrière un bouton -->
+  <div style="margin-top:28px;text-align:center">
+    <button class="btn btn-secondary" onclick="toggleFooter('howItWorksBox')" style="font-size:13px">
+      ❓ Comment ça marche ?
+    </button>
+  </div>
+
+  <div id="howItWorksBox" class="footer-content" style="display:none;margin-top:14px;max-width:560px;margin-left:auto;margin-right:auto">
+    <p><strong>Comment ça marche ?</strong></p>
+    <p>1. Participe à une sortie avec d’autres AUPYGO</p>
+    <p>2. Envoie une demande d’ami depuis leur profil (sur la carte)</p>
+    <p>3. S’ils acceptent, ils apparaissent ici</p>
+    <p style="margin-top:12px"><strong>🔒 Privacy :</strong> Ton agenda personnel reste privé. Tu ne vois que les sorties auxquelles vous participez <em>tous les deux</em>.</p>
   </div>
 
 </section>
@@ -1801,9 +1814,9 @@ footer {
 
   <!-- Agenda personnel (privé) -->
   <div class="card" style="margin-top:24px" id="personalAgendaBox">
-    <h3>📅 Mon agenda personnel</h3>
+    <h3>📅 Mon agenda privé AUPYGO</h3>
     <p style="font-size:13px;color:var(--muted);margin:4px 0 12px">
-      Privé. Visible uniquement par toi. Les autres membres ne voient jamais ton agenda complet.
+      Strictement personnel. Visible uniquement par toi. Les autres membres ne voient jamais ton agenda complet.
     </p>
 
     <div class="notice" id="personalAgendaNotice">
@@ -2560,7 +2573,7 @@ function updatePlanUI() {
       personalAgendaNotice.style.display = 'block';
     } else {
       personalAgendaBox.classList.remove('locked');
-      personalAgendaNotice.innerHTML = '✅ Ton agenda personnel est privé et débloqué.';
+      personalAgendaNotice.innerHTML = '✅ Ton agenda privé AUPYGO est débloqué.';
       personalAgendaNotice.style.display = 'block';
     }
   }
