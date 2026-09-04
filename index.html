@@ -3095,13 +3095,15 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEnterKey('age', saveProfile);
   bindEnterKey('country', saveProfile);
 
-  const lang = localStorage.getItem('aupygo_lang');
+    const lang = localStorage.getItem('aupygo_lang');
 
   if(lang) {
     document.getElementById('language').value = lang;
   }
 
 });
+
+</script>
 
 </body>
 </html>
