@@ -1100,6 +1100,10 @@ footer {
         <span class="icon">🎉</span>
       </button>
 
+      <button onclick="go('reconnect')" data-nav="reconnect" title="Se retrouver" aria-label="Se retrouver">
+        <span class="icon">🤝</span>
+      </button>
+
       <button onclick="go('messages')" data-nav="messages" title="Messages" aria-label="Messages">
         <span class="icon">💬</span>
       </button>
@@ -1156,7 +1160,7 @@ footer {
       </button>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
         <button class="btn btn-secondary" onclick="go('events')">🎉 Sortir</button>
-        <button class="btn btn-secondary" onclick="go('map')">🤝 Se retrouver</button>
+        <button class="btn btn-secondary" onclick="go('reconnect')">🤝 Se retrouver</button>
         <button class="btn btn-locked" style="width:auto;margin-top:0">💬 Messages Premium</button>
       </div>
 
@@ -1254,9 +1258,9 @@ footer {
       </p>
     </div>
 
-    <div class="card" onclick="go('map')" style="cursor:pointer">
+    <div class="card" onclick="go('reconnect')" style="cursor:pointer">
       <h3>🤝 Se retrouver</h3>
-      <p>Échange et crée de vraies amitiés sans jugement sur les photos.</p>
+      <p>Retrouve les au pairs avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
     </div>
 
   </div>
@@ -1492,6 +1496,102 @@ footer {
 
     </div>
 
+  </div>
+
+</section>
+
+
+<!-- =========================
+     SE RETROUVER (amis)
+========================= -->
+
+<section id="reconnect" class="page">
+
+  <div class="section-title">
+    <h2>🤝 Se retrouver</h2>
+    <p>Les au pairs avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+  </div>
+
+  <div class="notice" id="reconnectNotice">
+    Ici apparaissent uniquement les personnes avec qui tu as participé à une activité <strong>et</strong> qui ont accepté ta demande d’ami.
+  </div>
+
+  <div class="notice warning" id="reconnectFreeNotice" style="display:none">
+    🔒 <strong>Forfait FREE</strong> : tu vois les profils de tes amis. Passe en STANDARD pour voir les sorties du jour, ou PREMIUM pour discuter.
+  </div>
+
+  <div class="grid" id="friendsGrid" style="margin-top:20px">
+
+    <!-- Ami 1 -->
+    <div class="card friend-card" data-friend="maria">
+      <div style="text-align:center;margin-bottom:12px">
+        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👩</div>
+        <h3 style="margin:0">Maria</h3>
+        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇧🇷 Brésil · 23 ans</p>
+      </div>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
+        Hobbies : ☕ Café · 🥾 Rando · 📚 Lire
+      </p>
+      <div class="friend-actions">
+        <div class="friend-sortie" style="display:none;margin-bottom:10px">
+          <div class="badge">Sortie du jour</div>
+          <p style="font-size:13px;margin:6px 0 0">☕ Café AUPYGO · 15:00 · Genève</p>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
+        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
+      </div>
+    </div>
+
+    <!-- Ami 2 -->
+    <div class="card friend-card" data-friend="lucas">
+      <div style="text-align:center;margin-bottom:12px">
+        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👨</div>
+        <h3 style="margin:0">Lucas</h3>
+        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇫🇷 France · 25 ans</p>
+      </div>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
+        Hobbies : 🎬 Films · 🏋️ Sport · 🌿 Nature
+      </p>
+      <div class="friend-actions">
+        <div class="friend-sortie" style="display:none;margin-bottom:10px">
+          <div class="badge">Sortie du jour</div>
+          <p style="font-size:13px;margin:6px 0 0">🥾 Randonnée · 11:00 · Annecy</p>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
+        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
+      </div>
+    </div>
+
+    <!-- Ami 3 -->
+    <div class="card friend-card" data-friend="camila">
+      <div style="text-align:center;margin-bottom:12px">
+        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👩</div>
+        <h3 style="margin:0">Camila</h3>
+        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇪🇸 Espagne · 22 ans</p>
+      </div>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
+        Hobbies : 💃 Danse · 🎵 Musique · ✈️ Voyager
+      </p>
+      <div class="friend-actions">
+        <div class="friend-sortie" style="display:none;margin-bottom:10px">
+          <div class="badge">Sortie du jour</div>
+          <p style="font-size:13px;margin:6px 0 0">🍝 Lunch · 12:30 · Lyon</p>
+        </div>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
+        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="notice" style="margin-top:24px">
+    <strong>Comment ça marche ?</strong><br>
+    1. Participe à une sortie avec d’autres au pairs<br>
+    2. Envoie une demande d’ami depuis leur profil (sur la carte)<br>
+    3. S’ils acceptent, ils apparaissent ici
   </div>
 
 </section>
@@ -2345,7 +2445,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
 ========================= */
 
 // Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
-const RESTRICTED_NAV_PAGES = ['map','events','messages','profile'];
+const RESTRICTED_NAV_PAGES = ['map','events','reconnect','messages','profile'];
 
 function getActivePage() {
   const activePage = document.querySelector('.page.active');
@@ -2454,6 +2554,35 @@ function updatePlanUI() {
 
     }
 
+  });
+
+
+  // === SE RETROUVER (amis) ===
+  const reconnectFreeNotice = document.getElementById('reconnectFreeNotice');
+  if (reconnectFreeNotice) {
+    reconnectFreeNotice.style.display = isFree ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('.friend-card').forEach(card => {
+    const sortie = card.querySelector('.friend-sortie');
+    const msgBtn = card.querySelector('.friend-msg-btn');
+    const msgLocked = card.querySelector('.friend-msg-locked');
+
+    // Sortie du jour : STANDARD et PREMIUM
+    if (sortie) {
+      sortie.style.display = (currentPlan === 'FREE') ? 'none' : 'block';
+    }
+
+    // Messages : uniquement PREMIUM
+    if (msgBtn && msgLocked) {
+      if (currentPlan === 'PREMIUM') {
+        msgBtn.style.display = 'block';
+        msgLocked.style.display = 'none';
+      } else {
+        msgBtn.style.display = 'none';
+        msgLocked.style.display = 'block';
+      }
+    }
   });
 
 
@@ -2767,12 +2896,22 @@ function renderMarkers() {
 
     const m = L.marker([loc.lat, loc.lng], { icon:createIcon(loc.gender) });
 
+    const emoji = loc.gender === 'Homme' ? '👨' : '👩';
+
     m.bindPopup(
-      '<strong>🌍 ' + loc.city + '</strong><br>👥 ' + loc.users + ' au pairs<br>' +
+      '<div style="text-align:center;min-width:160px">' +
+      '<div style="font-size:32px;margin-bottom:4px">' + emoji + '</div>' +
+      '<strong>🌍 ' + loc.city + '</strong><br>' +
+      '<span style="font-size:13px;color:#666">👥 ' + loc.users + ' au pairs</span><br><br>' +
       '<button onclick="openCity(\'' + loc.city + '\')" ' +
-      'style="margin-top:8px;background:#7c3aed;color:#fff;border:0;padding:6px 10px;border-radius:8px;cursor:pointer">' +
-      'Découvrir' +
-      '</button>'
+      'style="background:#7c3aed;color:#fff;border:0;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;margin-bottom:6px">' +
+      'Voir les profils' +
+      '</button>' +
+      '<button onclick="sendFriendRequest(\'' + loc.city + '\')" ' +
+      'style="background:#f3edff;color:#7c3aed;border:1px solid #d8c7ff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;width:100%">' +
+      '🤝 Demander en ami' +
+      '</button>' +
+      '</div>'
     );
 
     markersLayer.addLayer(m);
@@ -2824,7 +2963,16 @@ function mapMode(mode,btn) {
 
 
 function openCity(city) {
-  showToast(city + ' — profils selon forfait (prototype)');
+  showToast('Profils de ' + city + ' — selon ton forfait (prototype)', 'success');
+}
+
+function sendFriendRequest(city) {
+  if (!currentUser) {
+    showToast('Connecte-toi pour envoyer une demande d’ami', 'error');
+    go('plans');
+    return;
+  }
+  showToast('Demande d’ami envoyée à un au pair de ' + city + ' 🤝 (prototype)', 'success');
 }
 
 
