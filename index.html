@@ -1140,7 +1140,7 @@ footer {
 
     <div>
 
-      <span class="badge">🌍 Worldwide Au Pair Community</span>
+      <span class="badge">🌍 La communauté des au pairs</span>
 
       <h1>
         <span class="gradient">Meet.</span><br>
@@ -1148,21 +1148,22 @@ footer {
         Make friends.
       </h1>
 
-      <p><strong>The community made for au pairs.</strong></p>
+      <p><strong>Parce qu’être au pair ne veut pas dire être seul.</strong></p>
 
       <p>
-        Découvre les au pairs autour de toi,
-        participe à des sorties et crée de nouvelles amitiés.
+        AUPYGO, c’est la communauté faite pour les au pairs.
+        Découvre, sors et crée de vraies amitiés, en toute confidentialité.
       </p>
 
-      <button class="btn btn-primary" onclick="go('map')">
-        🌍 Découvrir la communauté
-      </button>
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:8px;margin-bottom:8px">
+        <button class="btn btn-primary" onclick="go('map')">🗺️ Découvrir</button>
         <button class="btn btn-secondary" onclick="go('events')">🎉 Sortir</button>
         <button class="btn btn-secondary" onclick="go('reconnect')">🤝 Se retrouver</button>
-        <button class="btn btn-locked" style="width:auto;margin-top:0">💬 Messages Premium</button>
       </div>
+
+      <button class="btn btn-primary" style="margin-top:6px" onclick="go('plans')">
+        ✨ Inscris-toi ici
+      </button>
 
     </div>
 
@@ -1221,7 +1222,15 @@ footer {
       <h3 style="margin-top:14px">Une communauté mondiale</h3>
 
       <p class="footer-muted" style="font-size:14px;margin-top:6px">
-        AUPYGO rassemble les au pairs du monde entier.
+        Déjà des AUPYGO dans 12+ pays.
+      </p>
+
+      <p style="font-size:13px;margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center">
+        <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 6px #22c55e;display:inline-block"></span>
+        <strong id="onlineCount">47</strong> connectés maintenant
+      </p>
+
+      <p class="footer-muted" style="font-size:13px;margin-top:8px">
         Clique pour explorer la carte →
       </p>
 
@@ -1233,12 +1242,12 @@ footer {
 
     🔒 <strong>Confidentialité & sécurité :</strong><br>
 
-    AUPYGO n'affiche jamais la position GPS exacte.
+    AUPYGO n’affiche jamais la position GPS exacte.
     Les positions sont approximatives.
 
     <br><br>
 
-    👤 <strong>Aucune photo personnelle n'est affichée.</strong>
+    👤 <strong>Aucune photo personnelle n’est affichée.</strong>
     Tous les profils utilisent des avatars universels.
 
   </div>
@@ -1246,21 +1255,21 @@ footer {
   <div class="grid">
 
     <div class="card" onclick="go('map')" style="cursor:pointer">
-      <h3>🗺️ Découvrir</h3>
-      <p>Trouve les au pairs autour de toi en préservant leur confidentialité.</p>
+      <h3>🗺️ Découvrir la communauté</h3>
+      <p>Trouve les AUPYGO autour de toi, en préservant la confidentialité de chacun.</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600">Vois qui est près de toi →</p>
     </div>
 
     <div class="card" onclick="go('events')" style="cursor:pointer">
       <h3>🎉 Sortir</h3>
       <p>Cafés, randonnées, restaurants et activités avec la communauté.</p>
-      <p style="margin-top:10px;font-size:13px;color:var(--primary);font-weight:600;">
-        📅 Agenda des sorties AUPYGO
-      </p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600">📅 Agenda des sorties AUPYGO</p>
     </div>
 
     <div class="card" onclick="go('reconnect')" style="cursor:pointer">
-      <h3>🤝 Se retrouver</h3>
-      <p>Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+      <h3>🤝 Retrouver tes AUPYGO</h3>
+      <p>Retrouve ceux avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600">Tes vraies rencontres, en confiance →</p>
     </div>
 
   </div>
