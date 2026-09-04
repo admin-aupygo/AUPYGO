@@ -21,6 +21,20 @@
   --shadow:0 10px 35px rgba(42,24,70,.10);
   --radius:20px;
 }
+  .footer-toggle{
+    width:100%;
+    margin-top:10px;
+    padding:12px;
+    border:none;
+    border-radius:10px;
+    cursor:pointer;
+}
+
+.footer-content{
+    padding:12px;
+    margin-top:5px;
+    border-radius:10px;
+}
 
 * {
   box-sizing:border-box;
@@ -1812,6 +1826,91 @@ footer {
 
 <footer>
 
+  <div class="footer-links">
+
+  <button class="footer-toggle" onclick="toggleFooter('faqBox')">
+    ❓ FAQ
+  </button>
+
+  <div id="faqBox" class="footer-content" style="display:none">
+    <p><strong>AUPYGO est-il gratuit ?</strong><br>
+    Oui, une formule FREE est disponible.</p>
+
+    <p><strong>Les photos sont-elles visibles ?</strong><br>
+    Non, seuls des avatars universels sont utilisés.</p>
+
+    <p><strong>Ma position GPS est-elle affichée ?</strong><br>
+    Non, seules des positions approximatives sont visibles.</p>
+  </div>
+
+  <button class="footer-toggle" onclick="toggleFooter('contactBox')">
+    ✉️ Contact
+  </button>
+
+  <div id="contactBox" class="footer-content" style="display:none">
+    <p>Une question ? Une suggestion ?</p>
+
+    <a href="mailto:contact@aupygo.com?subject=Contact AUPYGO">
+      contact@aupygo.com
+    </a>
+  </div>
+
+  <button class="footer-toggle" onclick="toggleFooter('cguBox')">
+    📄 Conditions d'utilisation
+  </button>
+
+  <div id="cguBox" class="footer-content" style="display:none">
+    <p>
+      En utilisant AUPYGO, vous vous engagez à respecter les autres membres,
+      à fournir des informations exactes et à ne publier aucun contenu illégal
+      ou offensant.
+    </p>
+
+    <p>
+      Les rencontres organisées via AUPYGO restent sous la responsabilité
+      des participants.
+    </p>
+  </div>
+
+  <button class="footer-toggle" onclick="toggleFooter('privacyBox')">
+    🔒 Politique de confidentialité
+  </button>
+
+  <div id="privacyBox" class="footer-content" style="display:none">
+    <p>
+      AUPYGO collecte uniquement les informations nécessaires au fonctionnement
+      du service : email, prénom, âge, pays et position approximative.
+    </p>
+
+    <p>
+      Aucune position GPS exacte n'est affichée aux autres utilisateurs.
+    </p>
+  </div>
+
+  <button class="footer-toggle" onclick="toggleFooter('legalBox')">
+    ⚖️ Mentions légales
+  </button>
+
+  <div id="legalBox" class="footer-content" style="display:none">
+    <p>
+      Éditeur : AUPYGO
+    </p>
+
+    <p>
+      Contact : contact@aupygo.com
+    </p>
+
+    <p>
+      Hébergement : à compléter selon ton hébergeur.
+    </p>
+  </div>
+
+</div>
+
+<div style="margin-top:20px;text-align:center;font-size:12px;opacity:.7">
+  © 2026 AUPYGO - Tous droits réservés
+</div>
+
   <div class="footer-inner">
 
     <div>
@@ -3060,14 +3159,18 @@ function bindEnterKey(id, handler) {
 
 }
 
-function toggleFAQ() {
-    const faq = document.getElementById('faqBox');
+function toggleFooter(id) {
 
-    if (faq.style.display === 'none') {
-        faq.style.display = 'block';
+    const box = document.getElementById(id);
+
+    if (!box) return;
+
+    if (box.style.display === 'none') {
+        box.style.display = 'block';
     } else {
-        faq.style.display = 'none';
+        box.style.display = 'none';
     }
+
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
