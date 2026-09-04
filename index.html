@@ -1336,7 +1336,8 @@ footer {
 
   <div class="card" style="margin-bottom:20px" id="agendaBox">
 
-    <h3>📅 Mon agenda AUPYGO</h3>
+    <h3>📅 Agenda des sorties AUPYGO</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 10px">Les sorties de la communauté (selon ton forfait)</p>
 
     <div id="agendaNotice" class="notice">
       ⭐ Disponible à partir du forfait <strong>STANDARD</strong>.
@@ -1512,12 +1513,16 @@ footer {
     <p>Les au pairs avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
   </div>
 
+  <div class="notice" style="background:#f0e9ff;border-color:#d8c7ff">
+    📅 <strong>Mon agenda AUPYGO inclus</strong> — Tu vois ici uniquement les sorties que vous avez en commun. Ton agenda personnel reste privé.
+  </div>
+
   <div class="notice" id="reconnectNotice">
     Ici apparaissent uniquement les personnes avec qui tu as participé à une activité <strong>et</strong> qui ont accepté ta demande d’ami.
   </div>
 
   <div class="notice warning" id="reconnectFreeNotice" style="display:none">
-    🔒 <strong>Forfait FREE</strong> : tu vois les profils de tes amis. Passe en STANDARD pour voir les sorties du jour, ou PREMIUM pour discuter.
+    🔒 <strong>Forfait FREE</strong> : tu vois les profils de tes amis. Passe en STANDARD pour voir les sorties en commun, ou PREMIUM pour discuter.
   </div>
 
   <div class="grid" id="friendsGrid" style="margin-top:20px">
@@ -1534,10 +1539,10 @@ footer {
       </p>
       <div class="friend-actions">
         <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge">Sortie du jour</div>
+          <div class="badge">Sortie en commun</div>
           <p style="font-size:13px;margin:6px 0 0">☕ Café AUPYGO · 15:00 · Genève</p>
         </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Maria')">Sorties en commun</button>
         <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
         <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
       </div>
@@ -1555,10 +1560,10 @@ footer {
       </p>
       <div class="friend-actions">
         <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge">Sortie du jour</div>
+          <div class="badge">Sortie en commun</div>
           <p style="font-size:13px;margin:6px 0 0">🥾 Randonnée · 11:00 · Annecy</p>
         </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Lucas')">Sorties en commun</button>
         <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
         <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
       </div>
@@ -1576,10 +1581,10 @@ footer {
       </p>
       <div class="friend-actions">
         <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge">Sortie du jour</div>
+          <div class="badge">Sortie en commun</div>
           <p style="font-size:13px;margin:6px 0 0">🍝 Lunch · 12:30 · Lyon</p>
         </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="go('events')">Voir les sorties</button>
+        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Camila')">Sorties en commun</button>
         <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')">💬 Message</button>
         <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')">🔒 Messages PREMIUM</button>
       </div>
@@ -1591,7 +1596,8 @@ footer {
     <strong>Comment ça marche ?</strong><br>
     1. Participe à une sortie avec d’autres au pairs<br>
     2. Envoie une demande d’ami depuis leur profil (sur la carte)<br>
-    3. S’ils acceptent, ils apparaissent ici
+    3. S’ils acceptent, ils apparaissent ici<br><br>
+    <strong>🔒 Privacy :</strong> L’agenda personnel de chacun reste privé. Tu ne vois que les sorties auxquelles vous participez <em>tous les deux</em>.
   </div>
 
 </section>
@@ -1791,6 +1797,41 @@ footer {
 
     </div>
 
+  </div>
+
+  <!-- Agenda personnel (privé) -->
+  <div class="card" style="margin-top:24px" id="personalAgendaBox">
+    <h3>📅 Mon agenda personnel</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px">
+      Privé. Visible uniquement par toi. Les autres membres ne voient jamais ton agenda complet.
+    </p>
+
+    <div class="notice" id="personalAgendaNotice">
+      ⭐ Disponible à partir du forfait <strong>STANDARD</strong>.
+    </div>
+
+    <div class="calendar" style="margin-top:15px" id="personalCalendar">
+      <div class="day"><strong>Lun</strong></div>
+      <div class="day"><strong>Mar</strong></div>
+      <div class="day"><strong>Mer</strong></div>
+      <div class="day"><strong>Jeu</strong></div>
+      <div class="day"><strong>Ven</strong></div>
+      <div class="day"><strong>Sam</strong></div>
+      <div class="day"><strong>Dim</strong></div>
+
+      <div class="day">
+        <strong>8</strong>
+        <div class="agenda-event">☕ Café avec Maria</div>
+      </div>
+      <div class="day">
+        <strong>15</strong>
+        <div class="agenda-event">🥾 Rando avec Lucas</div>
+      </div>
+      <div class="day">
+        <strong>22</strong>
+        <div class="agenda-event">🍝 Lunch avec Camila</div>
+      </div>
+    </div>
   </div>
 
 </section>
@@ -2496,15 +2537,32 @@ function updatePlanUI() {
   });
 
 
+  // Agenda communauté (onglet Sortir)
   const agendaBox = document.getElementById('agendaBox');
   const agendaNotice = document.getElementById('agendaNotice');
 
   if(currentPlan === 'FREE') {
-    agendaBox.classList.add('locked');
-    agendaNotice.innerHTML = '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
+    if (agendaBox) agendaBox.classList.add('locked');
+    if (agendaNotice) agendaNotice.innerHTML = '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
   } else {
-    agendaBox.classList.remove('locked');
-    agendaNotice.innerHTML = '✅ Agenda débloqué (' + currentPlan + ')';
+    if (agendaBox) agendaBox.classList.remove('locked');
+    if (agendaNotice) agendaNotice.innerHTML = '✅ Agenda des sorties débloqué (' + currentPlan + ')';
+  }
+
+  // Agenda personnel (page Profil) — aussi réservé STANDARD+
+  const personalAgendaBox = document.getElementById('personalAgendaBox');
+  const personalAgendaNotice = document.getElementById('personalAgendaNotice');
+
+  if (personalAgendaBox && personalAgendaNotice) {
+    if (currentPlan === 'FREE') {
+      personalAgendaBox.classList.add('locked');
+      personalAgendaNotice.innerHTML = '⭐ Disponible à partir du forfait <strong>STANDARD</strong>.';
+      personalAgendaNotice.style.display = 'block';
+    } else {
+      personalAgendaBox.classList.remove('locked');
+      personalAgendaNotice.innerHTML = '✅ Ton agenda personnel est privé et débloqué.';
+      personalAgendaNotice.style.display = 'block';
+    }
   }
 
 
@@ -2568,7 +2626,7 @@ function updatePlanUI() {
     const msgBtn = card.querySelector('.friend-msg-btn');
     const msgLocked = card.querySelector('.friend-msg-locked');
 
-    // Sortie du jour : STANDARD et PREMIUM
+    // Sorties en commun : STANDARD et PREMIUM (jamais l’agenda personnel)
     if (sortie) {
       sortie.style.display = (currentPlan === 'FREE') ? 'none' : 'block';
     }
@@ -2973,6 +3031,27 @@ function sendFriendRequest(city) {
     return;
   }
   showToast('Demande d’ami envoyée à un au pair de ' + city + ' 🤝 (prototype)', 'success');
+}
+
+// Affiche uniquement les sorties en commun avec un ami.
+// L’agenda personnel AUPYGO reste toujours privé.
+function showSharedEvents(friendName) {
+  if (currentPlan === 'FREE') {
+    showToast('🔒 Les sorties en commun sont disponibles à partir du forfait STANDARD', 'error');
+    go('plans');
+    return;
+  }
+
+  // Prototype : on montre seulement les sorties partagées, jamais l’agenda complet
+  const shared = {
+    'Maria': '☕ Café AUPYGO · Samedi 15:00 · Genève',
+    'Lucas': '🥾 Randonnée & pique-nique · Dimanche 11:00 · Annecy',
+    'Camila': '🍝 Lunch entre au pairs · Samedi 12:30 · Lyon'
+  };
+
+  const event = shared[friendName] || 'Aucune sortie en commun pour le moment';
+
+  showToast('Sorties en commun avec ' + friendName + ' : ' + event + ' 🔒 (agenda privé)', 'success');
 }
 
 
