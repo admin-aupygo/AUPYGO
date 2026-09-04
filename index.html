@@ -1284,40 +1284,32 @@ footer {
      CARTE
 ========================= -->
 
-<section id="map" class="page">
-
   <div class="section-title">
     <h2>🗺️ La communauté AUPYGO</h2>
-    <p>Découvre les au pairs près de toi.</p>
+    <p>Découvre les AUPYGO près de toi, en toute confidentialité.</p>
   </div>
 
   <div class="map-filter">
-
     <button id="btnAround" class="active" onclick="mapMode('around',this)">📍 Autour de moi</button>
     <button id="btnRegion" onclick="mapMode('region',this)">🗺️ Ma région</button>
     <button id="btnWorld" onclick="mapMode('world',this)">🌍 Monde</button>
-
   </div>
 
   <div class="notice" id="mapPlanNotice">
-    Découvre les au pairs près de toi.
+    Clique sur <strong>Autour de moi</strong> pour autoriser une position approximative (jamais exacte).
   </div>
 
   <div class="map-container">
-
     <div id="map"></div>
-
     <div class="map-controls">
       <button class="map-control-btn" onclick="zoomIn()">+</button>
       <button class="map-control-btn" onclick="zoomOut()">−</button>
       <button class="map-control-btn" onclick="resetMap()">🎯</button>
     </div>
-
     <div class="map-privacy">
-      🔒 Les marqueurs sont approximatifs.
-      Aucune position GPS exacte.
+      🔒 Position approximative uniquement (~1 km).<br>
+      Ton emplacement exact n’est jamais affiché ni partagé.
     </div>
-
   </div>
 
 </section>
@@ -2134,45 +2126,89 @@ const { createClient } = supabase;
 const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
 /* =========================
-   DONNÉES
+   DONNÉES & GÉOLOCALISATION
 ========================= */
 
-const userLocation = {
-  lat:46.2044,
-  lng:6.1432,
-  city:'Genève'
+// Position approximative uniquement (jamais exacte)
+let userLocation = {
+  lat: 46.20,   // arrondi
+  lng: 6.14,
+  city: 'Genève',
+  isApproximate: true,
+  hasRealGeo: false
 };
 
 const RADIUS = {
-  FREE:30,
-  STANDARD:3000,
-  PREMIUM:null
+  FREE: 30,        // km
+  STANDARD: 300,   // km (région)
+  PREMIUM: null    // illimité
 };
 
-let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
-let currentUser = null;
-let profileLocked = false;
-let profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
-
-// Indique l'action en cours (login/signup) pour que le listener
-// onAuthStateChange sache où rediriger, sans entrer en conflit avec
-// un appel direct à refreshAuthUI().
-let authIntent = null; // 'login' | 'signup' | null
-
-// Jeton anti-robot Cloudflare Turnstile, généré côté client au moment
-// où l'utilisateur valide le contrôle (souvent automatique et invisible).
-let turnstileToken = null;
-
-function onTurnstileVerified(token) {
-  turnstileToken = token;
+// Arrondit les coordonnées pour ne jamais stocker/afficher la position exacte
+// ~2 décimales = précision d’environ 1 km
+function approximateCoords(lat, lng) {
+  return {
+    lat: Math.round(lat * 100) / 100,
+    lng: Math.round(lng * 100) / 100
+  };
 }
 
-function onTurnstileExpired() {
-  turnstileToken = null;
+// Demande la géolocalisation au navigateur (avec consentement)
+function requestUserLocation(callback) {
+  if (!navigator.geolocation) {
+    showToast('La géolocalisation n’est pas disponible sur cet appareil', 'error');
+    if (callback) callback(false);
+    return;
+  }
+
+  showToast('Demande d’accès à ta position…', 'success');
+
+  navigator.geolocation.getCurrentPosition(
+    (pos) => {
+      const approx = approximateCoords(pos.coords.latitude, pos.coords.longitude);
+      userLocation.lat = approx.lat;
+      userLocation.lng = approx.lng;
+      userLocation.isApproximate = true;
+      userLocation.hasRealGeo = true;
+      userLocation.city = 'Ta zone';
+
+      try {
+        localStorage.setItem('aupygo_approx_lat', String(approx.lat));
+        localStorage.setItem('aupygo_approx_lng', String(approx.lng));
+      } catch (e) {}
+
+      showToast('Position approximative enregistrée (précision ~1 km)', 'success');
+      if (callback) callback(true);
+    },
+    (err) => {
+      let msg = 'Position refusée';
+      if (err.code === 1) msg = 'Tu as refusé la géolocalisation. Tu peux l’activer dans les réglages du navigateur.';
+      if (err.code === 2) msg = 'Position indisponible pour le moment.';
+      if (err.code === 3) msg = 'Délai dépassé pour obtenir la position.';
+      showToast(msg, 'error');
+      if (callback) callback(false);
+    },
+    {
+      enableHighAccuracy: false,
+      timeout: 10000,
+      maximumAge: 600000
+    }
+  );
 }
 
-let map, markersLayer;
-
+// Charge une position approximative déjà sauvegardée
+function loadSavedApproxLocation() {
+  try {
+    const lat = localStorage.getItem('aupygo_approx_lat');
+    const lng = localStorage.getItem('aupygo_approx_lng');
+    if (lat && lng) {
+      userLocation.lat = parseFloat(lat);
+      userLocation.lng = parseFloat(lng);
+      userLocation.hasRealGeo = true;
+      userLocation.city = 'Ta zone';
+    }
+  } catch (e) {}
+}
 
 /* =========================
    AUTHENTIFICATION
@@ -3016,30 +3052,42 @@ function resetMap() {
 }
 
 
-function mapMode(mode,btn) {
+function mapMode(mode, btn) {
 
-  if(currentPlan === 'FREE' && mode !== 'around') {
+  if (currentPlan === 'FREE' && mode !== 'around') {
     showToast('🔒 Disponible avec un forfait supérieur', 'error');
     return;
   }
 
-  if(currentPlan === 'STANDARD' && mode === 'world') {
+  if (currentPlan === 'STANDARD' && mode === 'world') {
     showToast('🔒 Carte mondiale réservée au PREMIUM', 'error');
     return;
   }
 
   document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
 
-  if(btn) btn.classList.add('active');
+  // "Autour de moi" → demande la géolocalisation (approximative)
+  if (mode === 'around') {
+    if (!userLocation.hasRealGeo) {
+      requestUserLocation((ok) => {
+        if (ok && map) {
+          map.setView([userLocation.lat, userLocation.lng], 11);
+          applyMapRestrictions();
+        }
+      });
+    } else if (map) {
+      map.setView([userLocation.lat, userLocation.lng], 11);
+    }
+    return;
+  }
 
-  const { lat, lng } = userLocation;
-
-  if(mode === 'around') map.setView([lat,lng], 11);
-  else if(mode === 'region') map.setView([lat,lng], 5);
-  else map.setView([20,0], 2);
-
+  if (mode === 'region' && map) {
+    map.setView([userLocation.lat, userLocation.lng], 6);
+  } else if (mode === 'world' && map) {
+    map.setView([20, 0], 2);
+  }
 }
-
 
 function openCity(city) {
   showToast('Profils de ' + city + ' — selon ton forfait (prototype)', 'success');
@@ -3398,6 +3446,7 @@ function toggleFooter(id) {
 
 document.addEventListener('DOMContentLoaded', async () => {
 
+  loadSavedApproxLocation(); // charge la position approximative déjà autorisée
   initMap();
   updatePlanUI();
   updateNavVisibility(); // masque tout de suite les onglets restreints avant de savoir si on est connecté
