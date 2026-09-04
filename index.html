@@ -21,19 +21,57 @@
   --shadow:0 10px 35px rgba(42,24,70,.10);
   --radius:20px;
 }
-  .footer-toggle{
-    width:100%;
-    margin-top:10px;
-    padding:12px;
-    border:none;
-    border-radius:10px;
-    cursor:pointer;
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin-bottom: 28px;
+  padding-top: 8px;
 }
 
-.footer-content{
-    padding:12px;
-    margin-top:5px;
-    border-radius:10px;
+.footer-links button {
+  background: transparent;
+  border: none;
+  color: #c4b5d6;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+
+.footer-links button:hover {
+  color: #fff;
+}
+
+.footer-content {
+  display: none;
+  max-width: 700px;
+  margin: 0 auto 24px;
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d4cde0;
+}
+
+.footer-content p {
+  margin-bottom: 12px;
+}
+
+.footer-content p:last-child {
+  margin-bottom: 0;
+}
+
+.footer-content a {
+  color: #e9d5ff;
+  text-decoration: underline;
+}
+
+.footer-content strong {
+  color: #fff;
 }
 
 * {
@@ -1826,96 +1864,9 @@ footer {
 
 <footer>
 
-  <div class="footer-links">
-
-  <button class="footer-toggle" onclick="toggleFooter('faqBox')">
-    ❓ FAQ
-  </button>
-
-  <div id="faqBox" class="footer-content" style="display:none">
-    <p><strong>AUPYGO est-il gratuit ?</strong><br>
-    Oui, une formule FREE est disponible.</p>
-
-    <p><strong>Les photos sont-elles visibles ?</strong><br>
-    Non, seuls des avatars universels sont utilisés.</p>
-
-    <p><strong>Ma position GPS est-elle affichée ?</strong><br>
-    Non, seules des positions approximatives sont visibles.</p>
-  </div>
-
-  <button class="footer-toggle" onclick="toggleFooter('contactBox')">
-    ✉️ Contact
-  </button>
-
-  <div id="contactBox" class="footer-content" style="display:none">
-    <p>Une question ? Une suggestion ?</p>
-
-    <a href="mailto:contact@aupygo.com?subject=Contact AUPYGO">
-      contact@aupygo.com
-    </a>
-  </div>
-
-  <button class="footer-toggle" onclick="toggleFooter('cguBox')">
-    📄 Conditions d'utilisation
-  </button>
-
-  <div id="cguBox" class="footer-content" style="display:none">
-    <p>
-      En utilisant AUPYGO, vous vous engagez à respecter les autres membres,
-      à fournir des informations exactes et à ne publier aucun contenu illégal
-      ou offensant.
-    </p>
-
-    <p>
-      Les rencontres organisées via AUPYGO restent sous la responsabilité
-      des participants.
-    </p>
-  </div>
-
-  <button class="footer-toggle" onclick="toggleFooter('privacyBox')">
-    🔒 Politique de confidentialité
-  </button>
-
-  <div id="privacyBox" class="footer-content" style="display:none">
-    <p>
-      AUPYGO collecte uniquement les informations nécessaires au fonctionnement
-      du service : email, prénom, âge, pays et position approximative.
-    </p>
-
-    <p>
-      Aucune position GPS exacte n'est affichée aux autres utilisateurs.
-    </p>
-  </div>
-
-  <button class="footer-toggle" onclick="toggleFooter('legalBox')">
-    ⚖️ Mentions légales
-  </button>
-
-  <div id="legalBox" class="footer-content" style="display:none">
-    <p>
-      Éditeur : AUPYGO
-    </p>
-
-    <p>
-      Contact : contact@aupygo.com
-    </p>
-
-    <p>
-      Hébergement : à compléter selon ton hébergeur.
-    </p>
-  </div>
-
-</div>
-
-<div style="margin-top:20px;text-align:center;font-size:12px;opacity:.7">
-  © 2026 AUPYGO - Tous droits réservés
-</div>
-
-  <div class="footer-inner">
-
+  <div class="footer-inner" style="margin-bottom:28px;">
     <div>
-
-      <div class="logo-aupygo" style="font-size:24px">
+      <div class="logo-aupygo" style="font-size:22px">
         <span class="logo-a">A</span>
         <span class="logo-u">U</span>
         <span class="logo-p">P</span>
@@ -1924,46 +1875,65 @@ footer {
         <span class="logo-o">O</span>
         <div class="location-pin"></div>
       </div>
-
       <p class="footer-muted">Meet. Go out. Make friends.</p>
-
-      <p class="footer-muted">🔒 No personal photos · Privacy first · Real-life connections</p>
-
+      <p class="footer-muted">No personal photos · Privacy first · Real-life connections</p>
     </div>
-
     <div>
-
-      <strong>AUPYGO</strong>
-
+      <strong style="font-size:14px">AUPYGO</strong>
       <p class="footer-muted">For au pairs, by au pairs.</p>
-
     </div>
-
   </div>
 
-
-<div style="margin-top:25px">
-<button class="btn btn-secondary" onclick="toggleFAQ()">
-    ❓ FAQ
-</button>
-
-<div id="faqBox" style="display:none;margin-top:15px">
-    
+  <!-- Contenu déroulant (un seul à la fois) -->
+  <div id="faqBox" class="footer-content">
     <p><strong>AUPYGO est-il gratuit ?</strong><br>
-    Oui, une formule FREE est disponible.</p>
-
+    Oui, une formule FREE est disponible. Des formules payantes débloquent plus de fonctionnalités.</p>
     <p><strong>Les photos sont-elles visibles ?</strong><br>
-    Non, les profils utilisent des avatars universels.</p>
-
+    Non. Tous les profils utilisent uniquement des avatars universels.</p>
     <p><strong>Ma position GPS est-elle affichée ?</strong><br>
-    Non, seules des positions approximatives sont affichées.</p>
+    Non. Seules des positions approximatives sont visibles. Aucune position exacte n’est partagée.</p>
+  </div>
 
-    <p><strong>Comment contacter AUPYGO ?</strong><br>
-    contact@aupygo.com</p>
+  <div id="contactBox" class="footer-content">
+    <p>Une question ou une suggestion ? Écrivez-nous :</p>
+    <p><a href="mailto:contact@aupygo.com?subject=Contact AUPYGO">contact@aupygo.com</a></p>
+  </div>
 
-</div>
-<button class="btn btn-primary" onclick="window.location.href='mailto:contact@aupygo.com?subject=Contact AUPYGO'">✉️ Contact</button>
-</div>
+  <div id="cguBox" class="footer-content">
+    <p><strong>Conditions d’utilisation</strong></p>
+    <p>L’inscription est réservée aux personnes âgées de 18 ans ou plus. Conformément aux directives au pair et au code pénal du pays d’accueil, seuls les majeurs légaux peuvent utiliser AUPYGO.</p>
+    <p>AUPYGO n’est pas une application de rencontre amoureuse.</p>
+    <p>La plateforme a pour objectif de permettre aux au pairs de créer des liens amicaux, participer à des activités, découvrir leur région et rencontrer d’autres membres de la communauté dans un cadre social et convivial.</p>
+    <p>En utilisant AUPYGO, vous vous engagez à respecter les autres membres, à fournir des informations exactes et à ne publier aucun contenu illégal ou offensant.</p>
+    <p>Les rencontres organisées via AUPYGO restent sous la responsabilité des participants.</p>
+  </div>
+
+  <div id="privacyBox" class="footer-content">
+    <p><strong>Politique de confidentialité</strong></p>
+    <p>AUPYGO collecte uniquement les informations nécessaires au fonctionnement du service : email, prénom, âge, pays et position approximative.</p>
+    <p>Aucune position GPS exacte n’est affichée aux autres utilisateurs. Aucune photo personnelle n’est stockée ni affichée.</p>
+  </div>
+
+  <div id="legalBox" class="footer-content">
+    <p><strong>Mentions légales</strong></p>
+    <p>Éditeur : AUPYGO</p>
+    <p>Contact : <a href="mailto:contact@aupygo.com">contact@aupygo.com</a></p>
+    <p>Hébergement : Cloudflare</p>
+  </div>
+
+  <!-- Liens tout en bas, simples et discrets -->
+  <div class="footer-links">
+    <button type="button" onclick="toggleFooter('faqBox')">FAQ</button>
+    <button type="button" onclick="toggleFooter('contactBox')">Contact</button>
+    <button type="button" onclick="toggleFooter('cguBox')">Conditions d’utilisation</button>
+    <button type="button" onclick="toggleFooter('privacyBox')">Confidentialité</button>
+    <button type="button" onclick="toggleFooter('legalBox')">Mentions légales</button>
+  </div>
+
+  <div style="text-align:center;font-size:12px;color:#8b8199;margin-top:8px;">
+    © 2026 AUPYGO — Tous droits réservés
+  </div>
+
 </footer>
 
 
@@ -2252,25 +2222,28 @@ async function refreshAuthUI(redirectPage = 'profile') {
       updatePlanUI();
     }
 
-      if (profile && profile.identity_locked === true) {
-      // Profil déjà créé et verrouillé
-      document.getElementById('firstName').value = profile.display_name || '';
+    if (profile && profile.identity_locked === true) {
+
+      // Un profil existe déjà : on affiche les infos et on fige les champs identité
+      document.getElementById('firstName').value = profile.display_name;
       document.getElementById('age').value = profile.age || '';
       document.getElementById('country').value = profile.country || '';
       document.getElementById('bio').value = profile.bio || '';
-      document.getElementById('profileName').textContent = profile.display_name || 'Ton prénom';
+      document.getElementById('profileName').textContent = profile.display_name;
       document.getElementById('profileMeta').textContent = 'Au pair · ' + (profile.age || '?') + ' ans';
 
       if (profile.gender) {
+
         selectedGender = profile.gender;
         document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
 
         document.querySelectorAll('.gender-option').forEach(btn => {
           btn.classList.toggle('selected', btn.textContent.trim().includes(profile.gender));
         });
+
       }
 
-      // Restaure les hobbies
+      // Restaure les hobbies sélectionnés
       selectedHobbies.length = 0;
       document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
       if (profile.interests) {
@@ -2284,31 +2257,44 @@ async function refreshAuthUI(redirectPage = 'profile') {
       document.getElementById('otherHobby').style.display =
         selectedHobbies.includes('Autre') ? 'block' : 'none';
 
-      profileSaved = true;
-      lockIdentityFields();
+    if (profile && profile.identity_locked === true) {
 
+  document.getElementById('firstName').value = profile.display_name || '';
+  document.getElementById('age').value = profile.age || '';
+  document.getElementById('country').value = profile.country || '';
+  document.getElementById('bio').value = profile.bio || '';
+
+  profileSaved = true;
+  lockIdentityFields();
+
+} else {
+
+  if (profile) {
+
+    document.getElementById('firstName').value = profile.display_name || '';
+    document.getElementById('age').value = profile.age || '';
+    document.getElementById('country').value = profile.country || '';
+    document.getElementById('bio').value = profile.bio || '';
+
+    if (profile.gender) {
+      selectedGender = profile.gender;
+    }
+
+  }
+
+  profileSaved = false;
+  unlockIdentityFields();
+
+}
     } else {
-      // Pas encore de profil verrouillé
-      if (profile) {
-        // On a des données partielles, on les affiche
-        document.getElementById('firstName').value = profile.display_name || '';
-        document.getElementById('age').value = profile.age || '';
-        document.getElementById('country').value = profile.country || '';
-        document.getElementById('bio').value = profile.bio || '';
-
-        if (profile.gender) {
-          selectedGender = profile.gender;
-          document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
-        }
-      }
 
       profileSaved = false;
       unlockIdentityFields();
-
-      // Réinitialise les hobbies
+      // Réinitialise l'UI hobbies si pas de profil
       selectedHobbies.length = 0;
       document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
       document.getElementById('otherHobby').style.display = 'none';
+
     }
 
     // Mise à jour de la navigation AVANT de naviguer, pour que l'onglet
@@ -3144,17 +3130,21 @@ function bindEnterKey(id, handler) {
 }
 
 function toggleFooter(id) {
+  const boxes = ['faqBox', 'contactBox', 'cguBox', 'privacyBox', 'legalBox'];
+  const target = document.getElementById(id);
+  if (!target) return;
 
-    const box = document.getElementById(id);
-
-    if (!box) return;
-
-    if (box.style.display === 'none') {
-        box.style.display = 'block';
+  // Ferme tous les autres
+  boxes.forEach(boxId => {
+    const el = document.getElementById(boxId);
+    if (!el) return;
+    if (boxId === id) {
+      // Bascule celui cliqué
+      el.style.display = (el.style.display === 'block') ? 'none' : 'block';
     } else {
-        box.style.display = 'none';
+      el.style.display = 'none';
     }
-
+  });
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
