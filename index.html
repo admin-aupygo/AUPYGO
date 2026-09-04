@@ -1924,6 +1924,14 @@ footer {
           <input id="loginPassword" type="password" placeholder="Ton mot de passe" autocomplete="current-password">
         </div>
 
+        <div class="form-group">
+          <div class="cf-turnstile"
+               data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
+               data-callback="onTurnstileVerified"
+               data-expired-callback="onTurnstileExpired">
+          </div>
+        </div>
+
         <button class="btn btn-primary" style="width:100%" onclick="handleLogin()">Se connecter</button>
 
       </div>
@@ -2304,9 +2312,24 @@ async function handleLogin() {
     return;
   }
 
+  if (!turnstileToken) {
+    showToast('Merci de valider le contrôle anti-robot', 'error');
+    return;
+  }
+
   authIntent = 'login';
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({ email, password });
+  const { data, error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password,
+    options: {
+      captchaToken: turnstileToken
+    }
+  });
+
+  // Un jeton Turnstile est à usage unique
+  if (window.turnstile) window.turnstile.reset();
+  turnstileToken = null;
 
   if (error) {
     authIntent = null;
