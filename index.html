@@ -3060,6 +3060,15 @@ function bindEnterKey(id, handler) {
 
 }
 
+function toggleFAQ() {
+    const faq = document.getElementById('faqBox');
+
+    if (faq.style.display === 'none') {
+        faq.style.display = 'block';
+    } else {
+        faq.style.display = 'none';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
 
@@ -3093,20 +3102,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
 });
-
-<script>
-
-function toggleFAQ() {
-    const faq = document.getElementById('faqBox');
-
-    if (faq.style.display === 'none') {
-        faq.style.display = 'block';
-    } else {
-        faq.style.display = 'none';
-    }
-}
-
-</script>
 
 </body>
 </html>
