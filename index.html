@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+ <!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -591,7 +591,93 @@ main {
   justify-content:center;
   align-items:center;
   font-size:24px;
+  cursor:pointer;
 }
+
+/* Modal fiche membre (carte) */
+.member-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 21, 34, 0.55);
+  z-index: 10000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.member-modal-overlay.open { display: flex; }
+.member-modal {
+  background: #fff;
+  border-radius: 20px;
+  max-width: 360px;
+  width: 100%;
+  padding: 24px 22px 20px;
+  box-shadow: 0 20px 50px rgba(42, 24, 70, 0.25);
+  position: relative;
+  text-align: center;
+  animation: memberPop 0.22s ease;
+}
+@keyframes memberPop {
+  from { transform: translateY(12px) scale(0.97); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+.member-modal-close {
+  position: absolute; top: 12px; right: 12px;
+  border: 0; background: #f3edff; color: var(--primary);
+  width: 36px; height: 36px; border-radius: 50%;
+  font-size: 18px; cursor: pointer; font-weight: 700; line-height: 1;
+}
+.member-modal-close:hover { background: #e9d5ff; }
+.member-online {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 12px; font-weight: 700; color: #166534;
+  background: #ecfdf5; border: 1px solid #bbf7d0;
+  padding: 4px 10px; border-radius: 16px; margin-bottom: 12px;
+}
+.member-online .dot {
+  width: 8px; height: 8px; background: #22c55e;
+  border-radius: 50%; box-shadow: 0 0 6px #22c55e;
+}
+.member-avatar {
+  width: 88px; height: 88px; border-radius: 50%; margin: 0 auto 12px;
+  background: linear-gradient(135deg, #ffd54f, #fbbf24);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 44px; border: 3px solid #fff;
+  box-shadow: 0 6px 18px rgba(251, 191, 36, 0.35);
+}
+.member-modal h3 { font-size: 20px; margin: 0 0 4px; }
+.member-badge { font-size: 13px; color: var(--muted); margin-bottom: 14px; }
+.member-info { text-align: left; font-size: 13px; color: var(--text); margin-bottom: 8px; line-height: 1.45; }
+.member-info strong { font-weight: 700; }
+.member-hobbies-row {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: center;
+  gap: 8px; margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+}
+.member-hobbies-row .hobby-emoji {
+  width: 38px; height: 38px; border-radius: 12px; background: #f4edff;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; border: 1px solid #e8e0f5;
+}
+.member-msg-btn {
+  border: 0; background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff; font-weight: 700; font-size: 13px;
+  padding: 10px 14px; border-radius: 12px; cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.member-friend-btn {
+  border: 1px solid #d8c7ff; background: #f3edff; color: var(--primary);
+  font-weight: 700; font-size: 13px; padding: 10px 14px; border-radius: 12px;
+  cursor: pointer; width: 100%; margin-top: 12px;
+}
+.member-plan-tag {
+  display: inline-block; font-size: 10px; font-weight: 800;
+  padding: 3px 8px; border-radius: 10px; margin-bottom: 8px; letter-spacing: 0.04em;
+}
+.member-plan-tag.FREE { background: #f3f4f6; color: #6b7280; }
+.member-plan-tag.STANDARD { background: #f1eafd; color: #7c3aed; }
+.member-plan-tag.PREMIUM { background: linear-gradient(135deg,#7c3aed,#ec4899); color: #fff; }
+
 
 /* PROFIL */
 
@@ -2447,6 +2533,11 @@ footer {
 </footer>
 
 
+<!-- Modal fiche membre (clic avatar carte) -->
+<div class="member-modal-overlay" id="memberModalOverlay" onclick="if(event.target===this)closeMemberProfile()">
+  <div class="member-modal" id="memberModal" role="dialog" aria-modal="true"></div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 
@@ -3998,22 +4089,21 @@ function go(page) {
    LOCALISATIONS
 ========================= */
 
-const aupyLocations = [
-
-  { city:"Paris", lat:48.8566, lng:2.3522, users:14, gender:"Femme" },
-  { city:"London", lat:51.5074, lng:-0.1278, users:22, gender:"Homme" },
-  { city:"Geneva", lat:46.2044, lng:6.1432, users:9, gender:"Femme" },
-  { city:"Zurich", lat:47.3769, lng:8.5417, users:11, gender:"Homme" },
-  { city:"Madrid", lat:40.4168, lng:-3.7038, users:17, gender:"Homme" },
-  { city:"Lisbon", lat:38.7223, lng:-9.1393, users:12, gender:"Femme" },
-  { city:"São Paulo", lat:-23.5505, lng:-46.6333, users:26, gender:"Femme" },
-  { city:"New York", lat:40.7128, lng:-74.006, users:31, gender:"Homme" },
-  { city:"Miami", lat:25.7617, lng:-80.1918, users:15, gender:"Femme" },
-  { city:"Sydney", lat:-33.8688, lng:151.2093, users:13, gender:"Femme" },
-  { city:"Tokyo", lat:35.6762, lng:139.6503, users:10, gender:"Femme" },
-  { city:"Toronto", lat:43.6532, lng:-79.3832, users:12, gender:"Homme" }
-
+// Membres démo sur la carte — le forfait du profil détermine ce que les autres voient
+const aupyMembers = [
+  { id:'m1', name:'Maria', gender:'Femme', age:23, city:'Geneva', lat:46.21, lng:6.15, plan:'FREE', online:true, origin:'Brésil', host:'Suisse', stayEnd:'2026-12', languages:['PT','FR','EN'], hobbies:['Café','Randonnée','Lire'], bio:'Au pair à Genève, j\'adore le café et les randos.' },
+  { id:'m2', name:'Lucas', gender:'Homme', age:25, city:'Geneva', lat:46.19, lng:6.13, plan:'STANDARD', online:true, origin:'France', host:'Suisse', stayEnd:'2027-03', languages:['FR','EN'], hobbies:['Films','Sport','Nature'], bio:'Toujours partant pour une sortie sport ou ciné.' },
+  { id:'m3', name:'Camila', gender:'Femme', age:22, city:'Lyon', lat:45.76, lng:4.84, plan:'PREMIUM', online:true, origin:'Espagne', host:'France', stayEnd:'2026-08', languages:['ES','FR','EN'], hobbies:['Danse','Musique','Voyager'], bio:'Danse et musique, on se retrouve ?' },
+  { id:'m4', name:'Yuki', gender:'Femme', age:24, city:'Zurich', lat:47.38, lng:8.54, plan:'FREE', online:false, origin:'Japon', host:'Suisse', stayEnd:'2026-10', languages:['JA','EN'], hobbies:['Photo','Art','Yoga'], bio:'Photographe amateur, fan de yoga.' },
+  { id:'m5', name:'Tom', gender:'Homme', age:26, city:'Paris', lat:48.86, lng:2.35, plan:'STANDARD', online:true, origin:'Royaume-Uni', host:'France', stayEnd:'2027-01', languages:['EN','FR'], hobbies:['Cuisine','Sport','Café'], bio:'British au pair in Paris.' },
+  { id:'m6', name:'Sofia', gender:'Femme', age:21, city:'Madrid', lat:40.42, lng:-3.70, plan:'PREMIUM', online:false, origin:'Brésil', host:'Espagne', stayEnd:'2026-09', languages:['PT','ES','EN'], hobbies:['Danse','Plage','Musique'], bio:'Energia positiva siempre.' },
+  { id:'m7', name:'Nina', gender:'Femme', age:23, city:'Annecy', lat:45.90, lng:6.13, plan:'STANDARD', online:true, origin:'Allemagne', host:'France', stayEnd:'2026-11', languages:['DE','FR','EN'], hobbies:['Randonnée','Nature','Photo'], bio:'Montagne et lacs, c\'est ma vibe.' },
+  { id:'m8', name:'Alex', gender:'Homme', age:27, city:'London', lat:51.51, lng:-0.13, plan:'FREE', online:true, origin:'Espagne', host:'Royaume-Uni', stayEnd:'2027-02', languages:['ES','EN'], hobbies:['Films','Sport','Cuisine'], bio:'Football and films.' },
+  { id:'m9', name:'Léa', gender:'Femme', age:22, city:'Nyon', lat:46.38, lng:6.24, plan:'PREMIUM', online:true, origin:'France', host:'Suisse', stayEnd:'2026-07', languages:['FR','EN','IT'], hobbies:['Café','Lire','Art'], bio:'Entre Nyon et Genève, toujours un café.' },
+  { id:'m10', name:'João', gender:'Homme', age:24, city:'Lisbon', lat:38.72, lng:-9.14, plan:'STANDARD', online:false, origin:'Brésil', host:'Portugal', stayEnd:'2026-12', languages:['PT','EN'], hobbies:['Plage','Musique','Sport'], bio:'Surf and music.' }
 ];
+const aupyLocations = aupyMembers.map(m => ({ city: m.city, lat: m.lat, lng: m.lng, users: 1, gender: m.gender }));
+
 
 
 /* =========================
@@ -4063,34 +4153,125 @@ function renderMarkers() {
 
   const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
 
-  aupyLocations.forEach(loc => {
-    // Filtre selon le forfait
+  aupyMembers.forEach(member => {
     if (maxKm !== null) {
-      const d = distanceKm(userLocation.lat, userLocation.lng, loc.lat, loc.lng);
-      if (d > maxKm) return; // trop loin → on n'affiche pas
+      const d = distanceKm(userLocation.lat, userLocation.lng, member.lat, member.lng);
+      if (d > maxKm) return;
     }
 
-    const m = L.marker([loc.lat, loc.lng], { icon: createIcon(loc.gender) });
-    const emoji = loc.gender === 'Homme' ? '👨' : '👩';
-
-    m.bindPopup(
-      '<div style="text-align:center;min-width:160px">' +
-      '<div style="font-size:32px;margin-bottom:4px">' + emoji + '</div>' +
-      '<strong>🌍 ' + loc.city + '</strong><br>' +
-      '<span style="font-size:13px;color:#666">👥 ' + loc.users + ' AUPYGO</span><br><br>' +
-      '<button onclick="openCity(\'' + loc.city + '\')" ' +
-      'style="background:#7c3aed;color:#fff;border:0;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;width:100%;margin-bottom:6px">' +
-      t('events.btn_view') +
-      '</button>' +
-      '<button onclick="sendFriendRequest(\'' + loc.city + '\')" ' +
-      'style="background:#f3edff;color:#7c3aed;border:1px solid #d8c7ff;padding:7px 12px;border-radius:8px;cursor:pointer;font-size:13px;width:100%">' +
-      '🤝 ' + t('reconnect.btn_shared') +
-      '</button>' +
-      '</div>'
-    );
-
+    const m = L.marker([member.lat, member.lng], { icon: createIcon(member.gender) });
+    m.on('click', function () { openMemberProfile(member.id); });
     markersLayer.addLayer(m);
   });
+}
+
+
+function openMemberProfile(memberId) {
+  const member = aupyMembers.find(m => m.id === memberId);
+  if (!member) return;
+
+  const overlay = document.getElementById('memberModalOverlay');
+  const box = document.getElementById('memberModal');
+  if (!overlay || !box) return;
+
+  const emoji = member.gender === 'Homme' ? '👨' : '👩';
+  const plan = (member.plan || 'FREE').toUpperCase();
+
+  // Règles selon LE forfait du profil consulté :
+  // FREE     → fiche SANS voyant en ligne
+  // STANDARD → fiche + voyant en ligne
+  // PREMIUM  → fiche + voyant en ligne + bouton Message à côté des hobbies
+  const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
+  const showMessage = (plan === 'PREMIUM');
+
+  let onlineHtml = '';
+  if (showOnline) {
+    if (member.online) {
+      onlineHtml = '<div class="member-online"><span class="dot"></span> En ligne</div>';
+    } else {
+      onlineHtml = '<div class="member-online" style="color:#6b7280;background:#f3f4f6;border-color:#e5e7eb"><span class="dot" style="background:#9ca3af;box-shadow:none"></span> Hors ligne</div>';
+    }
+  }
+
+  const langs = (member.languages || []).map(c => {
+    return (typeof LANG_LABEL !== 'undefined' && LANG_LABEL[c]) ? LANG_LABEL[c] : c;
+  }).join(' · ');
+
+  let stayTxt = '';
+  if (member.stayEnd) {
+    const parts = String(member.stayEnd).split('-');
+    if (parts.length >= 2) {
+      const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const mi = parseInt(parts[1], 10) - 1;
+      stayTxt = (months[mi] || parts[1]) + ' ' + parts[0];
+    } else {
+      stayTxt = member.stayEnd;
+    }
+  }
+
+  const hobbyEmojis = (member.hobbies || []).map(h => {
+    const e = (typeof HOBBY_EMOJI !== 'undefined' && HOBBY_EMOJI[h]) ? HOBBY_EMOJI[h] : '✨';
+    return '<span class="hobby-emoji" title="' + h + '">' + e + '</span>';
+  }).join('');
+
+  const msgBtn = showMessage
+    ? '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>'
+    : '';
+
+  box.innerHTML =
+    '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
+    '<div class="member-plan-tag ' + plan + '">' + plan + '</div>' +
+    onlineHtml +
+    '<div class="member-avatar">' + emoji + '</div>' +
+    '<h3>' + member.name + '</h3>' +
+    '<p class="member-badge">🛡️ AUPYGO certifié · ' + (member.age || '?') + ' ans</p>' +
+    (member.host ? '<div class="member-info">🏡 Pays d\'accueil : <strong>' + member.host + '</strong></div>' : '') +
+    (member.origin ? '<div class="member-info">🌍 Origine : <strong>' + member.origin + '</strong></div>' : '') +
+    (stayTxt ? '<div class="member-info">📅 Fin du séjour : <strong>' + stayTxt + '</strong></div>' : '') +
+    (langs ? '<div class="member-info">🗣️ ' + langs + '</div>' : '') +
+    (member.city ? '<div class="member-info">📍 ' + member.city + ' <span style="color:#999;font-size:12px">(~1 km)</span></div>' : '') +
+    (member.bio ? '<div class="member-info" style="margin-top:8px;color:#555">' + member.bio + '</div>' : '') +
+    '<div class="member-hobbies-row">' + hobbyEmojis + msgBtn + '</div>' +
+    '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\'ami</button>';
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+
+function closeMemberProfile() {
+  const overlay = document.getElementById('memberModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+
+function messageMember(memberId) {
+  const member = aupyMembers.find(m => m.id === memberId);
+  if (!member) return;
+  // Destinataire PREMIUM (sinon pas de bouton). Expéditeur doit être PREMIUM aussi.
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  closeMemberProfile();
+  go('messages');
+  showToast('💬 Conversation avec ' + member.name + ' (prototype)', 'success');
+}
+
+
+function sendFriendRequestToMember(memberId) {
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required'), 'error');
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  const member = aupyMembers.find(m => m.id === memberId);
+  showToast(t('toast.friend_request_sent') + ' ' + (member ? member.name : '') + ' 🤝', 'success');
+  closeMemberProfile();
 }
 
 
@@ -4162,7 +4343,9 @@ function mapMode(mode, btn) {
 
 
 function openCity(city) {
-  showToast(t('toast.city_profiles') + ' ' + city + ' — ' + currentPlan + ' (prototype)', 'success');
+  const first = aupyMembers.find(m => m.city === city);
+  if (first) openMemberProfile(first.id);
+  else showToast(t('toast.city_profiles') + ' ' + city, 'success');
 }
 
 function sendFriendRequest(city) {
@@ -4665,6 +4848,8 @@ function toggleFooter(id) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMemberProfile(); });
+
   const bioEl = document.getElementById('bio');
   const bioCounter = document.getElementById('bioCounter');
   if (bioEl && bioCounter) {
