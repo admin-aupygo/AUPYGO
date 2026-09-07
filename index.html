@@ -1862,10 +1862,20 @@ footer {
 
         <div class="form-row">
 
-  <div class="form-group">
-    <label>🌍 Pays d'origine</label>
+<div class="form-group">
 
-    <select id="originCountry">
+  <label data-i18n="profile.label_country">
+    Pays d'origine
+  </label>
+
+  <input
+    id="country"
+    list="countries"
+    data-i18n-placeholder="profile.ph_country"
+    placeholder="Ton pays...">
+
+</div>
+
       <!-- liste pays -->
     </select>
   </div>
@@ -1901,7 +1911,6 @@ footer {
   <div class="form-group">
     <label>🏡 Pays d'accueil</label>
 
-    <select id="hostCountry">
       <!-- même liste -->
     </select>
   </div>
