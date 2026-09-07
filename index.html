@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
@@ -664,6 +664,16 @@ main {
   color: #fff; font-weight: 700; font-size: 13px;
   padding: 10px 14px; border-radius: 12px; cursor: pointer;
   display: inline-flex; align-items: center; gap: 6px;
+}
+.member-msg-btn-disabled {
+  background: #e5e7eb !important;
+  color: #9ca3af !important;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.85;
+}
+.member-msg-btn-disabled:hover {
+  transform: none;
 }
 .member-friend-btn {
   border: 1px solid #d8c7ff; background: #f3edff; color: var(--primary);
@@ -3424,8 +3434,16 @@ async function handleSignup() {
 function lockIdentityFields() {
 
   document.getElementById('firstName').readOnly = true;
-  document.getElementById('age').readOnly = true;
   document.getElementById('country').readOnly = true;
+
+  // age = <select> : readOnly ne fonctionne pas → disabled
+  const ageEl = document.getElementById('age');
+  if (ageEl) {
+    ageEl.disabled = true;
+    ageEl.style.opacity = '0.65';
+    ageEl.style.cursor = 'not-allowed';
+    ageEl.title = 'Age verrouille apres enregistrement';
+  }
 
   document.querySelectorAll('.gender-option').forEach(btn => {
     btn.disabled = true;
@@ -3440,8 +3458,15 @@ function lockIdentityFields() {
 function unlockIdentityFields() {
 
   document.getElementById('firstName').readOnly = false;
-  document.getElementById('age').readOnly = false;
   document.getElementById('country').readOnly = false;
+
+  const ageEl = document.getElementById('age');
+  if (ageEl) {
+    ageEl.disabled = false;
+    ageEl.style.opacity = '1';
+    ageEl.style.cursor = '';
+    ageEl.title = '';
+  }
 
   document.querySelectorAll('.gender-option').forEach(btn => {
     btn.disabled = false;
@@ -4217,9 +4242,14 @@ function openMemberProfile(memberId) {
     return '<span class="hobby-emoji" title="' + h + '">' + e + '</span>';
   }).join('');
 
-  const msgBtn = showMessage
-    ? '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>'
-    : '';
+  let msgBtn = '';
+  if (showMessage) {
+    if (currentPlan === 'PREMIUM') {
+      msgBtn = '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>';
+    } else {
+      msgBtn = '<button type="button" class="member-msg-btn member-msg-btn-disabled" onclick="showToast(t(\'messages.send_locked\'), \'error\'); closeMemberProfile(); go(\'plans\');">💬 Message</button>';
+    }
+  }
 
   const friendBtn = canSendFriendRequest
     ? '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>'
