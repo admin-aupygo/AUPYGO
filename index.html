@@ -4065,7 +4065,7 @@ async function saveProfile() {
     profile.display_name = name;
     profile.age = Number(ageValue);
     profile.gender = selectedGender;
-    profile.country = country;
+    document.getElementById('country').value = profile.country || '';
     profile.city = userLocation.city;
     profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
     profile.identity_locked = true;
