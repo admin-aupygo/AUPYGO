@@ -781,6 +781,83 @@ select[multiple] {
   background: #f4edff;
 }
 
+.lang-grid {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 8px;
+}
+
+.lang-chip {
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 10px 6px;
+  background: #fff;
+  cursor: pointer;
+  text-align: center;
+  font-size: 13px;
+  font-weight: 600;
+  transition: 0.15s;
+  font-family: inherit;
+}
+
+.lang-chip:hover {
+  border-color: #d8c7ff;
+  background: #faf8ff;
+}
+
+.lang-chip.selected {
+  border: 2px solid var(--primary);
+  background: #f4edff;
+  color: var(--primary);
+}
+
+.profile-card-extras {
+  margin-top: 16px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+  text-align: left;
+}
+
+.profile-card-line {
+  font-size: 13px;
+  color: var(--text);
+  margin-bottom: 8px;
+  line-height: 1.4;
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.profile-card-line:empty {
+  display: none;
+}
+
+.profile-card-hobbies {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 12px;
+}
+
+.profile-card-hobbies .hobby-emoji {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #f4edff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 20px;
+  border: 1px solid #e8e0f5;
+}
+
+@media (max-width: 650px) {
+  .lang-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
 .bio-counter {
   display: block;
   text-align: right;
@@ -1921,6 +1998,12 @@ footer {
       <div class="avatar" id="profileAvatar">👤</div>
       <h3 id="profileName">Ton prénom</h3>
       <p class="profile-meta" id="profileMeta">Complète ton profil</p>
+      <div id="profileCardExtras" class="profile-card-extras" style="display:none">
+        <div class="profile-card-line" id="profileCardHost"></div>
+        <div class="profile-card-line" id="profileCardStay"></div>
+        <div class="profile-card-line" id="profileCardLangs"></div>
+        <div class="profile-card-hobbies" id="profileCardHobbies"></div>
+      </div>
     </div>
 
     <!-- Formulaire -->
@@ -2023,20 +2106,20 @@ footer {
 
       <div class="form-group">
         <label>🗣️ Langues parlées (max 3)</label>
-        <select id="languages" multiple size="6" onchange="onLanguagesChange()">
-          <option value="FR">FR — Français</option>
-          <option value="EN">EN — English</option>
-          <option value="ES">ES — Español</option>
-          <option value="PT">PT — Português</option>
-          <option value="DE">DE — Deutsch</option>
-          <option value="IT">IT — Italiano</option>
-          <option value="RU">RU — Русский</option>
-          <option value="ZH">ZH — 中文</option>
-          <option value="JA">JA — 日本語</option>
-          <option value="OTHER">✨ Autre</option>
-        </select>
-        <input id="otherLanguage" type="text" placeholder="Précise ta langue..." style="display:none;margin-top:8px">
-        <span class="hint">Maintiens Ctrl (ou Cmd) pour en sélectionner plusieurs · max 3</span>
+        <div class="lang-grid" id="langGrid">
+          <button type="button" class="lang-chip" data-lang="FR" onclick="toggleLanguage(this,'FR')">🇫🇷 FR</button>
+          <button type="button" class="lang-chip" data-lang="EN" onclick="toggleLanguage(this,'EN')">🇬🇧 EN</button>
+          <button type="button" class="lang-chip" data-lang="ES" onclick="toggleLanguage(this,'ES')">🇪🇸 ES</button>
+          <button type="button" class="lang-chip" data-lang="PT" onclick="toggleLanguage(this,'PT')">🇧🇷 PT</button>
+          <button type="button" class="lang-chip" data-lang="DE" onclick="toggleLanguage(this,'DE')">🇩🇪 DE</button>
+          <button type="button" class="lang-chip" data-lang="IT" onclick="toggleLanguage(this,'IT')">🇮🇹 IT</button>
+          <button type="button" class="lang-chip" data-lang="RU" onclick="toggleLanguage(this,'RU')">🇷🇺 RU</button>
+          <button type="button" class="lang-chip" data-lang="ZH" onclick="toggleLanguage(this,'ZH')">🇨🇳 ZH</button>
+          <button type="button" class="lang-chip" data-lang="JA" onclick="toggleLanguage(this,'JA')">🇯🇵 JA</button>
+          <button type="button" class="lang-chip" data-lang="OTHER" onclick="toggleLanguage(this,'OTHER')">✨ Autre</button>
+        </div>
+        <input id="otherLanguage" type="text" placeholder="Précise ta langue..." style="display:none;margin-top:10px">
+        <span class="hint">Touche pour sélectionner · max 3</span>
       </div>
 
       <h3 class="form-section-title" style="margin-top:8px">Centres d'intérêt</h3>
@@ -2489,7 +2572,7 @@ const I18N = {
     "profile.agenda_locked":"⭐ Disponible à partir du forfait <strong>STANDARD</strong>.",
     "profile.agenda_unlocked":"✅ Ton agenda privé AUPYGO est débloqué.",
     "profile.agenda_ev1":"☕ Café avec Maria","profile.agenda_ev2":"🥾 Rando avec Lucas","profile.agenda_ev3":"🍝 Lunch avec Camila",
-    "profile.au_pair":"Au pair",
+    "profile.au_pair":"AUPYGO certifié",
     "profile.first_name_error":"Indique ton prénom",
     "profile.age_error":"Indique ton âge (18 ans minimum)",
     "profile.gender_error":"Choisis ton genre",
@@ -2679,7 +2762,7 @@ const I18N = {
     "profile.agenda_locked":"⭐ Available from the <strong>STANDARD</strong> plan.",
     "profile.agenda_unlocked":"✅ Your private AUPYGO calendar is unlocked.",
     "profile.agenda_ev1":"☕ Coffee with Maria","profile.agenda_ev2":"🥾 Hike with Lucas","profile.agenda_ev3":"🍝 Lunch with Camila",
-    "profile.au_pair":"Au pair",
+    "profile.au_pair":"AUPYGO certifié",
     "profile.first_name_error":"Enter your first name",
     "profile.age_error":"Enter your age (18 minimum)",
     "profile.gender_error":"Choose your gender",
@@ -2869,7 +2952,7 @@ const I18N = {
     "profile.agenda_locked":"⭐ Disponible desde el plan <strong>STANDARD</strong>.",
     "profile.agenda_unlocked":"✅ Tu agenda privada AUPYGO está desbloqueada.",
     "profile.agenda_ev1":"☕ Café con Maria","profile.agenda_ev2":"🥾 Excursión con Lucas","profile.agenda_ev3":"🍝 Comida con Camila",
-    "profile.au_pair":"Au pair",
+    "profile.au_pair":"AUPYGO certifié",
     "profile.first_name_error":"Indica tu nombre",
     "profile.age_error":"Indica tu edad (mínimo 18 años)",
     "profile.gender_error":"Elige tu género",
@@ -3344,16 +3427,19 @@ async function handleLogout() {
   document.getElementById('profileName').textContent = t('profile.name_placeholder');
   document.getElementById('profileMeta').textContent = t('profile.meta_placeholder');
   document.getElementById('profileAvatar').textContent = '👤';
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
+  if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = '';
+  if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = '';
+  if (document.getElementById('city')) document.getElementById('city').value = '';
   selectedGender = null;
   document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
   selectedHobbies.length = 0;
   document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
   document.getElementById('otherHobby').style.display = 'none';
   document.getElementById('otherHobby').value = '';
-  const ol = document.getElementById('otherLanguage');
-  if (ol) { ol.style.display = 'none'; ol.value = ''; }
-  const langSel = document.getElementById('languages');
-  if (langSel) Array.from(langSel.options).forEach(o => o.selected = false);
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
 
   updatePlanUI();
   await refreshAuthUI();
@@ -3384,7 +3470,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
     // Charge le profil déjà sauvegardé pour ce compte, s'il existe
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked')
+      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked, languages, other_language, host_country, stay_end, city')
       .eq('id', user.id)
       .maybeSingle();
 
@@ -3401,8 +3487,10 @@ async function refreshAuthUI(redirectPage = 'profile') {
       document.getElementById('age').value = profile.age || '';
       document.getElementById('country').value = profile.country || '';
       document.getElementById('bio').value = profile.bio || '';
-      document.getElementById('profileName').textContent = profile.display_name || t('profile.name_placeholder');
-      document.getElementById('profileMeta').textContent = t('profile.au_pair') + ' · ' + (profile.age || '?') + ' ' + t('common.years');
+      if (document.getElementById('city')) document.getElementById('city').value = profile.city || '';
+      if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = profile.host_country || '';
+      if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = profile.stay_end || '';
+      if (document.getElementById('otherLanguage')) document.getElementById('otherLanguage').value = profile.other_language || '';
 
       if (profile.gender) {
         selectedGender = profile.gender;
@@ -3425,6 +3513,31 @@ async function refreshAuthUI(redirectPage = 'profile') {
       }
       document.getElementById('otherHobby').style.display =
         selectedHobbies.includes('Autre') ? 'block' : 'none';
+
+      // Restaure les langues
+      clearLanguageSelection();
+      if (profile.languages) {
+        profile.languages.split(',').map(s => s.trim()).filter(Boolean).forEach(code => {
+          if (selectedLanguages.length >= 3) return;
+          selectedLanguages.push(code);
+          const btn = document.querySelector('.lang-chip[data-lang="' + code + '"]');
+          if (btn) btn.classList.add('selected');
+        });
+        if (selectedLanguages.includes('OTHER')) {
+          const ol = document.getElementById('otherLanguage');
+          if (ol) ol.style.display = 'block';
+        }
+      }
+
+      updateProfileCard({
+        name: profile.display_name,
+        age: profile.age,
+        hostCountry: profile.host_country,
+        stayEnd: profile.stay_end,
+        languages: selectedLanguages.slice(),
+        otherLang: profile.other_language,
+        hobbies: selectedHobbies.slice()
+      });
 
       profileSaved = true;
       lockIdentityFields();
@@ -4108,20 +4221,119 @@ const selectedHobbies = [];
 
 
 
-function onLanguagesChange() {
-  const sel = document.getElementById('languages');
-  if (!sel) return;
-  const selected = Array.from(sel.selectedOptions);
-  if (selected.length > 3) {
-    // keep only first 3
-    selected.slice(3).forEach(opt => { opt.selected = false; });
-    showToast('Maximum 3 langues', 'error');
+const selectedLanguages = [];
+
+const HOBBY_EMOJI = {
+  'Plage': '🏖️', 'Lire': '📚', 'Films': '🎬', 'Voyager': '✈️', 'Cuisine': '🍳',
+  'Sport': '🏋️', 'Danse': '💃', 'Musique': '🎵', 'Photo': '📸', 'Nature': '🌿',
+  'Café': '☕', 'Randonnée': '🥾', 'Animaux': '🐶', 'Art': '🎨', 'Yoga': '🧘', 'Autre': '✨'
+};
+
+const LANG_LABEL = {
+  'FR': '🇫🇷 FR', 'EN': '🇬🇧 EN', 'ES': '🇪🇸 ES', 'PT': '🇧🇷 PT',
+  'DE': '🇩🇪 DE', 'IT': '🇮🇹 IT', 'RU': '🇷🇺 RU', 'ZH': '🇨🇳 ZH',
+  'JA': '🇯🇵 JA', 'OTHER': '✨'
+};
+
+function toggleLanguage(btn, code) {
+  const i = selectedLanguages.indexOf(code);
+  if (i >= 0) {
+    selectedLanguages.splice(i, 1);
+    btn.classList.remove('selected');
+  } else {
+    if (selectedLanguages.length >= 3) {
+      showToast('Maximum 3 langues', 'error');
+      return;
+    }
+    selectedLanguages.push(code);
+    btn.classList.add('selected');
   }
   const otherInput = document.getElementById('otherLanguage');
   if (otherInput) {
-    const hasOther = Array.from(sel.selectedOptions).some(o => o.value === 'OTHER');
+    const hasOther = selectedLanguages.includes('OTHER');
     otherInput.style.display = hasOther ? 'block' : 'none';
     if (!hasOther) otherInput.value = '';
+  }
+}
+
+function clearLanguageSelection() {
+  selectedLanguages.length = 0;
+  document.querySelectorAll('.lang-chip').forEach(b => b.classList.remove('selected'));
+  const ol = document.getElementById('otherLanguage');
+  if (ol) { ol.style.display = 'none'; ol.value = ''; }
+}
+
+function updateProfileCard(data) {
+  // data: { name, age, hostCountry, stayEnd, languages, otherLang, hobbies }
+  const nameEl = document.getElementById('profileName');
+  const metaEl = document.getElementById('profileMeta');
+  const extras = document.getElementById('profileCardExtras');
+  const hostEl = document.getElementById('profileCardHost');
+  const stayEl = document.getElementById('profileCardStay');
+  const langsEl = document.getElementById('profileCardLangs');
+  const hobbiesEl = document.getElementById('profileCardHobbies');
+
+  if (!data || !data.name) {
+    if (nameEl) nameEl.textContent = t('profile.name_placeholder');
+    if (metaEl) metaEl.textContent = t('profile.meta_placeholder');
+    if (extras) extras.style.display = 'none';
+    return;
+  }
+
+  if (nameEl) nameEl.textContent = data.name;
+  if (metaEl) {
+    const agePart = data.age ? (data.age + ' ' + t('common.years')) : '';
+    metaEl.innerHTML = '🛡️ <strong>AUPYGO certifié</strong>' + (agePart ? ' · ' + agePart : '');
+  }
+
+  if (extras) extras.style.display = 'block';
+
+  if (hostEl) {
+    hostEl.innerHTML = data.hostCountry
+      ? '🏡 <span>Pays d\'accueil : <strong>' + data.hostCountry + '</strong></span>'
+      : '';
+  }
+  if (stayEl) {
+    let stayTxt = '';
+    if (data.stayEnd) {
+      // data.stayEnd = "YYYY-MM"
+      const parts = String(data.stayEnd).split('-');
+      if (parts.length >= 2) {
+        const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+        const mi = parseInt(parts[1], 10) - 1;
+        stayTxt = (months[mi] || parts[1]) + ' ' + parts[0];
+      } else {
+        stayTxt = data.stayEnd;
+      }
+      stayEl.innerHTML = '📅 <span>Fin du séjour : <strong>' + stayTxt + '</strong></span>';
+    } else {
+      stayEl.innerHTML = '';
+    }
+  }
+  if (langsEl) {
+    const codes = data.languages || [];
+    if (codes.length) {
+      const labels = codes.map(c => {
+        if (c === 'OTHER') {
+          return data.otherLang ? ('✨ ' + data.otherLang) : '✨ Autre';
+        }
+        return LANG_LABEL[c] || c;
+      });
+      langsEl.innerHTML = '🗣️ <span>' + labels.join(' · ') + '</span>';
+    } else {
+      langsEl.innerHTML = '';
+    }
+  }
+  if (hobbiesEl) {
+    const list = data.hobbies || [];
+    if (list.length) {
+      hobbiesEl.innerHTML = list.map(h => {
+        const emoji = HOBBY_EMOJI[h] || '✨';
+        return '<span class="hobby-emoji" title="' + h + '">' + emoji + '</span>';
+      }).join('');
+    } else {
+      hobbiesEl.innerHTML = '';
+    }
   }
 }
 
@@ -4199,10 +4411,14 @@ async function saveProfile() {
     profile.display_name = name;
     profile.age = Number(ageValue);
     profile.gender = selectedGender;
-    document.getElementById('country').value = profile.country || '';
-    profile.city = userLocation.city;
+    profile.country = country;
+    profile.city = (document.getElementById('city') || {}).value || userLocation.city;
     profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
     profile.identity_locked = true;
+    profile.languages = selectedLanguages.join(',');
+    profile.other_language = (document.getElementById('otherLanguage') || {}).value || '';
+    profile.host_country = (document.getElementById('hostCountry') || {}).value || '';
+    profile.stay_end = (document.getElementById('stayEnd') || {}).value || null;
   }
 
   const { error } = await supabaseClient
@@ -4215,9 +4431,37 @@ async function saveProfile() {
     return;
   }
 
+  // Collect extra fields for card + DB
+  const hostCountry = (document.getElementById('hostCountry') || {}).value || '';
+  const stayEnd = (document.getElementById('stayEnd') || {}).value || '';
+  const otherLangVal = (document.getElementById('otherLanguage') || {}).value || '';
+  const cityVal = (document.getElementById('city') || {}).value || '';
+
+  // Re-upsert with extra fields (second write keeps things simple for prototype)
+  try {
+    await supabaseClient.from('profiles').upsert({
+      id: user.id,
+      languages: selectedLanguages.join(','),
+      other_language: otherLangVal,
+      host_country: hostCountry,
+      stay_end: stayEnd || null,
+      city: cityVal || null,
+      interests: selectedHobbies.join(','),
+      bio: bio
+    }, { onConflict: 'id' });
+  } catch (e) { console.error(e); }
+
+  updateProfileCard({
+    name: name || document.getElementById('firstName').value.trim(),
+    age: ageValue || document.getElementById('age').value,
+    hostCountry: hostCountry,
+    stayEnd: stayEnd,
+    languages: selectedLanguages.slice(),
+    otherLang: otherLangVal,
+    hobbies: selectedHobbies.slice()
+  });
+
   if (!profileSaved) {
-    document.getElementById('profileName').textContent = name;
-    document.getElementById('profileMeta').textContent = t('profile.au_pair') + ' · ' + profile.age + ' ' + t('common.years');
     profileSaved = true;
     lockIdentityFields();
     showToast(t('profile.saved_first'), 'success');
@@ -4276,16 +4520,19 @@ async function handleDeleteProfile() {
   document.getElementById('profileName').textContent = t('profile.name_placeholder');
   document.getElementById('profileMeta').textContent = t('profile.meta_placeholder');
   document.getElementById('profileAvatar').textContent = '👤';
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
+  if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = '';
+  if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = '';
+  if (document.getElementById('city')) document.getElementById('city').value = '';
   selectedGender = null;
   document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
   selectedHobbies.length = 0;
   document.querySelectorAll('.hobby.selected').forEach(b => b.classList.remove('selected'));
   document.getElementById('otherHobby').style.display = 'none';
   document.getElementById('otherHobby').value = '';
-  const ol = document.getElementById('otherLanguage');
-  if (ol) { ol.style.display = 'none'; ol.value = ''; }
-  const langSel = document.getElementById('languages');
-  if (langSel) Array.from(langSel.options).forEach(o => o.selected = false);
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
 
   updatePlanUI();
   await refreshAuthUI();
