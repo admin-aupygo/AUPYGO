@@ -1779,16 +1779,37 @@ footer {
 
     <div class="card" style="text-align:center">
 
-      <div class="avatar" id="profileAvatar">👤</div>
+      <div class="profile-business-card">
 
-      <h3 id="profileName" data-i18n="profile.name_placeholder">Ton prénom</h3>
+  <div id="profileStatus">
+    🟢 En ligne
+  </div>
 
-      <p style="color:var(--muted)" id="profileMeta" data-i18n="profile.meta_placeholder">Complète ton profil</p>
+  <div class="avatar" id="profileAvatar">
+    👤
+  </div>
 
-      <div class="notice security" style="margin-top:12px" data-i18n="profile.verified">
-        🛡️ Profil vérifié
-      </div>
+  <h3 id="profileName">
+    Ton prénom
+  </h3>
 
+  <p id="profileAge"></p>
+
+  <p id="profileOrigin"></p>
+
+  <p id="profileHost"></p>
+
+  <p id="profileCity"></p>
+
+  <p id="profileLanguages"></p>
+
+  <p id="profileStayEnd"></p>
+
+  <div id="profileHobbies"></div>
+
+  <p id="profileBioPreview"></p>
+
+</div>
     </div>
 
 
@@ -1840,24 +1861,53 @@ footer {
 
       <div class="form-group">
 
-        <label data-i18n="profile.label_country">Pays d'origine</label>
+        <div class="form-row">
 
-        <input id="country" list="countries" data-i18n-placeholder="profile.ph_country" placeholder="Ton pays...">
+  <div class="form-group">
+    <label>🌍 Pays d'origine</label>
 
-        <datalist id="countries">
-          <option value="France">
-          <option value="Brésil">
-          <option value="Espagne">
-          <option value="Allemagne">
-          <option value="Italie">
-          <option value="Suisse">
-          <option value="Royaume-Uni">
-          <option value="États-Unis">
-          <option value="Portugal">
-          <option value="Canada">
-          <option value="Japon">
-          <option value="Australie">
-        </datalist>
+    <select id="originCountry">
+      <!-- liste pays -->
+    </select>
+  </div>
+          <div class="form-group">
+  <label>📍 Ville</label>
+
+  <input
+    id="city"
+    type="text"
+    placeholder="Ex : Nyon">
+</div>
+          <div class="form-group">
+
+  <label>🗣️ Langues parlées (max 3)</label>
+
+  <select id="languages" multiple>
+
+    <option value="FR">FR - Français</option>
+    <option value="EN">EN - English</option>
+    <option value="ES">ES - Español</option>
+    <option value="PT">PT - Português</option>
+    <option value="DE">DE - Deutsch</option>
+    <option value="IT">IT - Italiano</option>
+    <option value="RU">RU - Русский</option>
+    <option value="ZH">ZH - 中文</option>
+    <option value="JA">JA - 日本語</option>
+
+  </select>
+
+</div>
+          
+
+  <div class="form-group">
+    <label>🏡 Pays d'accueil</label>
+
+    <select id="hostCountry">
+      <!-- même liste -->
+    </select>
+  </div>
+
+</div>
 
       </div>
 
@@ -1893,7 +1943,21 @@ footer {
       <div class="form-group">
         <label data-i18n="profile.label_bio">À propos de moi</label>
         <textarea id="bio" rows="3" data-i18n-placeholder="profile.ph_bio" placeholder="Présente-toi..."></textarea>
+
+<small>
+  <span id="bioCounter">0</span>/300
+</small>
       </div>
+      <div class="form-group">
+
+  <label>📅 Fin du séjour</label>
+
+  <input
+    type="month"
+    id="stayEnd">
+
+</div>
+      
 
       <button class="btn btn-primary" onclick="saveProfile()" data-i18n="profile.btn_save">💾 Enregistrer</button>
       <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="go('plans')" data-i18n="profile.btn_plans">💎 Voir les abonnements</button>
