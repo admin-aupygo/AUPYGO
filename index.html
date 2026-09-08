@@ -2022,46 +2022,31 @@ footer {
 
   <div class="message-box" id="messagesBox">
 
-  <div class="conversations" id="conversationList">
-    <!-- Rempli automatiquement depuis Supabase -->
-  </div>
-
-  <div class="chat">
-
-    <div class="chat-header" id="chatHeader">
-      Sélectionne une conversation
+    <div class="conversations" id="conversationList">
+      <!-- Rempli automatiquement depuis Supabase -->
     </div>
 
-    <div class="chat-messages" id="chatMessages">
-      <!-- Messages chargés depuis Supabase -->
-    </div>
-
-    <div class="chat-input">
-      <input
-  id="messageInput"
-  type="text"
-  placeholder="Écrire un message..."
-  onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
->
-
-      <button
-        class="btn btn-primary"
-        onclick="sendMessage()">
-        Envoyer
-      </button>
-    </div>
-
-  </div>
-
-</div>
     <div class="chat">
 
-      <div class="chat-header" id="chatHeader"></div>
+      <div class="chat-header" id="chatHeader">
+        Sélectionne une conversation
+      </div>
 
-<div class="chat-messages" id="chatMessages"></div>
+      <div class="chat-messages" id="chatMessages">
+        <!-- Messages chargés depuis Supabase -->
       </div>
 
       <div class="chat-input">
+        <input
+          id="messageInput"
+          type="text"
+          placeholder="Écrire un message..."
+          onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
+        >
+        <button class="btn btn-primary" onclick="sendMessage()">
+          Envoyer
+        </button>
+      </div>
 
     </div>
 
@@ -3327,6 +3312,7 @@ function onTurnstileExpired() {
 }
 
 let map, markersLayer;
+let profiles = []; // profils avec approx_lat / approx_lng (global)
 
 
 /* =========================
@@ -4111,26 +4097,34 @@ function go(page) {
 
 
 /* =========================
-   LOCALISATIONS
+   LOCALISATIONS (chargement Supabase)
 ========================= */
 
-// Membres démo sur la carte — le forfait du profil détermine ce que les autres voient
-const { data: profiles } = await supabaseClient
-  .from('profiles')
-  .select('*')
-  .not('approx_lat', 'is', null)
-  .not('approx_lng', 'is', null);
-const aupyLocations = profiles.map(p => ({
-  city: p.city,
-  lat: p.approx_lat,
-  lng: p.approx_lng,
-  users: 1,
-  gender: p.gender,
-  name: p.display_name,
-  avatar: p.avatar,
-  subscription: p.subscription
-}));
+async function loadProfiles() {
+  try {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('*')
+      .not('approx_lat', 'is', null)
+      .not('approx_lng', 'is', null);
 
+    if (error) {
+      console.error('Erreur chargement profils:', error);
+      profiles = [];
+      return;
+    }
+
+    profiles = data || [];
+    console.log('[AUPYGO] Profils chargés sur la carte:', profiles.length);
+
+    if (map && markersLayer) {
+      renderMarkers();
+    }
+  } catch (e) {
+    console.error('loadProfiles:', e);
+    profiles = [];
+  }
+}
 
 
 /* =========================
@@ -4178,35 +4172,70 @@ function renderMarkers() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
 
+  if (!Array.isArray(profiles) || profiles.length === 0) {
+    return;
+  }
+
   const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
 
-profiles.forEach(member => {
-  const m = L.marker(
-    [member.approx_lat, member.approx_lng],
-    { icon: createIcon(member.gender) }
-  );
+  profiles.forEach(member => {
+    if (member.approx_lat == null || member.approx_lng == null) return;
 
-  m.on('click', () => openMemberProfile(member.id));
-  markersLayer.addLayer(m);
-});
+    // Ne pas afficher son propre marqueur
+    if (currentUser && member.id === currentUser.id) return;
+
+    // Filtre distance selon forfait
+    if (maxKm != null) {
+      const d = distanceKm(
+        userLocation.lat, userLocation.lng,
+        member.approx_lat, member.approx_lng
+      );
+      if (d > maxKm) return;
+    }
+
+    const m = L.marker(
+      [member.approx_lat, member.approx_lng],
+      { icon: createIcon(member.gender) }
+    );
+
+    m.on('click', () => openMemberProfile(member.id));
+    markersLayer.addLayer(m);
+  });
 }
 
 
 function openMemberProfile(memberId) {
-  const member = aupyMembers.find(m => m.id === memberId);
-  if (!member) return;
+  const raw = profiles.find(m => m.id === memberId);
+  if (!raw) return;
+
+  // Normalise les champs DB → structure attendue par la modale
+  const member = {
+    id: raw.id,
+    name: raw.display_name || 'AUPYGO',
+    age: raw.age,
+    gender: raw.gender,
+    plan: (raw.subscription || 'FREE').toUpperCase(),
+    city: raw.city || '',
+    origin: raw.country || '',
+    host: raw.host_country || '',
+    stayEnd: raw.stay_end || '',
+    bio: raw.bio || '',
+    languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean),
+    hobbies: (raw.interests || '').split(',').map(s => s.trim()).filter(Boolean),
+    online: false // pas de champ online en base pour l’instant
+  };
 
   const overlay = document.getElementById('memberModalOverlay');
   const box = document.getElementById('memberModal');
   if (!overlay || !box) return;
 
   const emoji = member.gender === 'Homme' ? '👨' : '👩';
-  const plan = (member.plan || 'FREE').toUpperCase();
+  const plan = member.plan;
 
-  // Affichage selon le forfait DU PROFIL consulté (sans afficher le nom du forfait) :
+  // Affichage selon le forfait DU PROFIL consulté :
   // FREE     → fiche seule (pas de voyant)
   // STANDARD → fiche + voyant en ligne
-  // PREMIUM  → fiche + voyant + bouton Message à côté des hobbies
+  // PREMIUM  → fiche + voyant + bouton Message
   const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
   const showMessage = (plan === 'PREMIUM');
 
@@ -4283,8 +4312,9 @@ function closeMemberProfile() {
 
 
 function messageMember(memberId) {
-  const member = aupyMembers.find(m => m.id === memberId);
-  if (!member) return;
+  const raw = profiles.find(m => m.id === memberId);
+  if (!raw) return;
+  const name = raw.display_name || 'AUPYGO';
   // Destinataire PREMIUM (sinon pas de bouton). Expéditeur doit être PREMIUM aussi.
   if (currentPlan !== 'PREMIUM') {
     showToast(t('messages.send_locked'), 'error');
@@ -4294,7 +4324,7 @@ function messageMember(memberId) {
   }
   closeMemberProfile();
   go('messages');
-  showToast('💬 Conversation avec ' + member.name + ' (prototype)', 'success');
+  showToast('💬 Conversation avec ' + name + ' (prototype)', 'success');
 }
 
 
@@ -4311,8 +4341,9 @@ function sendFriendRequestToMember(memberId) {
     go('plans');
     return;
   }
-  const member = aupyMembers.find(m => m.id === memberId);
-  showToast(t('toast.friend_request_sent') + ' ' + (member ? member.name : '') + ' 🤝', 'success');
+  const raw = profiles.find(m => m.id === memberId);
+  const name = raw ? (raw.display_name || '') : '';
+  showToast(t('toast.friend_request_sent') + ' ' + name + ' 🤝', 'success');
   closeMemberProfile();
 }
 
@@ -4368,24 +4399,28 @@ function mapMode(mode, btn) {
         if (ok && map) {
           map.setView([userLocation.lat, userLocation.lng], 11);
           applyMapRestrictions();
+          renderMarkers();
         }
       });
     } else if (map) {
       map.setView([userLocation.lat, userLocation.lng], 11);
+      renderMarkers();
     }
     return;
   }
 
   if (mode === 'region' && map) {
     map.setView([userLocation.lat, userLocation.lng], 6);
+    renderMarkers();
   } else if (mode === 'world' && map) {
     map.setView([20, 0], 2);
+    renderMarkers();
   }
 }
 
 
 function openCity(city) {
-  const first = aupyMembers.find(m => m.city === city);
+  const first = profiles.find(m => m.city === city);
   if (first) openMemberProfile(first.id);
   else showToast(t('toast.city_profiles') + ' ' + city, 'success');
 }
@@ -4914,6 +4949,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   loadSavedApproxLocation(); // charge la position approximative déjà autorisée
   initMap();
+  await loadProfiles(); // charge les profils avec coordonnées pour la carte
   updatePlanUI();
   updateNavVisibility();
   await refreshAuthUI();
