@@ -2022,25 +2022,37 @@ footer {
 
   <div class="message-box" id="messagesBox">
 
-    <div class="conversations">
+  <div class="conversations" id="conversationList">
+    <!-- Rempli automatiquement depuis Supabase -->
+  </div>
 
-      <div class="conversation">
-        👩 <strong>Maria</strong><br>
-        <small>Salut ! 😊</small>
-      </div>
+  <div class="chat">
 
-      <div class="conversation">
-        👨 <strong>Lucas</strong><br>
-        <small data-i18n="messages.conv_lucas">Tu viens à la sortie ?</small>
-      </div>
-
-      <div class="conversation">
-        👩 <strong>Camila</strong><br>
-        <small>Hello 👋</small>
-      </div>
-
+    <div class="chat-header" id="chatHeader">
+      Sélectionne une conversation
     </div>
 
+    <div class="chat-messages" id="chatMessages">
+      <!-- Messages chargés depuis Supabase -->
+    </div>
+
+    <div class="chat-input">
+      <input
+        id="messageInput"
+        type="text"
+        placeholder="Écrire un message..."
+      >
+
+      <button
+        class="btn btn-primary"
+        onclick="sendMessage()">
+        Envoyer
+      </button>
+    </div>
+
+  </div>
+
+</div>
     <div class="chat">
 
       <div class="chat-header">👤 Maria</div>
