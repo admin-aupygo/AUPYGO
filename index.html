@@ -4180,11 +4180,9 @@ function renderMarkers() {
 
   const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
 
-  aupyMembers.forEach(member => {
-    if (maxKm !== null) {
-      const d = distanceKm(userLocation.lat, userLocation.lng, member.lat, member.lng);
-      if (d > maxKm) return;
-    }
+profiles.forEach(member => {
+  member.lat
+member.lng
 
     const m = L.marker([member.lat, member.lng], { icon: createIcon(member.gender) });
     m.on('click', function () { openMemberProfile(member.id); });
