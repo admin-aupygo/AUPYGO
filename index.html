@@ -4120,7 +4120,16 @@ const { data: profiles } = await supabaseClient
   .select('*')
   .not('approx_lat', 'is', null)
   .not('approx_lng', 'is', null);
-const aupyLocations = aupyMembers.map(m => ({ city: m.city, lat: m.lat, lng: m.lng, users: 1, gender: m.gender }));
+const aupyLocations = profiles.map(p => ({
+  city: p.city,
+  lat: p.approx_lat,
+  lng: p.approx_lng,
+  users: 1,
+  gender: p.gender,
+  name: p.display_name,
+  avatar: p.avatar,
+  subscription: p.subscription
+}));
 
 
 
