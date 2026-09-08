@@ -584,7 +584,7 @@ main {
   width:44px;
   height:44px;
   border-radius:50%;
-  background:#ffd54f;
+  background:#9ca3af;
   border:3px solid #fff;
   box-shadow:0 3px 12px rgba(0,0,0,.2);
   display:flex;
@@ -592,6 +592,46 @@ main {
   align-items:center;
   font-size:24px;
   cursor:pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+}
+.aupy-marker:hover {
+  transform: scale(1.08);
+}
+/* Moi — fond bleu */
+.aupy-marker.me {
+  background: linear-gradient(135deg, #3b82f6, #2563eb);
+  box-shadow: 0 3px 14px rgba(37, 99, 235, 0.45);
+  border-color: #dbeafe;
+  z-index: 5;
+}
+/* Autres — connectés (vert) */
+.aupy-marker.online {
+  background: linear-gradient(135deg, #22c55e, #16a34a);
+  box-shadow: 0 3px 14px rgba(22, 163, 74, 0.4);
+  border-color: #dcfce7;
+}
+/* Autres — hors ligne (rouge) */
+.aupy-marker.offline {
+  background: linear-gradient(135deg, #ef4444, #dc2626);
+  box-shadow: 0 3px 14px rgba(220, 38, 38, 0.35);
+  border-color: #fee2e2;
+}
+/* Petit point de statut en coin */
+.aupy-marker .status-dot {
+  position: absolute;
+  right: -2px;
+  bottom: -2px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  border: 2px solid #fff;
+  box-sizing: border-box;
+}
+.aupy-marker.me .status-dot { background: #3b82f6; }
+.aupy-marker.online .status-dot { background: #22c55e; box-shadow: 0 0 6px #22c55e; }
+.aupy-marker.offline .status-dot { background: #ef4444; }
+.aupy-marker {
+  position: relative;
 }
 
 /* Modal fiche membre (carte) */
@@ -4331,17 +4371,24 @@ function initMap() {
 }
 
 
-function createIcon(gender) {
-
-  const emoji = gender === 'Homme' ? '👨' : '👩';
-
+function createIcon(gender, kind) {
+  // kind: 'me' | 'online' | 'offline'
+  const emoji = gender === 'Homme' ? '👨' : (gender === 'Femme' ? '👩' : '👤');
+  const cls = 'aupy-marker ' + (kind || 'offline');
   return L.divIcon({
-    className:'',
-    html:'<div class="aupy-marker">' + emoji + '</div>',
-    iconSize:[44,44],
-    iconAnchor:[22,44]
+    className: '',
+    html: '<div class="' + cls + '">' + emoji + '<span class="status-dot"></span></div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 44]
   });
+}
 
+/** Statut en ligne : champ optionnel is_online / online, sinon hors ligne.
+ *  Toi-même = toujours « me » (bleu), indépendamment du statut. */
+function getMarkerKind(member) {
+  if (currentUser && member.id === currentUser.id) return 'me';
+  const online = member.is_online === true || member.online === true;
+  return online ? 'online' : 'offline';
 }
 
 
@@ -4349,20 +4396,31 @@ function renderMarkers() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
 
-  if (!Array.isArray(profiles) || profiles.length === 0) {
-    return;
+  const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
+  const list = Array.isArray(profiles) ? profiles.slice() : [];
+
+  // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
+  if (currentUser && userLocation.hasRealGeo) {
+    const already = list.some(p => p.id === currentUser.id);
+    if (!already) {
+      list.push({
+        id: currentUser.id,
+        approx_lat: userLocation.lat,
+        approx_lng: userLocation.lng,
+        gender: selectedGender || null,
+        display_name: (document.getElementById('firstName') || {}).value || 'Moi',
+        is_online: true
+      });
+    }
   }
 
-  const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
-
-  profiles.forEach(member => {
+  list.forEach(member => {
     if (member.approx_lat == null || member.approx_lng == null) return;
 
-    // Ne pas afficher son propre marqueur
-    if (currentUser && member.id === currentUser.id) return;
+    const isMe = currentUser && member.id === currentUser.id;
 
-    // Filtre distance selon forfait
-    if (maxKm != null) {
+    // Filtre distance : toujours afficher mon avatar ; les autres selon forfait
+    if (!isMe && maxKm != null) {
       const d = distanceKm(
         userLocation.lat, userLocation.lng,
         member.approx_lat, member.approx_lng
@@ -4370,12 +4428,27 @@ function renderMarkers() {
       if (d > maxKm) return;
     }
 
+    // Si c'est moi et que j'ai une position locale plus fraîche, l'utiliser
+    let lat = member.approx_lat;
+    let lng = member.approx_lng;
+    if (isMe && userLocation.hasRealGeo) {
+      lat = userLocation.lat;
+      lng = userLocation.lng;
+    }
+
+    const kind = getMarkerKind(member);
     const m = L.marker(
-      [member.approx_lat, member.approx_lng],
-      { icon: createIcon(member.gender) }
+      [lat, lng],
+      { icon: createIcon(member.gender, kind), zIndexOffset: isMe ? 1000 : 0 }
     );
 
-    m.on('click', () => openMemberProfile(member.id));
+    m.on('click', () => {
+      if (isMe) {
+        showToast('📍 C’est toi (position approx. ~1 km)', 'success');
+        return;
+      }
+      openMemberProfile(member.id);
+    });
     markersLayer.addLayer(m);
   });
 }
@@ -4399,7 +4472,7 @@ function openMemberProfile(memberId) {
     bio: raw.bio || '',
     languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean),
     hobbies: (raw.interests || '').split(',').map(s => s.trim()).filter(Boolean),
-    online: false // pas de champ online en base pour l’instant
+    online: raw.is_online === true || raw.online === true
   };
 
   const overlay = document.getElementById('memberModalOverlay');
