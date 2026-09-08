@@ -2063,6 +2063,12 @@ footer {
       <div class="chat-input">
 
         <input id="messageInput" type="text" data-i18n-placeholder="messages.input_placeholder" placeholder="Écrire un message...">
+        document.getElementById("messageInput").addEventListener("keydown", function(e) {
+  if (e.key === "Enter") {
+    e.preventDefault();
+    sendMessage();
+  }
+});
 
         <button class="btn btn-primary" onclick="sendMessage()" data-i18n="messages.send">Envoyer</button>
 
