@@ -4115,18 +4115,11 @@ function go(page) {
 ========================= */
 
 // Membres démo sur la carte — le forfait du profil détermine ce que les autres voient
-const aupyMembers = [
-  { id:'m1', name:'Maria', gender:'Femme', age:23, city:'Geneva', lat:46.21, lng:6.15, plan:'FREE', online:true, origin:'Brésil', host:'Suisse', stayEnd:'2026-12', languages:['PT','FR','EN'], hobbies:['Café','Randonnée','Lire'], bio:'Au pair à Genève, j\'adore le café et les randos.' },
-  { id:'m2', name:'Lucas', gender:'Homme', age:25, city:'Geneva', lat:46.19, lng:6.13, plan:'STANDARD', online:true, origin:'France', host:'Suisse', stayEnd:'2027-03', languages:['FR','EN'], hobbies:['Films','Sport','Nature'], bio:'Toujours partant pour une sortie sport ou ciné.' },
-  { id:'m3', name:'Camila', gender:'Femme', age:22, city:'Lyon', lat:45.76, lng:4.84, plan:'PREMIUM', online:true, origin:'Espagne', host:'France', stayEnd:'2026-08', languages:['ES','FR','EN'], hobbies:['Danse','Musique','Voyager'], bio:'Danse et musique, on se retrouve ?' },
-  { id:'m4', name:'Yuki', gender:'Femme', age:24, city:'Zurich', lat:47.38, lng:8.54, plan:'FREE', online:false, origin:'Japon', host:'Suisse', stayEnd:'2026-10', languages:['JA','EN'], hobbies:['Photo','Art','Yoga'], bio:'Photographe amateur, fan de yoga.' },
-  { id:'m5', name:'Tom', gender:'Homme', age:26, city:'Paris', lat:48.86, lng:2.35, plan:'STANDARD', online:true, origin:'Royaume-Uni', host:'France', stayEnd:'2027-01', languages:['EN','FR'], hobbies:['Cuisine','Sport','Café'], bio:'British au pair in Paris.' },
-  { id:'m6', name:'Sofia', gender:'Femme', age:21, city:'Madrid', lat:40.42, lng:-3.70, plan:'PREMIUM', online:false, origin:'Brésil', host:'Espagne', stayEnd:'2026-09', languages:['PT','ES','EN'], hobbies:['Danse','Plage','Musique'], bio:'Energia positiva siempre.' },
-  { id:'m7', name:'Nina', gender:'Femme', age:23, city:'Annecy', lat:45.90, lng:6.13, plan:'STANDARD', online:true, origin:'Allemagne', host:'France', stayEnd:'2026-11', languages:['DE','FR','EN'], hobbies:['Randonnée','Nature','Photo'], bio:'Montagne et lacs, c\'est ma vibe.' },
-  { id:'m8', name:'Alex', gender:'Homme', age:27, city:'London', lat:51.51, lng:-0.13, plan:'FREE', online:true, origin:'Espagne', host:'Royaume-Uni', stayEnd:'2027-02', languages:['ES','EN'], hobbies:['Films','Sport','Cuisine'], bio:'Football and films.' },
-  { id:'m9', name:'Léa', gender:'Femme', age:22, city:'Nyon', lat:46.38, lng:6.24, plan:'PREMIUM', online:true, origin:'France', host:'Suisse', stayEnd:'2026-07', languages:['FR','EN','IT'], hobbies:['Café','Lire','Art'], bio:'Entre Nyon et Genève, toujours un café.' },
-  { id:'m10', name:'João', gender:'Homme', age:24, city:'Lisbon', lat:38.72, lng:-9.14, plan:'STANDARD', online:false, origin:'Brésil', host:'Portugal', stayEnd:'2026-12', languages:['PT','EN'], hobbies:['Plage','Musique','Sport'], bio:'Surf and music.' }
-];
+const { data: profiles } = await supabaseClient
+  .from('profiles')
+  .select('*')
+  .not('approx_lat', 'is', null)
+  .not('approx_lng', 'is', null);
 const aupyLocations = aupyMembers.map(m => ({ city: m.city, lat: m.lat, lng: m.lng, users: 1, gender: m.gender }));
 
 
