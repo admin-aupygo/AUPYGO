@@ -4181,13 +4181,14 @@ function renderMarkers() {
   const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
 
 profiles.forEach(member => {
-  member.lat
-member.lng
+  const m = L.marker(
+    [member.approx_lat, member.approx_lng],
+    { icon: createIcon(member.gender) }
+  );
 
-    const m = L.marker([member.lat, member.lng], { icon: createIcon(member.gender) });
-    m.on('click', function () { openMemberProfile(member.id); });
-    markersLayer.addLayer(m);
-  });
+  m.on('click', () => openMemberProfile(member.id));
+  markersLayer.addLayer(m);
+});
 }
 
 
