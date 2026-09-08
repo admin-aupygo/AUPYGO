@@ -688,6 +688,89 @@ main {
 .member-plan-tag.STANDARD { background: #f1eafd; color: #7c3aed; }
 .member-plan-tag.PREMIUM { background: linear-gradient(135deg,#7c3aed,#ec4899); color: #fff; }
 
+/* GEO CONSENT MODAL */
+.geo-consent-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(23, 21, 34, 0.55);
+  z-index: 10050;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  backdrop-filter: blur(4px);
+}
+.geo-consent-overlay.open { display: flex; }
+.geo-consent-modal {
+  background: #fff;
+  border-radius: 20px;
+  max-width: 400px;
+  width: 100%;
+  padding: 28px 24px 22px;
+  box-shadow: 0 20px 50px rgba(42, 24, 70, 0.25);
+  position: relative;
+  text-align: center;
+  animation: memberPop 0.22s ease;
+}
+.geo-consent-icon {
+  width: 72px;
+  height: 72px;
+  margin: 0 auto 14px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ede9fe, #fce7f3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+  border: 3px solid #fff;
+  box-shadow: 0 6px 18px rgba(124, 58, 237, 0.2);
+}
+.geo-consent-modal h3 {
+  font-size: 20px;
+  margin: 0 0 10px;
+  letter-spacing: -0.3px;
+}
+.geo-consent-modal p {
+  font-size: 14px;
+  color: var(--muted);
+  line-height: 1.55;
+  margin-bottom: 10px;
+}
+.geo-consent-modal .geo-privacy-box {
+  text-align: left;
+  background: #f7f5fb;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 12px 14px;
+  font-size: 13px;
+  color: var(--text);
+  margin: 14px 0 18px;
+  line-height: 1.5;
+}
+.geo-consent-modal .geo-privacy-box strong {
+  color: var(--primary);
+}
+.geo-consent-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.geo-consent-actions .btn {
+  width: 100%;
+}
+.geo-consent-decline {
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px;
+}
+.geo-consent-decline:hover {
+  color: var(--text);
+}
+
 
 /* PROFIL */
 
@@ -2533,6 +2616,35 @@ footer {
   <div class="member-modal" id="memberModal" role="dialog" aria-modal="true"></div>
 </div>
 
+<!-- Consentement géolocalisation (~1 km) -->
+<div class="geo-consent-overlay" id="geoConsentOverlay" onclick="if(event.target===this)declineGeoConsent()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="geoConsentTitle">
+    <div class="geo-consent-icon">📍</div>
+    <h3 id="geoConsentTitle">Activer la géolocalisation ?</h3>
+    <p>
+      Pour te montrer les AUPYGO près de toi, AUPYGO a besoin d’une
+      <strong>position approximative</strong> (jamais exacte).
+    </p>
+    <div class="geo-privacy-box">
+      🔒 <strong>Privacy first</strong><br>
+      • Précision limitée à environ <strong>1 km</strong><br>
+      • Ton emplacement exact n’est jamais affiché ni partagé<br>
+      • Tu peux refuser à tout moment
+    </div>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="acceptGeoConsent()">
+        ✅ Oui, activer (~1 km)
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="declineGeoConsent()">
+        Non merci
+      </button>
+      <button type="button" class="geo-consent-decline" onclick="declineGeoConsent()">
+        Continuer sans position
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 
@@ -3288,6 +3400,67 @@ function loadSavedApproxLocation() {
     }
   } catch (e) {}
 }
+
+/* =========================
+   CONSENT GÉOLOCALISATION (~1 km)
+========================= */
+
+let geoConsentPendingCallback = null;
+
+function showGeoConsent(callback) {
+  // Déjà autorisé → pas de popup
+  if (userLocation.hasRealGeo) {
+    if (callback) callback(true);
+    return;
+  }
+  // Refus mémorisé pour cette session ? on laisse quand même re-proposer au clic carte
+  geoConsentPendingCallback = callback || null;
+  const overlay = document.getElementById('geoConsentOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeGeoConsent() {
+  const overlay = document.getElementById('geoConsentOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function acceptGeoConsent() {
+  closeGeoConsent();
+  const cb = geoConsentPendingCallback;
+  geoConsentPendingCallback = null;
+  // Demande réelle au navigateur (position approximative)
+  requestUserLocation((ok) => {
+    if (cb) cb(ok);
+    if (ok && map) {
+      map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+      renderMarkers();
+      applyMapRestrictions();
+    }
+  });
+}
+
+function declineGeoConsent() {
+  closeGeoConsent();
+  const cb = geoConsentPendingCallback;
+  geoConsentPendingCallback = null;
+  try {
+    localStorage.setItem('aupygo_geo_declined', '1');
+  } catch (e) {}
+  showToast('Position non activée. Tu peux réessayer via « Autour de moi ».', 'error');
+  if (cb) cb(false);
+}
+
+function onMapClickForGeo() {
+  // Au clic sur la carte : proposer le consentement si pas encore de géoloc
+  if (!userLocation.hasRealGeo) {
+    showGeoConsent();
+  }
+}
+
 
 let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
 let currentUser = null;
@@ -4147,6 +4320,10 @@ function initMap() {
 
   markersLayer = L.layerGroup().addTo(map);
 
+  // Clic sur la carte → popup de consentement géoloc (~1 km) si pas encore activée
+  map.on('click', function () {
+    onMapClickForGeo();
+  });
 
   renderMarkers();
   applyMapRestrictions();
@@ -4361,9 +4538,9 @@ function zoomOut() {
 function resetMap() {
   if (!map) return;
 
-  // Si pas encore de géoloc, on la demande
+  // Si pas encore de géoloc, popup de consentement
   if (!userLocation.hasRealGeo) {
-    requestUserLocation((ok) => {
+    showGeoConsent((ok) => {
       if (ok && map) {
         map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
         renderMarkers();
@@ -4392,10 +4569,10 @@ function mapMode(mode, btn) {
   document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
   if (btn) btn.classList.add('active');
 
-  // "Autour de moi" → demande la géolocalisation (approximative)
+  // "Autour de moi" → popup de consentement puis géoloc approximative
   if (mode === 'around') {
     if (!userLocation.hasRealGeo) {
-      requestUserLocation((ok) => {
+      showGeoConsent((ok) => {
         if (ok && map) {
           map.setView([userLocation.lat, userLocation.lng], 11);
           applyMapRestrictions();
@@ -4932,7 +5109,7 @@ function toggleFooter(id) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeMemberProfile(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMemberProfile(); closeGeoConsent(); } });
 
   const bioEl = document.getElementById('bio');
   const bioCounter = document.getElementById('bioCounter');
