@@ -2038,10 +2038,11 @@ footer {
 
     <div class="chat-input">
       <input
-        id="messageInput"
-        type="text"
-        placeholder="Écrire un message..."
-      >
+  id="messageInput"
+  type="text"
+  placeholder="Écrire un message..."
+  onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
+>
 
       <button
         class="btn btn-primary"
