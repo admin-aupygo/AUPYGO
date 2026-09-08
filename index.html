@@ -4642,6 +4642,8 @@ async function saveProfile() {
     profile.gender = selectedGender;
     profile.country = country;
     profile.city = (document.getElementById('city') || {}).value || userLocation.city;
+    profile.approx_lat = userLocation.lat;
+    profile.approx_lng = userLocation.lng;
     profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
     profile.identity_locked = true;
     profile.languages = selectedLanguages.join(',');
