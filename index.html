@@ -3,25 +3,27 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUPYGO — Meet. Go out. Make friends.</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-<link rel="stylesheet" href="styles.css"/>
+<title>AUPYGO</title>
 </head>
 <body>
-<p style="padding:40px;font-family:sans-serif;text-align:center">Chargement AUPYGO… Si cette page reste affichee, rechargez dans 30 secondes.</p>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
-<script src="config.js"></script>
-<script src="i18n.js"></script>
-<script src="app.js"></script>
+<p id="boot" style="font-family:sans-serif;text-align:center;padding:40px">Chargement AUPYGO…</p>
 <script>
-// Redirection: recharge le vrai HTML depuis le cache apres fix
-if (!window.__aupygo_booted) {
-  // Les scripts app.js construisent l'UI seulement si le HTML a les sections.
-  // On injecte le HTML complet via fetch du meme index apres correction.
-}
+(async function () {
+  try {
+    const n = 6;
+    const parts = [];
+    for (let i = 0; i < n; i++) {
+      const r = await fetch('html/p' + i + '.txt?t=' + Date.now());
+      if (!r.ok) throw new Error('Fichier html/p' + i + '.txt manquant (' + r.status + ')');
+      parts.push(await r.text());
+    }
+    document.open();
+    document.write(parts.join(''));
+    document.close();
+  } catch (e) {
+    document.getElementById('boot').innerHTML = 'Erreur: ' + e.message + '<br><br>Recharge la page ou contacte le support.';
+  }
+})();
 </script>
 </body>
 </html>
