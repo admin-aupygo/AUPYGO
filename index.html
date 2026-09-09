@@ -1292,8 +1292,8 @@ select[multiple] {
 
 .message-box {
   display:grid;
-  grid-template-columns:260px 1fr;
-  height:460px;
+  grid-template-columns:280px 1fr;
+  height:520px;
   background:#fff;
   border-radius:16px;
   overflow:hidden;
@@ -1302,55 +1302,224 @@ select[multiple] {
 
 .conversations {
   border-right:1px solid var(--border);
+  display:flex;
+  flex-direction:column;
+  background:#faf8ff;
+  overflow-y:auto;
+}
+
+.conv-sidebar-header {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:12px 14px;
+  border-bottom:1px solid var(--border);
+  font-weight:700;
+  font-size:14px;
+  background:#fff;
+  position:sticky;
+  top:0;
+  z-index:2;
+}
+
+.btn-create-group {
+  border:1px solid #d8c7ff;
+  background:#f3edff;
+  color:var(--primary);
+  font-weight:700;
+  font-size:12px;
+  padding:6px 10px;
+  border-radius:10px;
+  cursor:pointer;
+}
+
+.btn-create-group:hover {
+  background:#e9d5ff;
+}
+
+.conv-section-label {
+  font-size:11px;
+  font-weight:800;
+  text-transform:uppercase;
+  letter-spacing:0.04em;
+  color:var(--muted);
+  padding:10px 14px 4px;
+}
+
+.conv-empty {
+  font-size:13px;
+  color:var(--muted);
+  padding:8px 14px 14px;
+  margin:0;
+  line-height:1.4;
 }
 
 .conversation {
-  padding:14px;
+  padding:12px 14px;
   border-bottom:1px solid var(--border);
   cursor:pointer;
   font-size:14px;
+  display:flex;
+  align-items:center;
+  gap:10px;
+  background:#fff;
+  transition:background 0.15s;
 }
+
+.conversation:hover {
+  background:#f4edff;
+}
+
+.conversation.active {
+  background:#f0e9ff;
+  box-shadow:inset 3px 0 0 var(--primary);
+}
+
+.conversation .conv-avatar {
+  width:40px;
+  height:40px;
+  border-radius:50%;
+  background:linear-gradient(135deg,#ffd54f,#fbbf24);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:20px;
+  flex-shrink:0;
+  position:relative;
+}
+
+.conversation .conv-avatar.group {
+  background:linear-gradient(135deg,#7c3aed,#ec4899);
+  color:#fff;
+  font-size:16px;
+}
+
+.conversation .conv-meta {
+  flex:1;
+  min-width:0;
+}
+
+.conversation .conv-name {
+  font-weight:700;
+  font-size:14px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.conversation .conv-preview {
+  font-size:12px;
+  color:var(--muted);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+
+.conversation .conv-status-dot {
+  width:10px;
+  height:10px;
+  border-radius:50%;
+  border:2px solid #fff;
+  position:absolute;
+  right:-1px;
+  bottom:-1px;
+}
+
+.conversation .conv-status-dot.online { background:#22c55e; }
+.conversation .conv-status-dot.offline { background:#ef4444; }
 
 .chat {
   display:flex;
   flex-direction:column;
+  min-height:0;
 }
 
 .chat-header {
-  padding:14px;
+  padding:14px 16px;
   border-bottom:1px solid var(--border);
   font-weight:700;
+  background:#fff;
 }
 
 .chat-messages {
   flex:1;
   padding:16px;
   overflow-y:auto;
+  background:linear-gradient(180deg,#faf8ff 0%,#fff 40%);
+}
+
+.chat-placeholder {
+  text-align:center;
+  color:var(--muted);
+  font-size:14px;
+  padding:40px 20px;
 }
 
 .bubble {
   max-width:75%;
-  padding:10px 12px;
+  padding:10px 14px;
   margin-bottom:8px;
-  border-radius:12px;
+  border-radius:14px;
   background:#f1eef7;
   font-size:14px;
+  line-height:1.45;
 }
 
 .bubble.me {
   margin-left:auto;
-  background:#e9d5ff;
+  background:linear-gradient(135deg,#e9d5ff,#fce7f3);
+}
+
+.bubble .bubble-sender {
+  font-size:11px;
+  font-weight:700;
+  color:var(--primary);
+  margin-bottom:2px;
 }
 
 .chat-input {
   display:flex;
   gap:8px;
-  padding:10px;
+  padding:12px;
   border-top:1px solid var(--border);
+  background:#fff;
 }
 
 .chat-input input {
   flex:1;
+}
+
+.group-friends-pick {
+  max-height:180px;
+  overflow-y:auto;
+  border:1px solid var(--border);
+  border-radius:12px;
+  padding:6px;
+  background:#faf8ff;
+}
+
+.group-pick-item {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:8px 10px;
+  border-radius:10px;
+  cursor:pointer;
+  font-size:14px;
+}
+
+.group-pick-item:hover {
+  background:#f0e9ff;
+}
+
+.group-pick-item.selected {
+  background:#f0e9ff;
+  box-shadow:inset 0 0 0 1.5px var(--primary);
+}
+
+.group-pick-item input {
+  width:auto;
+  margin:0;
 }
 
 /* NOTICES */
@@ -2044,70 +2213,15 @@ footer {
   </div>
 
   <div class="grid" id="friendsGrid" style="margin-top:20px">
-
-    <!-- Ami 1 -->
-    <div class="card friend-card" data-friend="maria">
-      <div style="text-align:center;margin-bottom:12px">
-        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👩</div>
-        <h3 style="margin:0">Maria</h3>
-        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇧🇷 <span data-i18n="countries.brazil">Brésil</span> · 23 <span data-i18n="common.years">ans</span></p>
-      </div>
-      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
-        <span data-i18n="common.hobbies">Hobbies</span> : ☕ <span data-i18n="hobby.cafe">Café</span> · 🥾 <span data-i18n="hobby.hike_short">Rando</span> · 📚 <span data-i18n="hobby.read">Lire</span>
+    <!-- Rempli dynamiquement avec les vrais amis (acceptés) depuis Supabase — plus de profils fictifs -->
+    <div id="friendsEmpty" class="card" style="grid-column:1/-1;text-align:center;padding:36px 20px">
+      <div style="font-size:42px;margin-bottom:10px">🤝</div>
+      <h3 style="margin:0 0 8px">Aucun ami pour le moment</h3>
+      <p style="color:var(--muted);font-size:14px;max-width:420px;margin:0 auto 14px">
+        Participe à une sortie, envoie une demande d’ami depuis la carte, et ils apparaîtront ici une fois acceptés.
       </p>
-      <div class="friend-actions">
-        <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge" data-i18n="reconnect.shared_event">Sortie en commun</div>
-          <p style="font-size:13px;margin:6px 0 0">☕ Café AUPYGO · 15:00 · Genève</p>
-        </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Maria')" data-i18n="reconnect.btn_shared">Sorties en commun</button>
-        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')" data-i18n="reconnect.btn_message">💬 Message</button>
-        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')" data-i18n="reconnect.btn_message_locked">🔒 Messages PREMIUM</button>
-      </div>
+      <button class="btn btn-primary" onclick="go('map')">🗺️ Voir la carte</button>
     </div>
-
-    <!-- Ami 2 -->
-    <div class="card friend-card" data-friend="lucas">
-      <div style="text-align:center;margin-bottom:12px">
-        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👨</div>
-        <h3 style="margin:0">Lucas</h3>
-        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇫🇷 <span data-i18n="countries.france">France</span> · 25 <span data-i18n="common.years">ans</span></p>
-      </div>
-      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
-        <span data-i18n="common.hobbies">Hobbies</span> : 🎬 <span data-i18n="hobby.movies">Films</span> · 🏋️ <span data-i18n="hobby.sport">Sport</span> · 🌿 <span data-i18n="hobby.nature">Nature</span>
-      </p>
-      <div class="friend-actions">
-        <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge" data-i18n="reconnect.shared_event">Sortie en commun</div>
-          <p style="font-size:13px;margin:6px 0 0">🥾 Randonnée · 11:00 · Annecy</p>
-        </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Lucas')" data-i18n="reconnect.btn_shared">Sorties en commun</button>
-        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')" data-i18n="reconnect.btn_message">💬 Message</button>
-        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')" data-i18n="reconnect.btn_message_locked">🔒 Messages PREMIUM</button>
-      </div>
-    </div>
-
-    <!-- Ami 3 -->
-    <div class="card friend-card" data-friend="camila">
-      <div style="text-align:center;margin-bottom:12px">
-        <div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">👩</div>
-        <h3 style="margin:0">Camila</h3>
-        <p style="color:var(--muted);font-size:13px;margin:4px 0 0">🇪🇸 <span data-i18n="countries.spain">Espagne</span> · 22 <span data-i18n="common.years">ans</span></p>
-      </div>
-      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">
-        <span data-i18n="common.hobbies">Hobbies</span> : 💃 <span data-i18n="hobby.dance">Danse</span> · 🎵 <span data-i18n="hobby.music">Musique</span> · ✈️ <span data-i18n="hobby.travel">Voyager</span>
-      </p>
-      <div class="friend-actions">
-        <div class="friend-sortie" style="display:none;margin-bottom:10px">
-          <div class="badge" data-i18n="reconnect.shared_event">Sortie en commun</div>
-          <p style="font-size:13px;margin:6px 0 0">🍝 Lunch · 12:30 · Lyon</p>
-        </div>
-        <button class="btn btn-secondary" style="width:100%;margin-bottom:8px" onclick="showSharedEvents('Camila')" data-i18n="reconnect.btn_shared">Sorties en commun</button>
-        <button class="btn btn-primary friend-msg-btn" style="width:100%;display:none" onclick="go('messages')" data-i18n="reconnect.btn_message">💬 Message</button>
-        <button class="btn btn-locked friend-msg-locked" style="width:100%;display:none" onclick="go('plans')" data-i18n="reconnect.btn_message_locked">🔒 Messages PREMIUM</button>
-      </div>
-    </div>
-
   </div>
 
   <!-- Comment ça marche — derrière un bouton -->
@@ -2136,7 +2250,7 @@ footer {
 
   <div class="section-title">
     <h2 data-i18n="messages.title">💬 Messages privés</h2>
-    <p data-i18n="messages.subtitle">Échange avec les membres AUPYGO.</p>
+    <p data-i18n="messages.subtitle">Échange avec tes amis AUPYGO et crée des groupes.</p>
   </div>
 
   <div class="notice" id="messagesNotice" data-i18n-html="messages.notice_locked">
@@ -2145,18 +2259,37 @@ footer {
 
   <div class="message-box" id="messagesBox">
 
+    <!-- Sidebar : amis + groupes -->
     <div class="conversations" id="conversationList">
-      <!-- Rempli automatiquement depuis Supabase -->
+      <div class="conv-sidebar-header">
+        <span>Conversations</span>
+        <button type="button" class="btn-create-group" onclick="openCreateGroupModal()" title="Créer un groupe (max 5)">＋ Groupe</button>
+      </div>
+      <div id="convFriendsSection">
+        <div class="conv-section-label">Amis</div>
+        <div id="convFriendsList">
+          <p class="conv-empty">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>
+        </div>
+      </div>
+      <div id="convGroupsSection">
+        <div class="conv-section-label">Groupes</div>
+        <div id="convGroupsList">
+          <p class="conv-empty">Aucun groupe. Crée-en un (max 5 personnes).</p>
+        </div>
+      </div>
     </div>
 
     <div class="chat">
 
       <div class="chat-header" id="chatHeader">
-        Sélectionne une conversation
+        Sélectionne une conversation à gauche
       </div>
 
       <div class="chat-messages" id="chatMessages">
-        <!-- Messages chargés depuis Supabase -->
+        <div class="chat-placeholder">
+          <div style="font-size:40px;margin-bottom:8px">💬</div>
+          <p>Choisis un ami ou un groupe pour commencer à discuter.</p>
+        </div>
       </div>
 
       <div class="chat-input">
@@ -2165,14 +2298,35 @@ footer {
           type="text"
           placeholder="Écrire un message..."
           onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
+          disabled
         >
-        <button class="btn btn-primary" onclick="sendMessage()">
+        <button class="btn btn-primary" id="sendMsgBtn" onclick="sendMessage()" disabled>
           Envoyer
         </button>
       </div>
 
     </div>
 
+  </div>
+
+  <!-- Modal création groupe (max 5) -->
+  <div class="member-modal-overlay" id="createGroupOverlay" onclick="if(event.target===this)closeCreateGroupModal()">
+    <div class="member-modal" style="max-width:400px;text-align:left" role="dialog" aria-modal="true">
+      <button type="button" class="member-modal-close" onclick="closeCreateGroupModal()" aria-label="Fermer">×</button>
+      <h3 style="margin:0 0 6px;text-align:center">Créer un groupe</h3>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px">Max 5 personnes (toi inclus). Ex. « Café team »</p>
+      <div class="form-group">
+        <label>Titre du groupe</label>
+        <input id="groupTitleInput" type="text" maxlength="40" placeholder="Ex : Café team">
+      </div>
+      <div class="form-group">
+        <label>Choisir des amis <span id="groupPickCount" style="color:var(--muted);font-weight:400">(0/4)</span></label>
+        <div id="groupFriendsPick" class="group-friends-pick">
+          <p class="conv-empty" style="padding:12px">Aucun ami disponible. Ajoute des amis d’abord.</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" style="width:100%" onclick="createGroupChat()">Créer le groupe</button>
+    </div>
   </div>
 
 </section>
@@ -2389,16 +2543,8 @@ footer {
       <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
 
       <div class="day">
-        <strong>8</strong>
-        <div class="agenda-event" data-i18n="profile.agenda_ev1">☕ Café avec Maria</div>
-      </div>
-      <div class="day">
-        <strong>15</strong>
-        <div class="agenda-event" data-i18n="profile.agenda_ev2">🥾 Rando avec Lucas</div>
-      </div>
-      <div class="day">
-        <strong>22</strong>
-        <div class="agenda-event" data-i18n="profile.agenda_ev3">🍝 Lunch avec Camila</div>
+        <strong>—</strong>
+        <div class="agenda-event" style="opacity:.6">Tes sorties apparaîtront ici</div>
       </div>
     </div>
   </div>
@@ -3724,8 +3870,34 @@ async function handleLogin() {
 }
 
 
+/** Met à jour is_online dans Supabase pour que la carte affiche vert (connecté) / rouge (hors ligne).
+ *  Toi = toujours bleu côté client. Nécessite la colonne profiles.is_online (boolean). */
+async function setOnlineStatus(online) {
+  if (!currentUser) return;
+  try {
+    await supabaseClient
+      .from('profiles')
+      .upsert({ id: currentUser.id, is_online: !!online }, { onConflict: 'id' });
+    // Met à jour aussi le cache local pour le rendu immédiat
+    const me = profiles.find(p => p.id === currentUser.id);
+    if (me) me.is_online = !!online;
+    if (map) renderMarkers();
+    updateOnlineCount();
+  } catch (e) {
+    console.error('setOnlineStatus:', e);
+  }
+}
+
+function updateOnlineCount() {
+  const el = document.getElementById('onlineCount');
+  if (!el) return;
+  const n = (profiles || []).filter(p => p.is_online === true || p.online === true).length;
+  el.textContent = String(n);
+}
+
 async function handleLogout() {
 
+  await setOnlineStatus(false);
   await supabaseClient.auth.signOut();
 
   currentUser = null;
@@ -3898,6 +4070,22 @@ async function refreshAuthUI(redirectPage = 'profile') {
           'success'
         );
       }
+
+      // Après validation email / première connexion : proposer la géoloc (~1 km)
+      // dès l’arrivée sur le profil (ou peu après sur l’accueil)
+      setTimeout(() => {
+        if (!userLocation.hasRealGeo) {
+          showGeoConsent((ok) => {
+            if (ok && map) {
+              renderMarkers();
+              applyMapRestrictions();
+            }
+          });
+        }
+      }, 800);
+
+      // Marque le profil comme en ligne (vert sur la carte)
+      setOnlineStatus(true);
     }
 
   } else {
@@ -4306,6 +4494,10 @@ function go(page) {
     }
   }
 
+  if (page === 'messages') {
+    loadFriendsForMessaging();
+  }
+
 }
 
 
@@ -4324,11 +4516,13 @@ async function loadProfiles() {
     if (error) {
       console.error('Erreur chargement profils:', error);
       profiles = [];
+      updateOnlineCount();
       return;
     }
 
     profiles = data || [];
     console.log('[AUPYGO] Profils chargés sur la carte:', profiles.length);
+    updateOnlineCount();
 
     if (map && markersLayer) {
       renderMarkers();
@@ -4336,6 +4530,7 @@ async function loadProfiles() {
   } catch (e) {
     console.error('loadProfiles:', e);
     profiles = [];
+    updateOnlineCount();
   }
 }
 
@@ -4697,17 +4892,8 @@ function showSharedEvents(friendName) {
     go('plans');
     return;
   }
-
-  // Prototype : on montre seulement les sorties partagées, jamais l’agenda complet
-  const shared = {
-    'Maria': '☕ Café AUPYGO · Samedi 15:00 · Genève',
-    'Lucas': '🥾 Randonnée & pique-nique · Dimanche 11:00 · Annecy',
-    'Camila': '🍝 Lunch entre au pairs · Samedi 12:30 · Lyon'
-  };
-
-  const event = shared[friendName] || t('reconnect.shared_none');
-
-  showToast(t('reconnect.shared_with') + ' ' + friendName + ' : ' + event + ' 🔒', 'success');
+  // Plus de données fictives : les sorties en commun viendront de la table events/participations
+  showToast(t('reconnect.shared_with') + ' ' + friendName + ' : ' + t('reconnect.shared_none'), 'success');
 }
 
 
@@ -5105,21 +5291,202 @@ function paidEvent() {
    MESSAGES
 ========================= */
 
-function sendMessage() {
+/* =========================
+   MESSAGERIE (amis + groupes max 5)
+========================= */
 
-  if(currentPlan !== 'PREMIUM') {
+let activeConversation = null; // { type: 'dm'|'group', id, name }
+let myFriends = [];            // profils amis acceptés (réels)
+let myGroups = [];             // groupes locaux / Supabase
+let groupPickIds = [];         // sélection dans le modal (max 4 + toi = 5)
+
+async function loadFriendsForMessaging() {
+  // Tant que la table friendships n'existe pas, liste vide (plus de profils fictifs)
+  myFriends = [];
+  try {
+    // Quand la table sera prête :
+    // const { data } = await supabaseClient.from('friendships').select('friend:friend_id(*)').eq('user_id', currentUser.id).eq('status','accepted');
+    // myFriends = (data || []).map(r => r.friend).filter(Boolean);
+  } catch (e) {
+    console.error('loadFriendsForMessaging:', e);
+  }
+  renderConversationSidebar();
+  renderGroupFriendsPick();
+}
+
+function renderConversationSidebar() {
+  const friendsList = document.getElementById('convFriendsList');
+  const groupsList = document.getElementById('convGroupsList');
+  if (!friendsList || !groupsList) return;
+
+  if (!myFriends.length) {
+    friendsList.innerHTML = '<p class="conv-empty">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>';
+  } else {
+    friendsList.innerHTML = myFriends.map(f => {
+      const emoji = f.gender === 'Homme' ? '👨' : '👩';
+      const online = f.is_online === true || f.online === true;
+      const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
+          '<div class="conv-preview">' + (online ? 'En ligne' : 'Hors ligne') + '</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  if (!myGroups.length) {
+    groupsList.innerHTML = '<p class="conv-empty">Aucun groupe. Crée-en un (max 5 personnes).</p>';
+  } else {
+    groupsList.innerHTML = myGroups.map(g => {
+      const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar group">👥</div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div>' +
+          '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+}
+
+function openConversation(type, id, name) {
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    go('plans');
+    return;
+  }
+  activeConversation = { type, id, name };
+  const header = document.getElementById('chatHeader');
+  if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
+  const box = document.getElementById('chatMessages');
+  if (box) {
+    box.innerHTML = '<div class="chat-placeholder"><p>Conversation avec <strong>' + name + '</strong>.</p><p style="font-size:13px;margin-top:6px">Les messages seront synchronisés avec Supabase.</p></div>';
+  }
+  const input = document.getElementById('messageInput');
+  const btn = document.getElementById('sendMsgBtn');
+  if (input) { input.disabled = false; input.focus(); }
+  if (btn) btn.disabled = false;
+  renderConversationSidebar();
+}
+
+function sendMessage() {
+  if (currentPlan !== 'PREMIUM') {
     showToast(t('messages.send_locked'), 'error');
     return;
   }
-
+  if (!activeConversation) {
+    showToast('Sélectionne une conversation d’abord', 'error');
+    return;
+  }
   const input = document.getElementById('messageInput');
+  if (!input || !input.value.trim()) return;
 
-  if(!input.value.trim()) return;
-
+  const text = input.value.trim();
+  const box = document.getElementById('chatMessages');
+  if (box) {
+    const placeholder = box.querySelector('.chat-placeholder');
+    if (placeholder) box.innerHTML = '';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble me';
+    bubble.textContent = text;
+    box.appendChild(bubble);
+    box.scrollTop = box.scrollHeight;
+  }
+  // TODO Supabase : insert into messages (conversation_id, sender_id, body)
   showToast(t('messages.sent'), 'success');
-
   input.value = '';
+}
 
+function openCreateGroupModal() {
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    go('plans');
+    return;
+  }
+  groupPickIds = [];
+  const title = document.getElementById('groupTitleInput');
+  if (title) title.value = '';
+  renderGroupFriendsPick();
+  const overlay = document.getElementById('createGroupOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeCreateGroupModal() {
+  const overlay = document.getElementById('createGroupOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderGroupFriendsPick() {
+  const box = document.getElementById('groupFriendsPick');
+  const countEl = document.getElementById('groupPickCount');
+  if (!box) return;
+  if (!myFriends.length) {
+    box.innerHTML = '<p class="conv-empty" style="padding:12px">Aucun ami disponible. Ajoute des amis d’abord.</p>';
+    if (countEl) countEl.textContent = '(0/4)';
+    return;
+  }
+  box.innerHTML = myFriends.map(f => {
+    const emoji = f.gender === 'Homme' ? '👨' : '👩';
+    const checked = groupPickIds.includes(f.id);
+    return (
+      '<label class="group-pick-item' + (checked ? ' selected' : '') + '">' +
+        '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleGroupPick(\'' + f.id + '\', this.checked)">' +
+        '<span style="font-size:20px">' + emoji + '</span>' +
+        '<span>' + (f.display_name || 'Ami') + '</span>' +
+      '</label>'
+    );
+  }).join('');
+  if (countEl) countEl.textContent = '(' + groupPickIds.length + '/4)';
+}
+
+function toggleGroupPick(id, checked) {
+  if (checked) {
+    if (groupPickIds.length >= 4) {
+      showToast('Maximum 4 amis (+ toi = 5 personnes max)', 'error');
+      renderGroupFriendsPick();
+      return;
+    }
+    if (!groupPickIds.includes(id)) groupPickIds.push(id);
+  } else {
+    groupPickIds = groupPickIds.filter(x => x !== id);
+  }
+  renderGroupFriendsPick();
+}
+
+function createGroupChat() {
+  const titleEl = document.getElementById('groupTitleInput');
+  const title = (titleEl && titleEl.value.trim()) || '';
+  if (!title) {
+    showToast('Donne un titre au groupe (ex. Café team)', 'error');
+    return;
+  }
+  if (groupPickIds.length < 1) {
+    showToast('Choisis au moins 1 ami', 'error');
+    return;
+  }
+  if (groupPickIds.length > 4) {
+    showToast('Maximum 5 personnes (toi inclus)', 'error');
+    return;
+  }
+  const memberIds = currentUser ? [currentUser.id, ...groupPickIds] : groupPickIds.slice();
+  const group = {
+    id: 'g_' + Date.now(),
+    title: title.slice(0, 40),
+    memberIds: memberIds
+  };
+  myGroups.push(group);
+  // TODO Supabase : table groups + group_members
+  closeCreateGroupModal();
+  renderConversationSidebar();
+  openConversation('group', group.id, group.title);
+  showToast('Groupe « ' + group.title + ' » créé (' + memberIds.length + ' personnes)', 'success');
 }
 
 
@@ -5182,7 +5549,13 @@ function toggleFooter(id) {
 }
 
 document.addEventListener('DOMContentLoaded', async () => {
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') { closeMemberProfile(); closeGeoConsent(); } });
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMemberProfile();
+      closeGeoConsent();
+      if (typeof closeCreateGroupModal === 'function') closeCreateGroupModal();
+    }
+  });
 
   const bioEl = document.getElementById('bio');
   const bioCounter = document.getElementById('bioCounter');
@@ -5203,6 +5576,17 @@ document.addEventListener('DOMContentLoaded', async () => {
   updatePlanUI();
   updateNavVisibility();
   await refreshAuthUI();
+
+  // Si déjà connecté au chargement → statut en ligne + heartbeat
+  if (currentUser) {
+    setOnlineStatus(true);
+  }
+
+  // Rafraîchit les profils (couleurs vert/rouge) toutes les 60 s
+  setInterval(() => {
+    loadProfiles();
+    if (currentUser) setOnlineStatus(true);
+  }, 60000);
 
   // Garde l'UI de connexion synchronisée (autre onglet, confirmation d'email, expiration de session, etc.)
   // C'est le SEUL endroit qui décide de la redirection après connexion,
