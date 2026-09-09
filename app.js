@@ -672,6 +672,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       // Marque le profil comme en ligne (vert sur la carte)
       setOnlineStatus(true);
       startIdleWatch();
+      loadFriendshipsFromDB().then(updateFriendsBadge);
     }
 
   } else {
@@ -1411,75 +1412,6 @@ function messageMember(memberId) {
 }
 
 
-function sendFriendRequestToMember(memberId) {
-  if (!currentUser) {
-    showToast(t('toast.friend_login_required'), 'error');
-    closeMemberProfile();
-    go('plans');
-    return;
-  }
-  if (currentPlan === 'FREE') {
-    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
-    closeMemberProfile();
-    go('plans');
-    return;
-  }
-  if (memberId === currentUser.id) {
-    showToast('Tu ne peux pas t’ajouter toi-même', 'error');
-    return;
-  }
-  const raw = profiles.find(m => m.id === memberId);
-  const name = raw ? (raw.display_name || 'AUPYGO') : 'AUPYGO';
-
-  // Refuse si déjà refusé / déjà ami / demande déjà envoyée
-  const store = loadFriendshipStore();
-  const existing = store.find(r =>
-    (r.from_id === currentUser.id && r.to_id === memberId) ||
-    (r.from_id === memberId && r.to_id === currentUser.id)
-  );
-  if (existing) {
-    if (existing.status === 'refused') {
-      showToast('🚫 Demande impossible (déjà refusée)', 'error');
-      closeMemberProfile();
-      return;
-    }
-    if (existing.status === 'accepted') {
-      showToast('💚 Vous êtes déjà amis', 'success');
-      closeMemberProfile();
-      return;
-    }
-    if (existing.status === 'pending') {
-      showToast('Demande déjà envoyée', 'success');
-      closeMemberProfile();
-      return;
-    }
-  }
-
-  store.push({
-    id: 'fr_' + Date.now() + '_' + Math.random().toString(36).slice(2, 7),
-    from_id: currentUser.id,
-    to_id: memberId,
-    status: 'pending',
-    created_at: new Date().toISOString(),
-    // snapshot pour affichage (pas de faux profils : données réelles uniquement)
-    from_name: (document.getElementById('firstName') || {}).value || currentUser.email || 'Moi',
-    to_name: name,
-    to_age: raw ? raw.age : null,
-    to_city: raw ? (raw.city || raw.host_country || '') : '',
-    to_gender: raw ? raw.gender : null,
-    to_premium: raw ? (raw.subscription === 'PREMIUM') : false,
-    from_age: null,
-    from_city: '',
-    from_gender: selectedGender || null,
-    from_premium: currentPlan === 'PREMIUM'
-  });
-  saveFriendshipStore(store);
-  showToast(t('toast.friend_request_sent') + ' ' + name + ' 🤝', 'success');
-  updateFriendsBadge();
-  closeMemberProfile();
-}
-
-
 function zoomIn() {
   if(map) map.zoomIn();
 }
@@ -2006,28 +1938,43 @@ let groupPickIds = [];         // sélection dans le modal (max 4 + toi = 5)
 
 /* =========================
    AupyGo Friend’s (demandes + amis)
-   Stockage local par utilisateur — aucun profil fictif
+   Stocké dans Supabase (table "friendships") — partagé entre tous les appareils
 ========================= */
 
-function friendshipStoreKey() {
-  // Store global (prototype multi-comptes même navigateur).
-  // Pour la prod : table Supabase "friendships".
-  return 'aupygo_friendships_global';
-}
+let friendshipsCache = []; // lignes { id, from_id, to_id, status, created_at } depuis Supabase
 
-function loadFriendshipStore() {
+// Recharge les demandes/amitiés de l'utilisateur connecté depuis Supabase
+async function loadFriendshipsFromDB() {
+  if (!currentUser) {
+    friendshipsCache = [];
+    return friendshipsCache;
+  }
   try {
-    const raw = localStorage.getItem(friendshipStoreKey());
-    return raw ? JSON.parse(raw) : [];
+    const { data, error } = await supabaseClient
+      .from('friendships')
+      .select('*')
+      .or('from_id.eq.' + currentUser.id + ',to_id.eq.' + currentUser.id);
+
+    if (error) {
+      console.error('Erreur chargement amitiés:', error);
+      friendshipsCache = [];
+      return friendshipsCache;
+    }
+
+    friendshipsCache = data || [];
+    return friendshipsCache;
   } catch (e) {
-    return [];
+    console.error('loadFriendshipsFromDB:', e);
+    friendshipsCache = [];
+    return friendshipsCache;
   }
 }
 
-function saveFriendshipStore(list) {
-  try {
-    localStorage.setItem(friendshipStoreKey(), JSON.stringify(list || []));
-  } catch (e) {}
+// Retrouve un profil déjà chargé (tableau global "profiles") par id,
+// avec un repli minimal si le profil n'est pas encore en cache local.
+function getProfileById(id) {
+  const found = (profiles || []).find(p => p.id === id);
+  return found || { id, display_name: 'AUPYGO', age: null, gender: null, city: '', host_country: '', subscription: 'FREE', is_online: false };
 }
 
 function updateFriendsBadge() {
@@ -2038,7 +1985,7 @@ function updateFriendsBadge() {
     if (navBtn) navBtn.classList.remove('has-requests');
     return;
   }
-  const store = loadFriendshipStore();
+  const store = friendshipsCache;
   // Demandes reçues en attente
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
   const n = pending.length;
@@ -2057,15 +2004,14 @@ function updateFriendsBadge() {
   if (label) label.textContent = n ? '(' + n + ')' : '';
 }
 
-function renderFriendsUI() {
+async function renderFriendsUI() {
   if (!currentUser) {
     updateFriendsBadge();
     return;
   }
-  const store = loadFriendshipStore();
+  await loadFriendshipsFromDB();
+  const store = friendshipsCache;
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
-  const acceptedIncoming = store.filter(r => r.to_id === currentUser.id && r.status === 'accepted');
-  const acceptedOutgoing = store.filter(r => r.from_id === currentUser.id && r.status === 'accepted');
 
   const requestsGrid = document.getElementById('requestsGrid');
   const requestsEmpty = document.getElementById('requestsEmpty');
@@ -2076,19 +2022,21 @@ function renderFriendsUI() {
     } else {
       if (requestsEmpty) requestsEmpty.style.display = 'none';
       pending.forEach(req => {
-        const emoji = req.from_gender === 'Homme' ? '👨' : '👩';
-        const age = req.from_age ? (req.from_age + ' ans') : '';
-        const city = req.from_city || '';
+        const p = getProfileById(req.from_id);
+        const emoji = p.gender === 'Homme' ? '👨' : '👩';
+        const age = p.age ? (p.age + ' ans') : '';
+        const city = p.city || p.host_country || '';
         const meta = [age, city].filter(Boolean).join(' · ');
+        const isPremium = p.subscription === 'PREMIUM';
         const card = document.createElement('div');
         card.className = 'card friend-request-card';
         card.dataset.id = req.id;
         card.innerHTML =
           '<div style="text-align:center;margin-bottom:12px">' +
             '<div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">' + emoji + '</div>' +
-            '<h3 style="margin:0">' + (req.from_name || 'AUPYGO') + '</h3>' +
+            '<h3 style="margin:0">' + (p.display_name || 'AUPYGO') + '</h3>' +
             (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
-            (req.from_premium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
+            (isPremium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
           '</div>' +
           '<div class="request-actions" style="display:flex;gap:8px">' +
             '<button class="btn-accept" style="flex:1" onclick="acceptFriendRequest(\'' + req.id + '\')">✅ Accepter</button>' +
@@ -2104,24 +2052,22 @@ function renderFriendsUI() {
   const friendIds = new Set();
   const friends = [];
   store.filter(r => r.status === 'accepted').forEach(r => {
-    let otherId, name, age, city, gender, premium;
-    if (r.from_id === currentUser.id) {
-      otherId = r.to_id; name = r.to_name; age = r.to_age; city = r.to_city; gender = r.to_gender; premium = r.to_premium;
-    } else if (r.to_id === currentUser.id) {
-      otherId = r.from_id; name = r.from_name; age = r.from_age; city = r.from_city; gender = r.from_gender; premium = r.from_premium;
-    } else return;
+    let otherId;
+    if (r.from_id === currentUser.id) otherId = r.to_id;
+    else if (r.to_id === currentUser.id) otherId = r.from_id;
+    else return;
     if (friendIds.has(otherId)) return;
     friendIds.add(otherId);
-    // Enrichir depuis profiles si dispo
-    const p = (profiles || []).find(x => x.id === otherId);
-    if (p) {
-      name = p.display_name || name;
-      age = p.age || age;
-      city = p.city || p.host_country || city;
-      gender = p.gender || gender;
-      premium = p.subscription === 'PREMIUM' || premium;
-    }
-    friends.push({ id: otherId, name: name || 'AUPYGO', age, city, gender, premium, online: p ? (p.is_online === true) : false });
+    const p = getProfileById(otherId);
+    friends.push({
+      id: otherId,
+      name: p.display_name || 'AUPYGO',
+      age: p.age,
+      city: p.city || p.host_country || '',
+      gender: p.gender,
+      premium: p.subscription === 'PREMIUM',
+      online: p.is_online === true
+    });
   });
 
   const friendsGrid = document.getElementById('friendsGrid');
@@ -2174,84 +2120,118 @@ function renderFriendsUI() {
   if (freeNotice) freeNotice.style.display = currentPlan === 'FREE' ? 'block' : 'none';
 }
 
-function acceptFriendRequest(reqId) {
-  const store = loadFriendshipStore();
-  const req = store.find(r => r.id === reqId);
+async function acceptFriendRequest(reqId) {
+  const req = friendshipsCache.find(r => r.id === reqId);
   if (!req || req.status !== 'pending') return;
-  req.status = 'accepted';
-  // snapshot du destinataire (moi) pour l'autre côté
-  req.to_name = (document.getElementById('firstName') || {}).value || currentUser.email || 'Moi';
-  req.to_gender = selectedGender || req.to_gender;
-  req.to_premium = currentPlan === 'PREMIUM';
-  const ageEl = document.getElementById('age');
-  if (ageEl && ageEl.value) req.to_age = Number(ageEl.value);
-  saveFriendshipStore(store);
-  showToast('💚 Tu es maintenant ami(e) avec ' + (req.from_name || 'cet AUPYGO'), 'success');
-  renderFriendsUI();
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .update({ status: 'accepted' })
+    .eq('id', reqId);
+
+  if (error) {
+    console.error('acceptFriendRequest:', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  const p = getProfileById(req.from_id);
+  showToast('💚 Tu es maintenant ami(e) avec ' + (p.display_name || 'cet AUPYGO'), 'success');
+  await renderFriendsUI();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
 }
 
-function refuseFriendRequest(reqId) {
-  const store = loadFriendshipStore();
-  const req = store.find(r => r.id === reqId);
+async function refuseFriendRequest(reqId) {
+  const req = friendshipsCache.find(r => r.id === reqId);
   if (!req || req.status !== 'pending') return;
-  req.status = 'refused';
-  saveFriendshipStore(store);
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .update({ status: 'refused' })
+    .eq('id', reqId);
+
+  if (error) {
+    console.error('refuseFriendRequest:', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
   showToast('Demande refusée', 'success');
-  renderFriendsUI();
+  await renderFriendsUI();
 }
 
-async function loadFriendsForMessaging() {
-  myFriends = [];
-  try {
-    if (currentUser) {
-      renderFriendsUI(); // met aussi à jour myFriends
+async function sendFriendRequestToMember(memberId) {
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required'), 'error');
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  if (currentPlan === 'FREE') {
+    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  if (memberId === currentUser.id) {
+    showToast('Tu ne peux pas t’ajouter toi-même', 'error');
+    return;
+  }
+
+  const raw = profiles.find(m => m.id === memberId);
+  const name = raw ? (raw.display_name || 'AUPYGO') : 'AUPYGO';
+
+  // Vérifie l'état actuel (Supabase = source de vérité, pas le cache local)
+  const { data: existingRows, error: checkError } = await supabaseClient
+    .from('friendships')
+    .select('*')
+    .or('and(from_id.eq.' + currentUser.id + ',to_id.eq.' + memberId + '),and(from_id.eq.' + memberId + ',to_id.eq.' + currentUser.id + ')');
+
+  if (checkError) {
+    console.error('sendFriendRequestToMember (check):', checkError);
+    showToast('Erreur : ' + checkError.message, 'error');
+    return;
+  }
+
+  const existing = (existingRows || [])[0];
+  if (existing) {
+    if (existing.status === 'refused') {
+      showToast('🚫 Demande impossible (déjà refusée)', 'error');
+      closeMemberProfile();
+      return;
     }
-  } catch (e) {
-    console.error('loadFriendsForMessaging:', e);
+    if (existing.status === 'accepted') {
+      showToast('💚 Vous êtes déjà amis', 'success');
+      closeMemberProfile();
+      return;
+    }
+    if (existing.status === 'pending') {
+      showToast('Demande déjà envoyée', 'success');
+      closeMemberProfile();
+      return;
+    }
   }
-  renderConversationSidebar();
-  if (typeof renderGroupFriendsPick === 'function') renderGroupFriendsPick();
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .insert({
+      from_id: currentUser.id,
+      to_id: memberId,
+      status: 'pending'
+    });
+
+  if (error) {
+    console.error('sendFriendRequestToMember (insert):', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  showToast(t('toast.friend_request_sent') + ' ' + name + ' 🤝', 'success');
+  await loadFriendshipsFromDB();
+  updateFriendsBadge();
+  closeMemberProfile();
 }
 
-
-function renderConversationSidebar() {
-  const friendsList = document.getElementById('convFriendsList');
-  const groupsList = document.getElementById('convGroupsList');
-  if (!friendsList || !groupsList) return;
-
-  if (!myFriends.length) {
-    friendsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || 'Aucun ami pour discuter. Ajoute des amis depuis la carte.') + '</p>';
-  } else {
-    friendsList.innerHTML = myFriends.map(f => {
-      const emoji = f.gender === 'Homme' ? '👨' : '👩';
-      const online = f.is_online === true || f.online === true;
-      const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
-      return (
-        '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
-          '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
-          '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
-          '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
-        '</div>'
-      );
-    }).join('');
-  }
-
-  if (!myGroups.length) {
-    groupsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || 'Aucun groupe. Crée-en un (max 5 personnes).') + '</p>';
-  } else {
-    groupsList.innerHTML = myGroups.map(g => {
-      const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
-      return (
-        '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
-          '<div class="conv-avatar group">👥</div>' +
-          '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div>' +
-          '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
-        '</div>'
-      );
-    }).join('');
-  }
-}
 
 function openConversation(type, id, name) {
   if (currentPlan !== 'PREMIUM') {
@@ -2299,6 +2279,58 @@ function sendMessage() {
   // TODO Supabase : insert into messages (conversation_id, sender_id, body)
   showToast(t('messages.sent'), 'success');
   input.value = '';
+}
+
+async function loadFriendsForMessaging() {
+  myFriends = [];
+  try {
+    if (currentUser) {
+      await renderFriendsUI(); // met aussi à jour myFriends
+    }
+  } catch (e) {
+    console.error('loadFriendsForMessaging:', e);
+  }
+  renderConversationSidebar();
+  if (typeof renderGroupFriendsPick === 'function') renderGroupFriendsPick();
+}
+
+
+function renderConversationSidebar() {
+  const friendsList = document.getElementById('convFriendsList');
+  const groupsList = document.getElementById('convGroupsList');
+  if (!friendsList || !groupsList) return;
+
+  if (!myFriends.length) {
+    friendsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || 'Aucun ami pour discuter. Ajoute des amis depuis la carte.') + '</p>';
+  } else {
+    friendsList.innerHTML = myFriends.map(f => {
+      const emoji = f.gender === 'Homme' ? '👨' : '👩';
+      const online = f.is_online === true || f.online === true;
+      const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
+          '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  if (!myGroups.length) {
+    groupsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || 'Aucun groupe. Crée-en un (max 5 personnes).') + '</p>';
+  } else {
+    groupsList.innerHTML = myGroups.map(g => {
+      const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar group">👥</div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div>' +
+          '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
 }
 
 function openCreateGroupModal() {
@@ -2588,7 +2620,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   updatePlanUI();
   updateNavVisibility();
   await refreshAuthUI();
-  if (typeof loadFriendsForMessaging === 'function') loadFriendsForMessaging();
+  if (currentUser) {
+    await loadFriendshipsFromDB();
+  }
+  if (typeof loadFriendsForMessaging === 'function') await loadFriendsForMessaging();
   if (typeof updateFriendsBadge === 'function') updateFriendsBadge();
 
   // Si déjà connecté au chargement → statut en ligne + heartbeat + watch inactivité
@@ -2597,10 +2632,13 @@ document.addEventListener('DOMContentLoaded', async () => {
     startIdleWatch();
   }
 
-  // Rafraîchit les profils (couleurs vert/rouge) toutes les 60 s
+  // Rafraîchit les profils (couleurs vert/rouge) et les amitiés toutes les 60 s
   setInterval(() => {
     loadProfiles();
-    if (currentUser) setOnlineStatus(true);
+    if (currentUser) {
+      setOnlineStatus(true);
+      loadFriendshipsFromDB().then(updateFriendsBadge);
+    }
   }, 60000);
 
   // Synchronisation multi-onglets / multi-appareils
