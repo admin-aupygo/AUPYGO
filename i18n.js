@@ -338,7 +338,7 @@ const I18N = {
     "messages.members":"members",
     "messages.friend":"Friend",
     "messages.group":"Group",
-    "messages.conversations":"Conversations",
+    "messages.conversations":"Chats",
     "messages.friends_label":"Friends",
     "messages.groups_label":"Groups",
     "messages.create_group":"+ Group",

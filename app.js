@@ -1116,6 +1116,8 @@ function go(page) {
 
   if (page === 'messages') {
     loadFriendsForMessaging();
+    if (typeof applyTranslations === 'function') applyTranslations();
+    if (typeof refreshMessagesStaticTexts === 'function') refreshMessagesStaticTexts();
   }
 
 }
@@ -1941,6 +1943,51 @@ function paidEvent() {
    MESSAGES
 ========================= */
 
+
+/** Ré-applique les textes fixes de la messagerie (au cas où le DOM a été régénéré). */
+function refreshMessagesStaticTexts() {
+  const map = [
+    ['#conversationList .conv-sidebar-header span', 'messages.conversations'],
+    ['#conversationList .btn-create-group', 'messages.create_group'],
+    ['#convFriendsSection .conv-section-label', 'messages.friends_label'],
+    ['#convGroupsSection .conv-section-label', 'messages.groups_label'],
+    ['#sendMsgBtn', 'messages.send'],
+  ];
+  map.forEach(([sel, key]) => {
+    const el = document.querySelector(sel);
+    if (el) el.textContent = t(key);
+  });
+  const input = document.getElementById('messageInput');
+  if (input) input.placeholder = t('messages.write_placeholder') || t('messages.input_placeholder') || input.placeholder;
+
+  // Placeholder chat si aucune conversation active
+  if (!activeConversation) {
+    const header = document.getElementById('chatHeader');
+    if (header) header.textContent = t('messages.select_conversation');
+    const box = document.getElementById('chatMessages');
+    if (box && box.querySelector('.chat-placeholder')) {
+      box.innerHTML = '<div class="chat-placeholder"><div style="font-size:40px;margin-bottom:8px">💬</div><p>' +
+        (t('messages.pick_to_start') || '') + '</p></div>';
+    }
+  }
+  // Empty states amis / groupes
+  const fl = document.getElementById('convFriendsList');
+  if (fl && (!myFriends || !myFriends.length)) {
+    fl.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || '') + '</p>';
+  }
+  const gl = document.getElementById('convGroupsList');
+  if (gl && (!myGroups || !myGroups.length)) {
+    gl.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || '') + '</p>';
+  }
+  // Modal groupe
+  const modalTitle = document.querySelector('#createGroupOverlay h3');
+  if (modalTitle) modalTitle.textContent = t('messages.create_group_title');
+  const modalHint = document.querySelector('#createGroupOverlay p');
+  if (modalHint) modalHint.textContent = t('messages.create_group_hint');
+  const createBtn = document.querySelector('#createGroupOverlay .btn-primary');
+  if (createBtn) createBtn.textContent = t('messages.create_group_btn');
+}
+
 /* =========================
    MESSAGERIE (amis + groupes max 5)
 ========================= */
@@ -2154,9 +2201,11 @@ function changeLanguage(lang) {
   const sel = document.getElementById('language');
   if (sel) sel.value = lang;
   applyTranslations();
-  // Met à jour les zones dynamiques non marquées data-i18n
+  // Zones dynamiques
   if (typeof updateOnlineCount === 'function') updateOnlineCount();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+  if (typeof refreshMessagesStaticTexts === 'function') refreshMessagesStaticTexts();
+  if (typeof updatePlanUI === 'function') updatePlanUI();
 }
 
 
