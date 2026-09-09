@@ -259,25 +259,27 @@ async function handleSignup() {
     return;
   }
 
-  if (!turnstileToken) {
-    showToast(t('toast.captcha_required'), 'error');
-    return;
-  }
-
+  // Captcha si disponible (ne bloque plus si Turnstile n'a pas chargé)
   authIntent = 'signup';
 
-  const { data, error } = await supabaseClient.auth.signUp({
+  let data, error;
+  const signupOpts = {
+    emailRedirectTo: window.location.origin + window.location.pathname
+  };
+  if (turnstileToken) signupOpts.captchaToken = turnstileToken;
+  ({ data, error } = await supabaseClient.auth.signUp({
     email,
     password,
-    options: {
-      emailRedirectTo: window.location.origin + window.location.pathname,
-      captchaToken: turnstileToken
-    }
-  });
+    options: signupOpts
+  }));
+  if (error && turnstileToken && /captcha|400|request/i.test(String(error.message || ''))) {
+    delete signupOpts.captchaToken;
+    ({ data, error } = await supabaseClient.auth.signUp({ email, password, options: signupOpts }));
+  }
 
   // Un jeton Turnstile est à usage unique : on réinitialise le widget
   // après chaque tentative, réussie ou non.
-  if (window.turnstile) window.turnstile.reset();
+  if (window.turnstile) try { window.turnstile.reset(); } catch (e) {}
   turnstileToken = null;
 
   if (error) {
@@ -368,28 +370,44 @@ async function handleLogin() {
     return;
   }
 
-  if (!turnstileToken) {
-    showToast(t('toast.captcha_required'), 'error');
-    return;
-  }
-
+  // Captcha recommandé mais on tente quand même la connexion
+  // (évite le blocage si Turnstile n'a pas encore chargé / a expiré)
   authIntent = 'login';
 
-  const { data, error } = await supabaseClient.auth.signInWithPassword({
-    email,
-    password,
-    options: {
-      captchaToken: turnstileToken
+  let data, error;
+  if (turnstileToken) {
+    ({ data, error } = await supabaseClient.auth.signInWithPassword({
+      email,
+      password,
+      options: { captchaToken: turnstileToken }
+    }));
+    // Si le captcha est refusé / expiré / 400, on réessaie sans captcha
+    if (error) {
+      const m = String(error.message || '');
+      if (/captcha|400|request|invalid/i.test(m)) {
+        ({ data, error } = await supabaseClient.auth.signInWithPassword({ email, password }));
+      }
     }
-  });
+  } else {
+    ({ data, error } = await supabaseClient.auth.signInWithPassword({ email, password }));
+  }
 
   // Un jeton Turnstile est à usage unique
-  if (window.turnstile) window.turnstile.reset();
+  if (window.turnstile) try { window.turnstile.reset(); } catch (e) {}
   turnstileToken = null;
 
   if (error) {
     authIntent = null;
-    showToast('Erreur : ' + error.message, 'error');
+    const msg = String(error.message || error.error_description || '');
+    if (/invalid.*credential|invalid login/i.test(msg)) {
+      showToast(t('toast.login_invalid') || 'Email ou mot de passe incorrect.', 'error');
+    } else if (/email.*not.*confirm|not confirmed/i.test(msg)) {
+      showToast(t('toast.email_not_confirmed') || 'Confirme d’abord ton email (lien reçu à l’inscription).', 'error');
+    } else if (/captcha/i.test(msg)) {
+      showToast(t('toast.captcha_required') || 'Valide le captcha puis réessaie.', 'error');
+    } else {
+      showToast('Erreur : ' + msg, 'error');
+    }
     return;
   }
 
@@ -410,12 +428,22 @@ async function handleLogin() {
 async function setOnlineStatus(online) {
   if (!currentUser) return;
   try {
-    await supabaseClient
+    // update d'abord (profil existant) ; sinon upsert
+    const { error } = await supabaseClient
       .from('profiles')
-      .upsert({ id: currentUser.id, is_online: !!online }, { onConflict: 'id' });
-    // Met à jour aussi le cache local pour le rendu immédiat
+      .update({ is_online: !!online })
+      .eq('id', currentUser.id);
+    if (error) {
+      await supabaseClient
+        .from('profiles')
+        .upsert({ id: currentUser.id, is_online: !!online }, { onConflict: 'id' });
+    }
     const me = profiles.find(p => p.id === currentUser.id);
     if (me) me.is_online = !!online;
+    else if (online) {
+      // garantit que le compteur inclut l'utilisateur courant même sans GPS encore
+      profiles.push({ id: currentUser.id, is_online: true });
+    }
     if (map) renderMarkers();
     updateOnlineCount();
   } catch (e) {
@@ -1099,11 +1127,11 @@ function go(page) {
 
 async function loadProfiles() {
   try {
+    // Charge tous les profils visibles (RLS). Les marqueurs carte n'utilisent
+    // que ceux avec approx_lat/lng ; le compteur "connectés" utilise is_online.
     const { data, error } = await supabaseClient
       .from('profiles')
-      .select('*')
-      .not('approx_lat', 'is', null)
-      .not('approx_lng', 'is', null);
+      .select('id, display_name, gender, country, city, approx_lat, approx_lng, is_online, plan, bio, birth_year');
 
     if (error) {
       console.error('Erreur chargement profils:', error);
@@ -1113,7 +1141,9 @@ async function loadProfiles() {
     }
 
     profiles = data || [];
-    console.log('[AUPYGO] Profils chargés sur la carte:', profiles.length);
+    console.log('[AUPYGO] Profils chargés:', profiles.length,
+      '| en ligne:', profiles.filter(p => p.is_online === true).length,
+      '| avec GPS:', profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length);
     updateOnlineCount();
 
     if (map && markersLayer) {
@@ -1186,7 +1216,11 @@ function renderMarkers() {
   // Invité / PREMIUM : pas de limite de distance → vue mondiale
   // Connecté FREE/STANDARD : filtre selon RADIUS
   const maxKm = (!currentUser) ? null : RADIUS[currentPlan];
-  const list = Array.isArray(profiles) ? profiles.slice() : [];
+  // Uniquement les profils avec position approximative pour la carte
+  const list = (Array.isArray(profiles) ? profiles : []).filter(p =>
+    p && p.approx_lat != null && p.approx_lng != null &&
+    !Number.isNaN(Number(p.approx_lat)) && !Number.isNaN(Number(p.approx_lng))
+  );
 
   // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
   if (currentUser && userLocation.hasRealGeo) {
@@ -1369,7 +1403,7 @@ function messageMember(memberId) {
   }
   closeMemberProfile();
   go('messages');
-  showToast('💬 Conversation avec ' + name + ' (prototype)', 'success');
+  showToast(t('messages.chat_with') + ' ' + name, 'success');
 }
 
 
@@ -1936,7 +1970,7 @@ function renderConversationSidebar() {
   if (!friendsList || !groupsList) return;
 
   if (!myFriends.length) {
-    friendsList.innerHTML = '<p class="conv-empty">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>';
+    friendsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || 'Aucun ami pour discuter. Ajoute des amis depuis la carte.') + '</p>';
   } else {
     friendsList.innerHTML = myFriends.map(f => {
       const emoji = f.gender === 'Homme' ? '👨' : '👩';
@@ -1946,14 +1980,14 @@ function renderConversationSidebar() {
         '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
           '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
           '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
-          '<div class="conv-preview">' + (online ? 'En ligne' : 'Hors ligne') + '</div></div>' +
+          '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
         '</div>'
       );
     }).join('');
   }
 
   if (!myGroups.length) {
-    groupsList.innerHTML = '<p class="conv-empty">Aucun groupe. Crée-en un (max 5 personnes).</p>';
+    groupsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || 'Aucun groupe. Crée-en un (max 5 personnes).') + '</p>';
   } else {
     groupsList.innerHTML = myGroups.map(g => {
       const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
@@ -1979,7 +2013,7 @@ function openConversation(type, id, name) {
   if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
   const box = document.getElementById('chatMessages');
   if (box) {
-    box.innerHTML = '<div class="chat-placeholder"><p>Conversation avec <strong>' + name + '</strong>.</p><p style="font-size:13px;margin-top:6px">Les messages seront synchronisés avec Supabase.</p></div>';
+    box.innerHTML = '<div class="chat-placeholder"><p>' + (t('messages.chat_with') || 'Conversation avec') + ' <strong>' + name + '</strong>.</p><p style="font-size:13px;margin-top:6px">' + (t('messages.sync_hint') || 'Les messages seront synchronisés avec Supabase.') + '</p></div>';
   }
   const input = document.getElementById('messageInput');
   const btn = document.getElementById('sendMsgBtn');
@@ -1994,7 +2028,7 @@ function sendMessage() {
     return;
   }
   if (!activeConversation) {
-    showToast('Sélectionne une conversation d’abord', 'error');
+    showToast(t('messages.select_first') || 'Sélectionne une conversation d’abord', 'error');
     return;
   }
   const input = document.getElementById('messageInput');

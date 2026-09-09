@@ -541,33 +541,33 @@
     <!-- Sidebar : amis + groupes -->
     <div class="conversations" id="conversationList">
       <div class="conv-sidebar-header">
-        <span>Conversations</span>
-        <button type="button" class="btn-create-group" onclick="openCreateGroupModal()" title="Créer un groupe (max 5)">＋ Groupe</button>
+        <span data-i18n="messages.conversations">Conversations</span>
+        <button type="button" class="btn-create-group" onclick="openCreateGroupModal()" data-i18n="messages.create_group" data-i18n-title="messages.create_group_title" title="Créer un groupe (max 5)">＋ Groupe</button>
       </div>
       <div id="convFriendsSection">
-        <div class="conv-section-label">Amis</div>
+        <div class="conv-section-label" data-i18n="messages.friends_label">Amis</div>
         <div id="convFriendsList">
-          <p class="conv-empty">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>
+          <p class="conv-empty" data-i18n="messages.no_friends">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>
         </div>
       </div>
       <div id="convGroupsSection">
-        <div class="conv-section-label">Groupes</div>
+        <div class="conv-section-label" data-i18n="messages.groups_label">Groupes</div>
         <div id="convGroupsList">
-          <p class="conv-empty">Aucun groupe. Crée-en un (max 5 personnes).</p>
+          <p class="conv-empty" data-i18n="messages.no_groups">Aucun groupe. Crée-en un (max 5 personnes).</p>
         </div>
       </div>
     </div>
 
     <div class="chat">
 
-      <div class="chat-header" id="chatHeader">
+      <div class="chat-header" id="chatHeader" data-i18n="messages.select_conversation">
         Sélectionne une conversation à gauche
       </div>
 
       <div class="chat-messages" id="chatMessages">
         <div class="chat-placeholder">
           <div style="font-size:40px;margin-bottom:8px">💬</div>
-          <p>Choisis un ami ou un groupe pour commencer à discuter.</p>
+          <p data-i18n="messages.pick_to_start">Choisis un ami ou un groupe pour commencer à discuter.</p>
         </div>
       </div>
 
@@ -575,11 +575,12 @@
         <input
           id="messageInput"
           type="text"
+          data-i18n-placeholder="messages.write_placeholder"
           placeholder="Écrire un message..."
           onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
           disabled
         >
-        <button class="btn btn-primary" id="sendMsgBtn" onclick="sendMessage()" disabled>
+        <button class="btn btn-primary" id="sendMsgBtn" onclick="sendMessage()" disabled data-i18n="messages.send">
           Envoyer
         </button>
       </div>
@@ -592,19 +593,19 @@
   <div class="member-modal-overlay" id="createGroupOverlay" onclick="if(event.target===this)closeCreateGroupModal()">
     <div class="member-modal" style="max-width:400px;text-align:left" role="dialog" aria-modal="true">
       <button type="button" class="member-modal-close" onclick="closeCreateGroupModal()" aria-label="Fermer">×</button>
-      <h3 style="margin:0 0 6px;text-align:center">Créer un groupe</h3>
-      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px">Max 5 personnes (toi inclus). Ex. « Café team »</p>
+      <h3 style="margin:0 0 6px;text-align:center" data-i18n="messages.create_group_title">Créer un groupe</h3>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px" data-i18n="messages.create_group_hint">Max 5 personnes (toi inclus). Ex. « Café team »</p>
       <div class="form-group">
-        <label>Titre du groupe</label>
-        <input id="groupTitleInput" type="text" maxlength="40" placeholder="Ex : Café team">
+        <label data-i18n="messages.group_title_label">Titre du groupe</label>
+        <input id="groupTitleInput" type="text" maxlength="40" data-i18n-placeholder="messages.group_title_placeholder" placeholder="Ex : Café team">
       </div>
       <div class="form-group">
-        <label>Choisir des amis <span id="groupPickCount" style="color:var(--muted);font-weight:400">(0/4)</span></label>
+        <label><span data-i18n="messages.pick_friends">Choisir des amis</span> <span id="groupPickCount" style="color:var(--muted);font-weight:400">(0/4)</span></label>
         <div id="groupFriendsPick" class="group-friends-pick">
-          <p class="conv-empty" style="padding:12px">Aucun ami disponible. Ajoute des amis d’abord.</p>
+          <p class="conv-empty" style="padding:12px" data-i18n="messages.no_friends_pick">Aucun ami disponible. Ajoute des amis d’abord.</p>
         </div>
       </div>
-      <button type="button" class="btn btn-primary" style="width:100%" onclick="createGroupChat()">Créer le groupe</button>
+      <button type="button" class="btn btn-primary" style="width:100%" onclick="createGroupChat()" data-i18n="messages.create_group_btn">Créer le groupe</button>
     </div>
   </div>
 
