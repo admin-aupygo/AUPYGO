@@ -1,1 +1,1145 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUPYGO — Meet. Go out. Make friends.</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<link rel="stylesheet" href="styles.css"/>
+</head>
+
+<body>
+
+<!-- =========================
+     HEADER
+========================= -->
+
+<header>
+  <div class="header-inner">
+
+    <div class="logo-aupygo" onclick="go('home')" title="AUPYGO">
+      <span class="logo-a">A</span>
+      <span class="logo-u">U</span>
+      <span class="logo-p">P</span>
+      <span class="logo-y">Y</span>
+      <span class="logo-g">G</span>
+      <span class="logo-o">O</span>
+      <div class="location-pin"></div>
+    </div>
+
+    <!-- ICÔNES UNIQUEMENT -->
+
+    <nav>
+
+      <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
+        <span class="icon">🏠</span>
+      </button>
+
+      <button onclick="go('map')" data-nav="map" data-i18n-title="nav.map" data-i18n-aria="nav.map" title="Carte" aria-label="Carte">
+        <span class="icon">🗺️</span>
+      </button>
+
+      <button onclick="go('events')" data-nav="events" data-i18n-title="nav.events" data-i18n-aria="nav.events" title="Sorties" aria-label="Sorties">
+        <span class="icon">🎉</span>
+      </button>
+
+      <button onclick="go('reconnect')" data-nav="reconnect" data-i18n-title="nav.reconnect" data-i18n-aria="nav.reconnect" title="Se retrouver" aria-label="Se retrouver">
+        <span class="icon">🤝</span>
+      </button>
+
+      <button onclick="go('messages')" data-nav="messages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
+        <span class="icon">💬</span>
+      </button>
+
+      <button onclick="go('profile')" data-nav="profile" data-i18n-title="nav.profile" data-i18n-aria="nav.profile" title="Profil" aria-label="Profil">
+        <span class="icon">👤</span>
+      </button>
+
+      <button onclick="go('plans')" data-nav="plans" data-i18n-title="nav.plans" data-i18n-aria="nav.plans" title="Abonnement" aria-label="Abonnement">
+        <span class="icon">💎</span>
+        <span class="plan-badge" id="headerPlan">FREE</span>
+      </button>
+
+    </nav>
+
+    <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
+      <option value="fr">🇫🇷 Français</option>
+      <option value="en">🇬🇧 English</option>
+      <option value="es">🇪🇸 Español</option>
+    </select>
+
+  </div>
+</header>
+
+<main>
+
+<!-- =========================
+     ACCUEIL
+========================= -->
+
+<section id="home" class="page active">
+
+  <div class="hero">
+
+    <div>
+
+      <span class="badge" data-i18n="home.badge">🌍 La communauté des au pairs</span>
+
+      <h1>
+        <span class="gradient" data-i18n="home.title1">Meet.</span><br>
+        <span data-i18n="home.title2">Go out.</span><br>
+        <span data-i18n="home.title3">Make friends.</span>
+      </h1>
+
+      <p><strong data-i18n="home.subtitle">Parce qu’être au pair ne veut pas dire être seul.</strong></p>
+
+      <p data-i18n="home.description">
+        AUPYGO, c’est la communauté faite pour les au pairs.
+        Découvre, sors et crée de vraies amitiés, en toute confidentialité.
+      </p>
+
+      <p style="margin:14px 0 4px">
+        <button class="btn btn-secondary" onclick="go('plans')" style="font-size:13px;padding:8px 16px;border-radius:20px" data-i18n="home.cta_signup">
+          ✨ Nouveau ? Inscris-toi gratuitement
+        </button>
+      </p>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+        <button class="btn btn-primary" onclick="go('map')" data-i18n="home.btn_discover">🗺️ Découvrir</button>
+        <button class="btn btn-secondary" onclick="go('events')" data-i18n="home.btn_go_out">🎉 Sortir</button>
+        <button class="btn btn-secondary" onclick="go('reconnect')" data-i18n="home.btn_reconnect">🤝 Se retrouver</button>
+      </div>
+
+    </div>
+
+    <div class="hero-card" onclick="go('map')" data-i18n-title="home.card_title_attr" title="Voir la communauté sur la carte">
+
+      <div class="hero-visual">
+
+        <div class="global-aupy">
+
+          <div class="country-person person-1">
+            <div class="face">👩</div>
+            <span class="country-flag">🇫🇷</span>
+          </div>
+
+          <div class="country-person person-2">
+            <div class="face">👨</div>
+            <span class="country-flag">🇧🇷</span>
+          </div>
+
+          <div class="country-person person-3">
+            <div class="face">👩</div>
+            <span class="country-flag">🇯🇵</span>
+          </div>
+
+          <div class="country-person person-4">
+            <div class="face">👨</div>
+            <span class="country-flag">🇬🇧</span>
+          </div>
+
+          <div class="country-person person-5">
+            <div class="face">👩</div>
+            <span class="country-flag">🇩🇪</span>
+          </div>
+
+          <div class="country-person person-6">
+            <div class="face">👨</div>
+            <span class="country-flag">🇨🇭</span>
+          </div>
+
+          <div class="country-person person-7">
+            <div class="face">👩</div>
+            <span class="country-flag">🇺🇸</span>
+          </div>
+
+          <div class="country-person person-8">
+            <div class="face">👨</div>
+            <span class="country-flag">🇪🇸</span>
+          </div>
+
+          <div class="world-symbol">🌍</div>
+
+        </div>
+
+      </div>
+
+      <h3 style="margin-top:14px" data-i18n="home.card_title">Une communauté mondiale</h3>
+
+      <p class="footer-muted" style="font-size:14px;margin-top:6px" data-i18n="home.card_subtitle">
+        Déjà des AUPYGO dans 12+ pays.
+      </p>
+
+      <p style="font-size:13px;margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center">
+        <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 6px #22c55e;display:inline-block"></span>
+        <strong id="onlineCount">0</strong> <span data-i18n="home.online_now">connectés maintenant</span>
+      </p>
+
+      <p class="footer-muted" style="font-size:13px;margin-top:8px" data-i18n="home.card_cta">
+        Clique pour explorer la carte →
+      </p>
+
+    </div>
+
+  </div>
+
+  <div class="notice security" data-i18n-html="home.security_notice">
+
+    🔒 <strong>Confidentialité & sécurité :</strong><br>
+
+    AUPYGO n’affiche jamais la position GPS exacte.
+    Les positions sont approximatives.
+
+    <br><br>
+
+    👤 <strong>Aucune photo personnelle n’est affichée.</strong>
+    Tous les profils utilisent des avatars universels.
+
+  </div>
+
+  <div class="grid">
+
+    <div class="card" onclick="go('map')" style="cursor:pointer">
+      <h3 data-i18n="home.card1_title">🗺️ Découvrir la communauté</h3>
+      <p data-i18n="home.card1_text">Trouve les AUPYGO autour de toi, en préservant la confidentialité de chacun.</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card1_link">Vois qui est près de toi →</p>
+    </div>
+
+    <div class="card" onclick="go('events')" style="cursor:pointer">
+      <h3 data-i18n="home.card2_title">🎉 Sortir</h3>
+      <p data-i18n="home.card2_text">Cafés, randonnées, restaurants et activités avec la communauté.</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card2_link">📅 Agenda des sorties AUPYGO</p>
+    </div>
+
+    <div class="card" onclick="go('reconnect')" style="cursor:pointer">
+      <h3 data-i18n="home.card3_title">🤝 Retrouver tes AUPYGO</h3>
+      <p data-i18n="home.card3_text">Retrouve ceux avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card3_link">Tes vraies rencontres, en confiance →</p>
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     CARTE
+========================= -->
+
+<section id="map" class="page">
+
+  <!-- Bloc du haut : titre + boutons + texte (toujours visibles, au-dessus de la carte) -->
+  <div class="map-top-block">
+
+    <div class="section-title">
+      <h2 data-i18n="map.title">🗺️ La communauté AUPYGO</h2>
+      <p data-i18n="map.subtitle">Découvre les AUPYGO près de toi, en toute confidentialité.</p>
+    </div>
+
+    <div class="map-toolbar">
+      <div class="map-filter">
+        <button type="button" id="btnAround" class="active" onclick="mapMode('around',this)" data-i18n="map.btn_around">📍 Autour de moi</button>
+        <button type="button" id="btnRegion" onclick="mapMode('region',this)" data-i18n="map.btn_region">🗺️ Ma région</button>
+        <button type="button" id="btnWorld" onclick="mapMode('world',this)" data-i18n="map.btn_world">🌍 Monde</button>
+      </div>
+      <div class="map-zoom-btns">
+        <button type="button" class="map-control-btn" onclick="zoomIn()" data-i18n-title="map.zoom_in" title="Zoom +">+</button>
+        <button type="button" class="map-control-btn" onclick="zoomOut()" data-i18n-title="map.zoom_out" title="Zoom −">−</button>
+        <button type="button" class="map-control-btn" onclick="resetMap()" data-i18n-title="map.recenter" title="Recentrer">🎯</button>
+      </div>
+    </div>
+
+    <div class="notice" id="mapPlanNotice" data-i18n-html="map.notice_default">
+      Clique sur <strong>Autour de moi</strong> pour autoriser une position approximative (jamais exacte).
+    </div>
+
+  </div>
+
+  <!-- Carte seule (id unique pour Leaflet) -->
+  <div class="map-container">
+    <div id="mapCanvas"></div>
+  </div>
+
+  <div class="map-privacy" data-i18n-html="map.privacy_notice">
+    🔒 <strong>Privacy :</strong> position approximative uniquement (~1 km).<br>
+    Ton emplacement exact n’est jamais affiché ni partagé avec les autres.
+  </div>
+
+</section>
+
+
+<!-- =========================
+     SORTIES
+========================= -->
+
+<section id="events" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="events.title">🎉 Sorties & événements</h2>
+    <p data-i18n="events.subtitle">Des activités pour la communauté des au pairs.</p>
+  </div>
+
+  <div class="notice warning" data-i18n-html="events.warning">
+    ⚠️ Pour les restaurants,
+    la réservation doit être confirmée par l'organisateur.
+  </div>
+
+  <div id="eventsFreeNotice" class="notice" style="display:none" data-i18n-html="events.free_notice">
+    🔒 <strong>Forfait FREE</strong> :
+    tu vois qu'il y a des sorties,
+    mais les lieux, participants et inscriptions
+    sont réservés au forfait <strong>STANDARD</strong> et plus.
+  </div>
+
+  <div class="card" style="margin-bottom:20px" id="agendaBox">
+
+    <h3 data-i18n="events.agenda_title">📅 Agenda des sorties AUPYGO</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 10px" data-i18n="events.agenda_subtitle">Les sorties de la communauté (selon ton forfait)</p>
+
+    <div id="agendaNotice" class="notice" data-i18n-html="events.agenda_locked">
+      ⭐ Disponible à partir du forfait <strong>STANDARD</strong>.
+    </div>
+
+    <div class="calendar" style="margin-top:15px">
+
+      <div class="day"><strong data-i18n="days.mon">Lun</strong></div>
+      <div class="day"><strong data-i18n="days.tue">Mar</strong></div>
+      <div class="day"><strong data-i18n="days.wed">Mer</strong></div>
+      <div class="day"><strong data-i18n="days.thu">Jeu</strong></div>
+      <div class="day"><strong data-i18n="days.fri">Ven</strong></div>
+      <div class="day"><strong data-i18n="days.sat">Sam</strong></div>
+      <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
+
+      <div class="day">
+        <strong>8</strong>
+        <div class="agenda-event" data-i18n="events.agenda_cafe">☕ Café AUPYGO</div>
+      </div>
+
+      <div class="day">
+        <strong>15</strong>
+        <div class="agenda-event" data-i18n="events.agenda_hike">🥾 Randonnée</div>
+      </div>
+
+      <div class="day">
+        <strong>22</strong>
+        <div class="agenda-event" data-i18n="events.agenda_lunch">🍝 Lunch AUPYGO</div>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div class="event-grid" id="eventGrid">
+
+    <div class="event" data-event="cafe">
+
+      <div class="event-cover">☕</div>
+
+      <div class="event-body">
+
+        <span class="badge" data-i18n="events.cat_cafe">Café</span>
+
+        <h3 style="margin:8px 0" data-i18n="events.ev_cafe_title">Café entre au pairs</h3>
+
+        <p class="event-details" data-detail>
+          📍 Genève · 👥 <span data-i18n="events.max">Max</span> 5 · 🕐 <span data-i18n="days.sat_short">Sam</span> 15:00
+        </p>
+
+        <p class="event-details locked-text" data-locked style="display:none" data-i18n="events.locked_text">
+          🔒 Lieu et participants réservés au forfait STANDARD
+        </p>
+
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinEvent('Café entre au pairs')" data-i18n="events.btn_join">
+          Participer
+        </button>
+
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')" data-i18n="events.btn_upgrade">
+          🔒 Passer à STANDARD
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div class="event" data-event="rando">
+
+      <div class="event-cover">🥾</div>
+
+      <div class="event-body">
+
+        <span class="badge" data-i18n="events.cat_outdoor">Extérieur</span>
+
+        <h3 style="margin:8px 0" data-i18n="events.ev_hike_title">Randonnée & pique-nique</h3>
+
+        <p class="event-details" data-detail>
+          📍 Annecy · 👥 <span data-i18n="events.max">Max</span> 30 · 🕐 <span data-i18n="days.sun_short">Dim</span> 11:00
+        </p>
+
+        <p class="event-details locked-text" data-locked style="display:none" data-i18n="events.locked_text">
+          🔒 Lieu et participants réservés au forfait STANDARD
+        </p>
+
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinEvent('Randonnée')" data-i18n="events.btn_join">
+          Participer
+        </button>
+
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')" data-i18n="events.btn_upgrade">
+          🔒 Passer à STANDARD
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div class="event" data-event="lunch">
+
+      <div class="event-cover">🍝</div>
+
+      <div class="event-body">
+
+        <span class="badge" data-i18n="events.cat_restaurant">Restaurant</span>
+
+        <h3 style="margin:8px 0" data-i18n="events.ev_lunch_title">Lunch entre au pairs</h3>
+
+        <p class="event-details" data-detail>
+          📍 Lyon · 👥 <span data-i18n="events.max">Max</span> 10 · 🕐 <span data-i18n="days.sat_short">Sam</span> 12:30
+        </p>
+
+        <p class="event-details locked-text" data-locked style="display:none" data-i18n="events.locked_text">
+          🔒 Lieu et participants réservés au forfait STANDARD
+        </p>
+
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRestaurantEvent()" data-i18n="events.btn_join_restaurant">
+          Rejoindre
+        </button>
+
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')" data-i18n="events.btn_upgrade">
+          🔒 Passer à STANDARD
+        </button>
+
+      </div>
+
+    </div>
+
+
+    <div class="event" data-event="special">
+
+      <div class="event-cover">⭐</div>
+
+      <div class="event-body">
+
+        <span class="badge badge-paid" data-i18n="events.cat_special">Événement AUPYGO</span>
+
+        <h3 style="margin:8px 0" data-i18n="events.ev_special_title">Sortie spéciale AUPYGO</h3>
+
+        <p class="event-details" data-detail>
+          📍 Paris · <span data-i18n="events.limited_seats">Places limitées</span> · <span data-i18n="events.paid">Payant</span>
+        </p>
+
+        <p class="event-details locked-text" data-locked style="display:none" data-i18n="events.locked_text">
+          🔒 Lieu et participants réservés au forfait STANDARD
+        </p>
+
+        <button class="btn btn-primary event-join" style="margin-top:10px" onclick="paidEvent()" data-i18n="events.btn_view">
+          Voir
+        </button>
+
+        <button class="btn btn-locked event-upgrade" style="display:none" onclick="go('plans')" data-i18n="events.btn_upgrade">
+          🔒 Passer à STANDARD
+        </button>
+
+      </div>
+
+    </div>
+
+  </div>
+
+</section>
+
+
+<!-- =========================
+     SE RETROUVER (amis)
+========================= -->
+
+<section id="reconnect" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="reconnect.title">🤝 Se retrouver</h2>
+    <p data-i18n="reconnect.subtitle">Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+  </div>
+
+  <!-- Bouton vers l’agenda privé -->
+  <div style="margin-bottom:18px">
+    <button class="btn btn-primary" style="width:100%;max-width:320px" onclick="go('profile')" data-i18n="reconnect.btn_agenda">
+      📅 Mon agenda privé AUPYGO
+    </button>
+    <p style="font-size:13px;color:var(--muted);margin-top:8px" data-i18n="reconnect.agenda_note">
+      Ton agenda personnel reste confidentiel. Ici, uniquement les sorties partagées avec tes amis.
+    </p>
+  </div>
+
+  <div class="notice" id="reconnectNotice" data-i18n-html="reconnect.notice">
+    Ici apparaissent uniquement les AUPYGO avec qui tu as participé à une activité <strong>et</strong> qui ont accepté ta demande d’ami.
+  </div>
+
+  <div class="notice warning" id="reconnectFreeNotice" style="display:none" data-i18n-html="reconnect.free_notice">
+    🔒 <strong>Forfait FREE</strong> : tu vois les profils de tes amis. Passe en STANDARD pour voir les sorties en commun, ou PREMIUM pour discuter.
+  </div>
+
+  <div class="grid" id="friendsGrid" style="margin-top:20px">
+    <!-- Rempli dynamiquement avec les vrais amis (acceptés) depuis Supabase — plus de profils fictifs -->
+    <div id="friendsEmpty" class="card" style="grid-column:1/-1;text-align:center;padding:36px 20px">
+      <div style="font-size:42px;margin-bottom:10px">🤝</div>
+      <h3 style="margin:0 0 8px">Aucun ami pour le moment</h3>
+      <p style="color:var(--muted);font-size:14px;max-width:420px;margin:0 auto 14px">
+        Participe à une sortie, envoie une demande d’ami depuis la carte, et ils apparaîtront ici une fois acceptés.
+      </p>
+      <button class="btn btn-primary" onclick="go('map')">🗺️ Voir la carte</button>
+    </div>
+  </div>
+
+  <!-- Comment ça marche — derrière un bouton -->
+  <div style="margin-top:28px;text-align:center">
+    <button class="btn btn-secondary" onclick="toggleFooter('howItWorksBox')" style="font-size:13px" data-i18n="reconnect.how_it_works_btn">
+      ❓ Comment ça marche ?
+    </button>
+  </div>
+
+  <div id="howItWorksBox" class="footer-content" style="display:none;margin-top:14px;max-width:560px;margin-left:auto;margin-right:auto" data-i18n-html="reconnect.how_it_works_content">
+    <p><strong>Comment ça marche ?</strong></p>
+    <p>1. Participe à une sortie avec d’autres AUPYGO</p>
+    <p>2. Envoie une demande d’ami depuis leur profil (sur la carte)</p>
+    <p>3. S’ils acceptent, ils apparaissent ici</p>
+    <p style="margin-top:12px"><strong>🔒 Privacy :</strong> Ton agenda personnel reste privé. Tu ne vois que les sorties auxquelles vous participez <em>tous les deux</em>.</p>
+  </div>
+
+</section>
+
+
+<!-- =========================
+     MESSAGES
+========================= -->
+
+<section id="messages" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="messages.title">💬 Messages privés</h2>
+    <p data-i18n="messages.subtitle">Échange avec tes amis AUPYGO et crée des groupes.</p>
+  </div>
+
+  <div class="notice" id="messagesNotice" data-i18n-html="messages.notice_locked">
+    💎 Réservé aux membres <strong>PREMIUM</strong>.
+  </div>
+
+  <div class="message-box" id="messagesBox">
+
+    <!-- Sidebar : amis + groupes -->
+    <div class="conversations" id="conversationList">
+      <div class="conv-sidebar-header">
+        <span data-i18n="messages.conversations">Conversations</span>
+        <button type="button" class="btn-create-group" onclick="openCreateGroupModal()" data-i18n="messages.create_group" data-i18n-title="messages.create_group_title" title="Créer un groupe (max 5)">＋ Groupe</button>
+      </div>
+      <div id="convFriendsSection">
+        <div class="conv-section-label" data-i18n="messages.friends_label">Amis</div>
+        <div id="convFriendsList">
+          <p class="conv-empty" data-i18n="messages.no_friends">Aucun ami pour discuter. Ajoute des amis depuis la carte.</p>
+        </div>
+      </div>
+      <div id="convGroupsSection">
+        <div class="conv-section-label" data-i18n="messages.groups_label">Groupes</div>
+        <div id="convGroupsList">
+          <p class="conv-empty" data-i18n="messages.no_groups">Aucun groupe. Crée-en un (max 5 personnes).</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat">
+
+      <div class="chat-header" id="chatHeader" data-i18n="messages.select_conversation">
+        Sélectionne une conversation à gauche
+      </div>
+
+      <div class="chat-messages" id="chatMessages">
+        <div class="chat-placeholder">
+          <div style="font-size:40px;margin-bottom:8px">💬</div>
+          <p data-i18n="messages.pick_to_start">Choisis un ami ou un groupe pour commencer à discuter.</p>
+        </div>
+      </div>
+
+      <div class="chat-input">
+        <input
+          id="messageInput"
+          type="text"
+          data-i18n-placeholder="messages.write_placeholder"
+          placeholder="Écrire un message..."
+          onkeydown="if(event.key==='Enter'){event.preventDefault();sendMessage();}"
+          disabled
+        >
+        <button class="btn btn-primary" id="sendMsgBtn" onclick="sendMessage()" disabled data-i18n="messages.send">
+          Envoyer
+        </button>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- Modal création groupe (max 5) -->
+  <div class="member-modal-overlay" id="createGroupOverlay" onclick="if(event.target===this)closeCreateGroupModal()">
+    <div class="member-modal" style="max-width:400px;text-align:left" role="dialog" aria-modal="true">
+      <button type="button" class="member-modal-close" onclick="closeCreateGroupModal()" aria-label="Fermer">×</button>
+      <h3 style="margin:0 0 6px;text-align:center" data-i18n="messages.create_group_title">Créer un groupe</h3>
+      <p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:14px" data-i18n="messages.create_group_hint">Max 5 personnes (toi inclus). Ex. « Café team »</p>
+      <div class="form-group">
+        <label data-i18n="messages.group_title_label">Titre du groupe</label>
+        <input id="groupTitleInput" type="text" maxlength="40" data-i18n-placeholder="messages.group_title_placeholder" placeholder="Ex : Café team">
+      </div>
+      <div class="form-group">
+        <label><span data-i18n="messages.pick_friends">Choisir des amis</span> <span id="groupPickCount" style="color:var(--muted);font-weight:400">(0/4)</span></label>
+        <div id="groupFriendsPick" class="group-friends-pick">
+          <p class="conv-empty" style="padding:12px" data-i18n="messages.no_friends_pick">Aucun ami disponible. Ajoute des amis d’abord.</p>
+        </div>
+      </div>
+      <button type="button" class="btn btn-primary" style="width:100%" onclick="createGroupChat()" data-i18n="messages.create_group_btn">Créer le groupe</button>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- =========================
+     PROFIL
+========================= -->
+
+<section id="profile" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="profile.title">👤 Mon profil</h2>
+    <p data-i18n="profile.subtitle">Présente-toi à la communauté.</p>
+  </div>
+
+  <div class="notice" data-i18n-html="profile.photos_notice">
+    👤 <strong>Photos désactivées</strong> —
+    Chaque membre est représenté par un avatar universel.
+  </div>
+
+  <div class="profile-layout">
+
+    <!-- Carte identité (sticky à gauche) -->
+    <div class="card profile-card">
+      <div class="profile-status" id="profileStatus">🟢 En ligne</div>
+      <div class="avatar" id="profileAvatar">👤</div>
+      <h3 id="profileName">Ton prénom</h3>
+      <p class="profile-meta" id="profileMeta">Complète ton profil</p>
+      <div id="profileCardExtras" class="profile-card-extras" style="display:none">
+        <div class="profile-card-line" id="profileCardHost"></div>
+        <div class="profile-card-line" id="profileCardStay"></div>
+        <div class="profile-card-line" id="profileCardLangs"></div>
+        <div class="profile-card-hobbies" id="profileCardHobbies"></div>
+      </div>
+    </div>
+
+    <!-- Formulaire -->
+    <div class="card profile-form-card">
+
+      <h3 class="form-section-title">Identité</h3>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label data-i18n="profile.label_firstname">Prénom</label>
+          <input id="firstName" type="text" data-i18n-placeholder="profile.ph_firstname" placeholder="Ton prénom..." autocomplete="given-name">
+        </div>
+        <div class="form-group">
+          <label data-i18n="profile.label_age">Âge</label>
+          <select id="age">
+            <option value="">Choisir</option>
+            <option>18</option>
+            <option>19</option>
+            <option>20</option>
+            <option>21</option>
+            <option>22</option>
+            <option>23</option>
+            <option>24</option>
+            <option>25</option>
+            <option>26</option>
+            <option>27</option>
+            <option>28</option>
+            <option>29</option>
+            <option>30</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label data-i18n="profile.label_gender">Genre</label>
+        <div class="gender-grid">
+          <button type="button" class="gender-option" onclick="selectGender(this,'Femme')" data-i18n="profile.gender_female">
+            👩 Femme
+          </button>
+          <button type="button" class="gender-option" onclick="selectGender(this,'Homme')" data-i18n="profile.gender_male">
+            👨 Homme
+          </button>
+        </div>
+      </div>
+
+      <h3 class="form-section-title" style="margin-top:8px">Localisation</h3>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label data-i18n="profile.label_country">Pays d'origine</label>
+          <input id="country" list="countries" data-i18n-placeholder="profile.ph_country" placeholder="Ton pays..." autocomplete="country-name">
+          <datalist id="countries">
+            <option value="France">
+            <option value="Brésil">
+            <option value="Espagne">
+            <option value="Allemagne">
+            <option value="Royaume-Uni">
+            <option value="États-Unis">
+            <option value="Suisse">
+            <option value="Portugal">
+            <option value="Italie">
+            <option value="Japon">
+            <option value="Canada">
+            <option value="Australie">
+            <option value="Mexique">
+            <option value="Colombie">
+            <option value="Argentine">
+            <option value="Chili">
+            <option value="Pays-Bas">
+            <option value="Belgique">
+            <option value="Autriche">
+            <option value="Irlande">
+            <option value="Suède">
+            <option value="Norvège">
+            <option value="Danemark">
+            <option value="Pologne">
+            <option value="République tchèque">
+            <option value="Chine">
+            <option value="Corée du Sud">
+            <option value="Nouvelle-Zélande">
+            <option value="Afrique du Sud">
+          </datalist>
+        </div>
+        <div class="form-group">
+          <label>📍 Ville</label>
+          <input id="city" type="text" placeholder="Ex : Nyon" autocomplete="address-level2">
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>🏡 Pays d'accueil</label>
+          <input id="hostCountry" list="countries" placeholder="Pays où tu es au pair...">
+        </div>
+        <div class="form-group">
+          <label>📅 Fin du séjour</label>
+          <input type="month" id="stayEnd">
+        </div>
+      </div>
+
+      <div class="form-group">
+        <label>🗣️ Langues parlées (max 3)</label>
+        <div class="lang-grid" id="langGrid">
+          <button type="button" class="lang-chip" data-lang="FR" onclick="toggleLanguage(this,'FR')">🇫🇷 FR</button>
+          <button type="button" class="lang-chip" data-lang="EN" onclick="toggleLanguage(this,'EN')">🇬🇧 EN</button>
+          <button type="button" class="lang-chip" data-lang="ES" onclick="toggleLanguage(this,'ES')">🇪🇸 ES</button>
+          <button type="button" class="lang-chip" data-lang="PT" onclick="toggleLanguage(this,'PT')">🇧🇷 PT</button>
+          <button type="button" class="lang-chip" data-lang="DE" onclick="toggleLanguage(this,'DE')">🇩🇪 DE</button>
+          <button type="button" class="lang-chip" data-lang="IT" onclick="toggleLanguage(this,'IT')">🇮🇹 IT</button>
+          <button type="button" class="lang-chip" data-lang="RU" onclick="toggleLanguage(this,'RU')">🇷🇺 RU</button>
+          <button type="button" class="lang-chip" data-lang="ZH" onclick="toggleLanguage(this,'ZH')">🇨🇳 ZH</button>
+          <button type="button" class="lang-chip" data-lang="JA" onclick="toggleLanguage(this,'JA')">🇯🇵 JA</button>
+          <button type="button" class="lang-chip" data-lang="OTHER" onclick="toggleLanguage(this,'OTHER')">✨ Autre</button>
+        </div>
+        <input id="otherLanguage" type="text" placeholder="Précise ta langue..." style="display:none;margin-top:10px">
+        <span class="hint">Touche pour sélectionner · max 3</span>
+      </div>
+
+      <h3 class="form-section-title" style="margin-top:8px">Centres d'intérêt</h3>
+
+      <div class="form-group">
+        <label data-i18n="profile.label_hobbies">Hobbies (max 3)</label>
+        <div class="hobby-grid">
+          <button type="button" class="hobby" data-hobby="Plage" onclick="toggleHobby(this,'Plage')"><span class="emoji">🏖️</span><span data-i18n="hobby.beach">Plage</span></button>
+          <button type="button" class="hobby" data-hobby="Lire" onclick="toggleHobby(this,'Lire')"><span class="emoji">📚</span><span data-i18n="hobby.read">Lire</span></button>
+          <button type="button" class="hobby" data-hobby="Films" onclick="toggleHobby(this,'Films')"><span class="emoji">🎬</span><span data-i18n="hobby.movies">Films</span></button>
+          <button type="button" class="hobby" data-hobby="Voyager" onclick="toggleHobby(this,'Voyager')"><span class="emoji">✈️</span><span data-i18n="hobby.travel">Voyager</span></button>
+          <button type="button" class="hobby" data-hobby="Cuisine" onclick="toggleHobby(this,'Cuisine')"><span class="emoji">🍳</span><span data-i18n="hobby.cooking">Cuisine</span></button>
+          <button type="button" class="hobby" data-hobby="Sport" onclick="toggleHobby(this,'Sport')"><span class="emoji">🏋️</span><span data-i18n="hobby.sport">Sport</span></button>
+          <button type="button" class="hobby" data-hobby="Danse" onclick="toggleHobby(this,'Danse')"><span class="emoji">💃</span><span data-i18n="hobby.dance">Danse</span></button>
+          <button type="button" class="hobby" data-hobby="Musique" onclick="toggleHobby(this,'Musique')"><span class="emoji">🎵</span><span data-i18n="hobby.music">Musique</span></button>
+          <button type="button" class="hobby" data-hobby="Photo" onclick="toggleHobby(this,'Photo')"><span class="emoji">📸</span><span data-i18n="hobby.photo">Photo</span></button>
+          <button type="button" class="hobby" data-hobby="Nature" onclick="toggleHobby(this,'Nature')"><span class="emoji">🌿</span><span data-i18n="hobby.nature">Nature</span></button>
+          <button type="button" class="hobby" data-hobby="Café" onclick="toggleHobby(this,'Café')"><span class="emoji">☕</span><span data-i18n="hobby.cafe">Café</span></button>
+          <button type="button" class="hobby" data-hobby="Randonnée" onclick="toggleHobby(this,'Randonnée')"><span class="emoji">🥾</span><span data-i18n="hobby.hike_short">Rando</span></button>
+          <button type="button" class="hobby" data-hobby="Animaux" onclick="toggleHobby(this,'Animaux')"><span class="emoji">🐶</span><span data-i18n="hobby.animals">Animaux</span></button>
+          <button type="button" class="hobby" data-hobby="Art" onclick="toggleHobby(this,'Art')"><span class="emoji">🎨</span><span data-i18n="hobby.art">Art</span></button>
+          <button type="button" class="hobby" data-hobby="Yoga" onclick="toggleHobby(this,'Yoga')"><span class="emoji">🧘</span><span data-i18n="hobby.yoga">Yoga</span></button>
+          <button type="button" class="hobby" data-hobby="Autre" onclick="toggleHobby(this,'Autre')"><span class="emoji">✨</span><span data-i18n="hobby.other">Autre</span></button>
+        </div>
+        <input id="otherHobby" type="text" data-i18n-placeholder="profile.ph_other_hobby" placeholder="Autre hobby..." style="display:none;margin-top:10px">
+      </div>
+
+      <div class="form-group">
+        <label data-i18n="profile.label_bio">À propos de moi</label>
+        <textarea id="bio" rows="4" maxlength="300" data-i18n-placeholder="profile.ph_bio" placeholder="Présente-toi..."></textarea>
+        <span class="bio-counter"><span id="bioCounter">0</span>/300</span>
+      </div>
+
+      <div class="profile-actions">
+        <button class="btn btn-primary" style="width:100%" onclick="saveProfile()" data-i18n="profile.btn_save">💾 Enregistrer</button>
+        <button class="btn btn-secondary" style="width:100%" onclick="go('plans')" data-i18n="profile.btn_plans">💎 Voir les abonnements</button>
+        <button type="button" class="btn-danger" onclick="handleDeleteProfile()" data-i18n="profile.btn_delete">
+          🗑️ Supprimer mon profil
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Agenda personnel (privé) -->
+  <div class="card" style="margin-top:24px" id="personalAgendaBox">
+    <h3 data-i18n="profile.agenda_title">📅 Mon agenda privé AUPYGO</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="profile.agenda_note">
+      Strictement personnel. Visible uniquement par toi. Les autres membres ne voient jamais ton agenda complet.
+    </p>
+
+    <div class="notice" id="personalAgendaNotice" data-i18n-html="profile.agenda_locked">
+      ⭐ Disponible à partir du forfait <strong>STANDARD</strong>.
+    </div>
+
+    <div class="calendar" style="margin-top:15px" id="personalCalendar">
+      <div class="day"><strong data-i18n="days.mon">Lun</strong></div>
+      <div class="day"><strong data-i18n="days.tue">Mar</strong></div>
+      <div class="day"><strong data-i18n="days.wed">Mer</strong></div>
+      <div class="day"><strong data-i18n="days.thu">Jeu</strong></div>
+      <div class="day"><strong data-i18n="days.fri">Ven</strong></div>
+      <div class="day"><strong data-i18n="days.sat">Sam</strong></div>
+      <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
+
+      <div class="day">
+        <strong>—</strong>
+        <div class="agenda-event" style="opacity:.6">Tes sorties apparaîtront ici</div>
+      </div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- =========================
+     PLANS
+========================= -->
+
+<section id="plans" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="plans.title">💜 Choisis ton expérience AUPYGO</h2>
+    <p data-i18n="plans.subtitle">Commence gratuitement, débloque plus ensuite.</p>
+  </div>
+
+  <!-- Bloc inscription / connexion (remplace l'ancien mode test) -->
+  <div class="card auth-card" id="authCard">
+
+    <div id="authLoggedOut">
+
+      <div class="auth-tabs">
+        <button type="button" class="btn btn-primary" id="tabSignup" onclick="switchAuthTab('signup')" data-i18n="plans.tab_signup">Inscription</button>
+        <button type="button" class="btn btn-secondary" id="tabLogin" onclick="switchAuthTab('login')" data-i18n="plans.tab_login">Connexion</button>
+      </div>
+
+      <div id="signupForm">
+
+        <div class="form-group">
+          <label data-i18n="plans.label_email">Adresse email</label>
+          <input id="signupEmail" type="email" placeholder="toi@email.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label data-i18n="plans.label_password">Mot de passe</label>
+          <input id="signupPassword" type="password" data-i18n-placeholder="plans.ph_password_min" placeholder="6 caractères minimum" autocomplete="new-password">
+        </div>
+
+        <button class="btn btn-primary" style="width:100%" onclick="handleSignup()" data-i18n="plans.btn_create_account">Créer mon compte</button>
+
+        <div id="signupPendingNotice" class="notice warning" style="display:none;margin-top:14px" data-i18n-html="plans.pending_notice">
+          📧 <strong>Vérifie ta boîte mail !</strong><br>
+          Pour continuer, merci de valider ton adresse email afin de confirmer ton inscription.
+        </div>
+
+      </div>
+
+      <div id="loginForm" style="display:none">
+
+        <div class="form-group">
+          <label data-i18n="plans.label_email">Adresse email</label>
+          <input id="loginEmail" type="email" placeholder="toi@email.com" autocomplete="email">
+        </div>
+
+        <div class="form-group">
+          <label data-i18n="plans.label_password">Mot de passe</label>
+          <input id="loginPassword" type="password" data-i18n-placeholder="plans.ph_password" placeholder="Ton mot de passe" autocomplete="current-password">
+        </div>
+
+        <button class="btn btn-primary" style="width:100%" onclick="handleLogin()" data-i18n="plans.btn_login">Se connecter</button>
+
+      </div>
+
+      <!-- Un seul Turnstile partagé (toujours visible) -->
+      <div class="form-group" style="margin-top:16px">
+        <div id="turnstileContainer"
+             class="cf-turnstile"
+             data-sitekey="0x4AAAAAAEl5_H-ALybBhria"
+             data-callback="onTurnstileVerified"
+             data-expired-callback="onTurnstileExpired">
+        </div>
+      </div>
+
+    </div>
+
+    <div id="authLoggedIn" style="display:none">
+
+      <p class="auth-status">
+        ✅ <span data-i18n="plans.logged_in_as">Connecté en tant que</span> <strong id="authUserEmail"></strong>
+      </p>
+
+      <button class="btn btn-secondary" style="width:100%;margin-top:10px" onclick="handleLogout()" data-i18n="plans.btn_logout">
+        Se déconnecter
+      </button>
+
+    </div>
+
+  </div>
+
+  <div class="plans">
+
+    <!-- FREE -->
+
+    <div class="plan" id="plan-FREE">
+
+      <div class="active-badge" id="badge-FREE" style="display:none" data-i18n="plans.active_badge">ACTIF</div>
+
+      <span class="badge">FREE</span>
+
+      <h2 style="margin:10px 0 0" data-i18n="plans.free_name">Découverte</h2>
+
+      <div class="price">0 €</div>
+
+      <ul>
+        <li data-i18n="plans.free_f1">Communauté autour de toi</li>
+        <li data-i18n="plans.free_f2">Carte locale</li>
+        <li data-i18n="plans.free_f3">Créer un profil</li>
+        <li data-i18n="plans.free_f4">Voir les sorties</li>
+      </ul>
+
+      <button class="btn btn-secondary" onclick="selectPlan('FREE')" data-i18n="plans.free_btn">Continuer gratuitement</button>
+
+    </div>
+
+
+    <!-- STANDARD -->
+
+    <div class="plan featured" id="plan-STANDARD">
+
+      <div class="active-badge" id="badge-STANDARD" style="display:none" data-i18n="plans.active_badge">ACTIF</div>
+
+      <span class="badge">STANDARD</span>
+
+      <h2 style="margin:10px 0 0" data-i18n="plans.standard_name">Standard</h2>
+
+      <div class="price">9,90 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+
+      <ul>
+        <li data-i18n="plans.standard_f1">Tout FREE</li>
+        <li data-i18n="plans.standard_f2">Carte régionale élargie</li>
+        <li data-i18n="plans.standard_f3">Agenda AUPYGO</li>
+        <li data-i18n="plans.standard_f4">Lieux & participation aux sorties</li>
+        <li data-i18n="plans.standard_f5">Notifications</li>
+      </ul>
+
+      <button class="btn btn-primary" onclick="selectPlan('STANDARD')" data-i18n="plans.standard_btn">Choisir STANDARD</button>
+
+    </div>
+
+
+    <!-- PREMIUM -->
+
+    <div class="plan" id="plan-PREMIUM">
+
+      <div class="active-badge" id="badge-PREMIUM" style="display:none" data-i18n="plans.active_badge">ACTIF</div>
+
+      <span class="badge">PREMIUM</span>
+
+      <h2 style="margin:10px 0 0" data-i18n="plans.premium_name">Premium</h2>
+
+      <div class="price">12,85 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+
+      <ul>
+        <li data-i18n="plans.premium_f1">Tout STANDARD</li>
+        <li data-i18n="plans.premium_f2">Carte mondiale</li>
+        <li data-i18n="plans.premium_f3">Messages privés</li>
+        <li data-i18n="plans.premium_f4">Communication mondiale</li>
+        <li data-i18n="plans.premium_f5">Fonctions exclusives</li>
+      </ul>
+
+      <button class="btn btn-primary" onclick="selectPlan('PREMIUM')" data-i18n="plans.premium_btn">Choisir PREMIUM</button>
+
+    </div>
+
+  </div>
+
+</section>
+
+</main>
+
+
+<!-- =========================
+     FOOTER
+========================= -->
+
+<footer>
+
+  <div class="footer-inner" style="margin-bottom:28px;">
+    <div>
+      <div class="logo-aupygo" style="font-size:22px">
+        <span class="logo-a">A</span>
+        <span class="logo-u">U</span>
+        <span class="logo-p">P</span>
+        <span class="logo-y">Y</span>
+        <span class="logo-g">G</span>
+        <span class="logo-o">O</span>
+        <div class="location-pin"></div>
+      </div>
+      <p class="footer-muted" data-i18n="footer.tagline">Meet. Go out. Make friends.</p>
+      <p class="footer-muted" data-i18n="footer.tagline2">No personal photos · Privacy first · Real-life connections</p>
+    </div>
+    <div>
+      <strong style="font-size:14px">AUPYGO</strong>
+      <p class="footer-muted" data-i18n="footer.for_aupairs">For au pairs, by au pairs.</p>
+    </div>
+  </div>
+
+  <!-- Contenu déroulant (un seul à la fois) -->
+  <div id="faqBox" class="footer-content" data-i18n-html="footer.faq_content">
+    <p><strong>AUPYGO est-il gratuit ?</strong><br>
+    Oui, une formule FREE est disponible. Des formules payantes débloquent plus de fonctionnalités.</p>
+    <p><strong>Les photos sont-elles visibles ?</strong><br>
+    Non. Tous les profils utilisent uniquement des avatars universels.</p>
+    <p><strong>Ma position GPS est-elle affichée ?</strong><br>
+    Non. Seules des positions approximatives sont visibles. Aucune position exacte n’est partagée.</p>
+  </div>
+
+  <div id="contactBox" class="footer-content" data-i18n-html="footer.contact_content">
+    <p>Une question ou une suggestion ? Écrivez-nous :</p>
+    <p><a href="mailto:contact@aupygo.com?subject=Contact AUPYGO">contact@aupygo.com</a></p>
+  </div>
+
+  <div id="cguBox" class="footer-content" data-i18n-html="footer.cgu_content">
+    <p><strong>Conditions d’utilisation</strong></p>
+    <p>L’inscription est réservée aux personnes âgées de 18 ans ou plus. Conformément aux directives au pair et au code pénal du pays d’accueil, seuls les majeurs légaux peuvent utiliser AUPYGO.</p>
+    <p>AUPYGO n’est pas une application de rencontre amoureuse.</p>
+    <p>La plateforme a pour objectif de permettre aux au pairs de créer des liens amicaux, participer à des activités, découvrir leur région et rencontrer d’autres membres de la communauté dans un cadre social et convivial.</p>
+    <p>En utilisant AUPYGO, vous vous engagez à respecter les autres membres, à fournir des informations exactes et à ne publier aucun contenu illégal ou offensant.</p>
+    <p>Les rencontres organisées via AUPYGO restent sous la responsabilité des participants.</p>
+  </div>
+
+  <div id="privacyBox" class="footer-content" data-i18n-html="footer.privacy_content">
+    <p><strong>Politique de confidentialité</strong></p>
+    <p>AUPYGO collecte uniquement les informations nécessaires au fonctionnement du service : email, prénom, âge, pays et position approximative.</p>
+    <p>Aucune position GPS exacte n’est affichée aux autres utilisateurs. Aucune photo personnelle n’est stockée ni affichée.</p>
+  </div>
+
+  <div id="legalBox" class="footer-content" data-i18n-html="footer.legal_content">
+    <p><strong>Mentions légales</strong></p>
+    <p>Éditeur : AUPYGO</p>
+    <p>Contact : <a href="mailto:contact@aupygo.com">contact@aupygo.com</a></p>
+    <p>Hébergement : Cloudflare</p>
+  </div>
+
+  <!-- Liens tout en bas, simples et discrets -->
+  <div class="footer-links">
+    <button type="button" onclick="toggleFooter('faqBox')" data-i18n="footer.link_faq">FAQ</button>
+    <button type="button" onclick="toggleFooter('contactBox')" data-i18n="footer.link_contact">Contact</button>
+    <button type="button" onclick="toggleFooter('cguBox')" data-i18n="footer.link_terms">Conditions d’utilisation</button>
+    <button type="button" onclick="toggleFooter('privacyBox')" data-i18n="footer.link_privacy">Confidentialité</button>
+    <button type="button" onclick="toggleFooter('legalBox')" data-i18n="footer.link_legal">Mentions légales</button>
+  </div>
+
+  <div style="text-align:center;font-size:12px;color:#8b8199;margin-top:8px;" data-i18n="footer.copyright">
+    © 2026 AUPYGO — Tous droits réservés
+  </div>
+
+</footer>
+
+
+<!-- Modal fiche membre (clic avatar carte) -->
+<div class="member-modal-overlay" id="memberModalOverlay" onclick="if(event.target===this)closeMemberProfile()">
+  <div class="member-modal" id="memberModal" role="dialog" aria-modal="true"></div>
+</div>
+
+<!-- Consentement géolocalisation (~1 km) -->
+<div class="geo-consent-overlay" id="geoConsentOverlay" onclick="if(event.target===this)declineGeoConsent()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="geoConsentTitle">
+    <div class="geo-consent-icon">📍</div>
+    <h3 id="geoConsentTitle">Activer la géolocalisation ?</h3>
+    <p>
+      Pour te montrer les AUPYGO près de toi, AUPYGO a besoin d’une
+      <strong>position approximative</strong> (jamais exacte).
+    </p>
+    <div class="geo-privacy-box">
+      🔒 <strong>Privacy first</strong><br>
+      • Précision limitée à environ <strong>1 km</strong><br>
+      • Ton emplacement exact n’est jamais affiché ni partagé<br>
+      • Tu peux refuser à tout moment
+    </div>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="acceptGeoConsent()">
+        ✅ Oui, activer (~1 km)
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="declineGeoConsent()">
+        Non merci
+      </button>
+      <button type="button" class="geo-consent-decline" onclick="declineGeoConsent()">
+        Continuer sans position
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Avertissement inactivité (40 min → déconnexion auto à 45 min) -->
+<div class="geo-consent-overlay" id="idleWarningOverlay" onclick="if(event.target===this)stayActive()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="idleWarningTitle">
+    <div class="geo-consent-icon">⏰</div>
+    <h3 id="idleWarningTitle" data-i18n="idle.title">Toujours là ?</h3>
+    <p data-i18n="idle.message">
+      Sans activité de ta part, tu seras déconnecté automatiquement dans 5 minutes pour protéger ta session.
+    </p>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="stayActive()" data-i18n="idle.stay">
+        ✅ Je suis encore là
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="handleLogout('manual')" data-i18n="idle.logout">
+        Se déconnecter maintenant
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="config.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
