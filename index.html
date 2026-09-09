@@ -2831,6 +2831,25 @@ footer {
   </div>
 </div>
 
+<!-- Avertissement inactivité (40 min → déconnexion auto à 45 min) -->
+<div class="geo-consent-overlay" id="idleWarningOverlay" onclick="if(event.target===this)stayActive()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="idleWarningTitle">
+    <div class="geo-consent-icon">⏰</div>
+    <h3 id="idleWarningTitle" data-i18n="idle.title">Toujours là ?</h3>
+    <p data-i18n="idle.message">
+      Sans activité de ta part, tu seras déconnecté automatiquement dans 5 minutes pour protéger ta session.
+    </p>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="stayActive()" data-i18n="idle.stay">
+        ✅ Je suis encore là
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="handleLogout('manual')" data-i18n="idle.logout">
+        Se déconnecter maintenant
+      </button>
+    </div>
+  </div>
+</div>
+
 <div class="toast-container" id="toastContainer"></div>
 
 
@@ -2879,9 +2898,18 @@ const I18N = {
     "map.notice_free":"📍 Découvre les AUPYGO <strong>autour de toi</strong> (position approximative uniquement).",
     "map.notice_standard":"🗺️ Explore ta <strong>région</strong> et au-delà.",
     "map.notice_premium":"🌍 Carte <strong>mondiale</strong> débloquée.",
+    "map.notice_guest":"🌍 <strong>Aperçu mondial</strong> — vois la communauté AUPYGO. <a href=\"#\" onclick=\"go('plans');return false;\">Inscris-toi</a> pour interagir et voir qui est près de toi.",
+    "map.login_required":"🔒 Connecte-toi ou inscris-toi pour utiliser cette fonction",
     "map.privacy_notice":"🔒 <strong>Privacy :</strong> position approximative uniquement (~1 km).<br>Ton emplacement exact n’est jamais affiché ni partagé avec les autres.",
     "map.region_locked":"Disponible avec STANDARD",
     "map.world_locked":"Disponible avec PREMIUM",
+
+    "idle.title":"Toujours là ?",
+    "idle.message":"Sans activité de ta part, tu seras déconnecté automatiquement dans 5 minutes pour protéger ta session.",
+    "idle.stay":"✅ Je suis encore là",
+    "idle.logout":"Se déconnecter maintenant",
+    "idle.stayed":"Parfait, ta session reste active",
+    "toast.idle_logged_out":"Déconnecté automatiquement après 45 min d’inactivité",
 
     "events.title":"🎉 Sorties & événements",
     "events.subtitle":"Des activités pour la communauté des au pairs.",
@@ -3069,9 +3097,18 @@ const I18N = {
     "map.notice_free":"📍 Discover AUPYGOs <strong>around you</strong> (approximate location only).",
     "map.notice_standard":"🗺️ Explore your <strong>region</strong> and beyond.",
     "map.notice_premium":"🌍 <strong>Worldwide</strong> map unlocked.",
+    "map.notice_guest":"🌍 <strong>Worldwide preview</strong> — see the AUPYGO community. <a href=\"#\" onclick=\"go('plans');return false;\">Sign up</a> to interact and see who's near you.",
+    "map.login_required":"🔒 Log in or sign up to use this feature",
     "map.privacy_notice":"🔒 <strong>Privacy:</strong> approximate location only (~1 km).<br>Your exact location is never shown or shared with others.",
     "map.region_locked":"Available with STANDARD",
     "map.world_locked":"Available with PREMIUM",
+
+    "idle.title":"Still there?",
+    "idle.message":"Without activity from you, you will be logged out automatically in 5 minutes to protect your session.",
+    "idle.stay":"✅ I'm still here",
+    "idle.logout":"Log out now",
+    "idle.stayed":"Great, your session stays active",
+    "toast.idle_logged_out":"Logged out automatically after 45 min of inactivity",
 
     "events.title":"🎉 Meetups & events",
     "events.subtitle":"Activities for the au pair community.",
@@ -3259,9 +3296,18 @@ const I18N = {
     "map.notice_free":"📍 Descubre AUPYGOs <strong>cerca de ti</strong> (solo ubicación aproximada).",
     "map.notice_standard":"🗺️ Explora tu <strong>región</strong> y más allá.",
     "map.notice_premium":"🌍 Mapa <strong>mundial</strong> desbloqueado.",
+    "map.notice_guest":"🌍 <strong>Vista mundial</strong> — mira la comunidad AUPYGO. <a href=\"#\" onclick=\"go('plans');return false;\">Regístrate</a> para interactuar y ver quién está cerca de ti.",
+    "map.login_required":"🔒 Inicia sesión o regístrate para usar esta función",
     "map.privacy_notice":"🔒 <strong>Privacidad:</strong> solo ubicación aproximada (~1 km).<br>Tu ubicación exacta nunca se muestra ni se comparte con los demás.",
     "map.region_locked":"Disponible con STANDARD",
     "map.world_locked":"Disponible con PREMIUM",
+
+    "idle.title":"¿Sigues ahí?",
+    "idle.message":"Sin actividad de tu parte, se cerrará la sesión automáticamente en 5 minutos para proteger tu cuenta.",
+    "idle.stay":"✅ Sigo aquí",
+    "idle.logout":"Cerrar sesión ahora",
+    "idle.stayed":"Perfecto, tu sesión sigue activa",
+    "toast.idle_logged_out":"Sesión cerrada automáticamente tras 45 min de inactividad",
 
     "events.title":"🎉 Planes y eventos",
     "events.subtitle":"Actividades para la comunidad de au pairs.",
@@ -3641,6 +3687,8 @@ function declineGeoConsent() {
 }
 
 function onMapClickForGeo() {
+  // Invité : pas de géoloc, juste l’aperçu mondial
+  if (!currentUser) return;
   // Au clic sur la carte : proposer le consentement si pas encore de géoloc
   if (!userLocation.hasRealGeo) {
     showGeoConsent();
@@ -3895,15 +3943,28 @@ function updateOnlineCount() {
   el.textContent = String(n);
 }
 
-async function handleLogout() {
+let isLocalLogout = false;
 
+async function handleLogout(reason) {
+
+  stopIdleWatch();
   await setOnlineStatus(false);
-  await supabaseClient.auth.signOut();
 
+  // Marque une déconnexion locale pour éviter le double toast via onAuthStateChange
+  isLocalLogout = true;
   currentUser = null;
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
   profileSaved = false;
+
+  // scope: 'global' → déconnecte la session sur TOUS les appareils / onglets
+  try {
+    await supabaseClient.auth.signOut({ scope: 'global' });
+  } catch (e) {
+    try { await supabaseClient.auth.signOut(); } catch (e2) {}
+  }
+  isLocalLogout = false;
+
   unlockIdentityFields();
 
   // Nettoyage de l'UI profil
@@ -3931,7 +3992,16 @@ async function handleLogout() {
   updatePlanUI();
   await refreshAuthUI();
 
-  showToast(t('toast.logged_out'));
+  if (reason === 'idle') {
+    showToast(t('toast.idle_logged_out'), 'error');
+  } else {
+    showToast(t('toast.logged_out'));
+  }
+  go('home');
+  if (map) {
+    applyMapRestrictions();
+    renderMarkers();
+  }
 }
 
 
@@ -4086,6 +4156,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
 
       // Marque le profil comme en ligne (vert sur la carte)
       setOnlineStatus(true);
+      startIdleWatch();
     }
 
   } else {
@@ -4104,7 +4175,9 @@ async function refreshAuthUI(redirectPage = 'profile') {
 ========================= */
 
 // Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
-const RESTRICTED_NAV_PAGES = ['map','events','reconnect','messages','profile'];
+// Invité : Accueil + Carte (aperçu mondial) + Abonnement uniquement
+const RESTRICTED_NAV_PAGES = ['events','reconnect','messages','profile'];
+const GUEST_ALLOWED_PAGES = ['home','map','plans'];
 
 function getActivePage() {
   const activePage = document.querySelector('.page.active');
@@ -4119,11 +4192,14 @@ function updateNavVisibility() {
 
     if (RESTRICTED_NAV_PAGES.includes(page)) {
       b.style.display = currentUser ? 'flex' : 'none';
+    } else {
+      // home, map, plans : toujours visibles (même non connecté)
+      b.style.display = 'flex';
     }
 
   });
 
-  // Si on est sur une page qui vient d'être verrouillée (ex: déconnexion), retour à l'accueil
+  // Si on est sur une page réservée et qu'on n'est plus connecté → accueil
   if (!currentUser && RESTRICTED_NAV_PAGES.includes(getActivePage())) {
     go('home');
   }
@@ -4317,9 +4393,34 @@ function applyMapRestrictions() {
     if (b) b.classList.remove('active');
   });
 
+  // ——— Visiteur non connecté : aperçu carte mondiale (lecture seule) ———
+  if (!currentUser) {
+    if (mapNotice) {
+      mapNotice.innerHTML = t('map.notice_guest');
+    }
+    if (btnAround) {
+      btnAround.disabled = true;
+      btnAround.title = t('map.login_required');
+    }
+    if (btnRegion) {
+      btnRegion.disabled = true;
+      btnRegion.title = t('map.login_required');
+    }
+    if (btnWorld) {
+      btnWorld.disabled = false;
+      btnWorld.classList.add('active');
+      btnWorld.title = '';
+    }
+    map.setMaxBounds(null);
+    map.setMinZoom(2);
+    map.setMaxZoom(12);
+    map.setView([20, 0], 2);
+    return;
+  }
+
   if(currentPlan === 'FREE') {
 
-    mapNotice.innerHTML = t('map.notice_free');
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_free');
 
     btnAround.disabled = false;
     btnAround.classList.add('active');
@@ -4334,7 +4435,7 @@ function applyMapRestrictions() {
   }
   else if(currentPlan === 'STANDARD') {
 
-    mapNotice.innerHTML = t('map.notice_standard');
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_standard');
 
     btnAround.disabled = false;
     btnAround.title = '';
@@ -4349,7 +4450,7 @@ function applyMapRestrictions() {
   }
   else {
 
-    mapNotice.innerHTML = t('map.notice_premium');
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_premium');
 
     btnAround.disabled = false;
     btnAround.title = '';
@@ -4480,9 +4581,13 @@ function go(page) {
   if (page === 'map' && map) {
     setTimeout(() => {
       map.invalidateSize();
-      applyMapRestrictions();
-      renderMarkers(); // filtre selon forfait + position
-      map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+      applyMapRestrictions(); // invité → vue monde ; connecté → selon forfait
+      renderMarkers();
+      if (!currentUser) {
+        map.setView([20, 0], 2);
+      } else {
+        map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+      }
     }, 200);
   }
 
@@ -4591,7 +4696,9 @@ function renderMarkers() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
 
-  const maxKm = RADIUS[currentPlan]; // null = PREMIUM = tout
+  // Invité / PREMIUM : pas de limite de distance → vue mondiale
+  // Connecté FREE/STANDARD : filtre selon RADIUS
+  const maxKm = (!currentUser) ? null : RADIUS[currentPlan];
   const list = Array.isArray(profiles) ? profiles.slice() : [];
 
   // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
@@ -4615,6 +4722,7 @@ function renderMarkers() {
     const isMe = currentUser && member.id === currentUser.id;
 
     // Filtre distance : toujours afficher mon avatar ; les autres selon forfait
+    // Invité : aucun filtre (aperçu mondial)
     if (!isMe && maxKm != null) {
       const d = distanceKm(
         userLocation.lat, userLocation.lng,
@@ -4638,6 +4746,11 @@ function renderMarkers() {
     );
 
     m.on('click', () => {
+      if (!currentUser) {
+        showToast(t('map.login_required'), 'error');
+        go('plans');
+        return;
+      }
       if (isMe) {
         showToast('📍 C’est toi (position approx. ~1 km)', 'success');
         return;
@@ -4823,6 +4936,22 @@ function resetMap() {
 
 
 function mapMode(mode, btn) {
+
+  // Invité : uniquement vue Monde (aperçu)
+  if (!currentUser) {
+    if (mode !== 'world') {
+      showToast(t('map.login_required'), 'error');
+      go('plans');
+      return;
+    }
+    document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (map) {
+      map.setView([20, 0], 2);
+      renderMarkers();
+    }
+    return;
+  }
 
   if (currentPlan === 'FREE' && mode !== 'around') {
     showToast(t('toast.map_region_locked'), 'error');
@@ -5501,8 +5630,119 @@ function changeLanguage(lang) {
   if (!I18N[lang]) return;
   currentLang = lang;
   localStorage.setItem('aupygo_lang', lang);
-  document.getElementById('language').value = lang;
+  const sel = document.getElementById('language');
+  if (sel) sel.value = lang;
   applyTranslations();
+  // Met à jour les zones dynamiques non marquées data-i18n
+  if (typeof updateOnlineCount === 'function') updateOnlineCount();
+  if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+}
+
+
+/* =========================
+   INACTIVITÉ (45 min → déconnexion auto)
+   Avertissement à 40 min
+========================= */
+
+const IDLE_WARN_MS = 40 * 60 * 1000;   // 40 minutes
+const IDLE_LOGOUT_MS = 45 * 60 * 1000; // 45 minutes
+let lastActivityAt = Date.now();
+let idleWarnTimer = null;
+let idleLogoutTimer = null;
+let idleCheckInterval = null;
+let idleWarningShown = false;
+
+function markActivity() {
+  if (!currentUser) return;
+  lastActivityAt = Date.now();
+  if (idleWarningShown) {
+    closeIdleWarning();
+  }
+  scheduleIdleTimers();
+}
+
+function scheduleIdleTimers() {
+  clearTimeout(idleWarnTimer);
+  clearTimeout(idleLogoutTimer);
+  if (!currentUser) return;
+
+  const elapsed = Date.now() - lastActivityAt;
+  const warnIn = Math.max(0, IDLE_WARN_MS - elapsed);
+  const logoutIn = Math.max(0, IDLE_LOGOUT_MS - elapsed);
+
+  idleWarnTimer = setTimeout(() => {
+    if (!currentUser) return;
+    showIdleWarning();
+  }, warnIn);
+
+  idleLogoutTimer = setTimeout(() => {
+    if (!currentUser) return;
+    closeIdleWarning();
+    handleLogout('idle');
+  }, logoutIn);
+}
+
+function showIdleWarning() {
+  if (!currentUser || idleWarningShown) return;
+  idleWarningShown = true;
+  const overlay = document.getElementById('idleWarningOverlay');
+  if (overlay) {
+    // Applique la langue courante sur le modal
+    const title = overlay.querySelector('#idleWarningTitle');
+    const msg = overlay.querySelector('p');
+    const stayBtn = overlay.querySelector('.btn-primary');
+    const logoutBtn = overlay.querySelector('.btn-secondary');
+    if (title) title.textContent = t('idle.title');
+    if (msg) msg.textContent = t('idle.message');
+    if (stayBtn) stayBtn.textContent = t('idle.stay');
+    if (logoutBtn) logoutBtn.textContent = t('idle.logout');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeIdleWarning() {
+  idleWarningShown = false;
+  const overlay = document.getElementById('idleWarningOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function stayActive() {
+  closeIdleWarning();
+  markActivity();
+  showToast(t('idle.stayed'), 'success');
+}
+
+function startIdleWatch() {
+  stopIdleWatch();
+  if (!currentUser) return;
+  lastActivityAt = Date.now();
+  idleWarningShown = false;
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach(ev => window.addEventListener(ev, markActivity, { passive: true }));
+  scheduleIdleTimers();
+  // Contrôle de secours toutes les 30 s
+  idleCheckInterval = setInterval(() => {
+    if (!currentUser) return;
+    const elapsed = Date.now() - lastActivityAt;
+    if (elapsed >= IDLE_LOGOUT_MS) {
+      closeIdleWarning();
+      handleLogout('idle');
+    } else if (elapsed >= IDLE_WARN_MS && !idleWarningShown) {
+      showIdleWarning();
+    }
+  }, 30000);
+}
+
+function stopIdleWatch() {
+  clearTimeout(idleWarnTimer);
+  clearTimeout(idleLogoutTimer);
+  clearInterval(idleCheckInterval);
+  idleWarnTimer = idleLogoutTimer = idleCheckInterval = null;
+  closeIdleWarning();
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach(ev => window.removeEventListener(ev, markActivity));
 }
 
 
@@ -5577,9 +5817,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   updateNavVisibility();
   await refreshAuthUI();
 
-  // Si déjà connecté au chargement → statut en ligne + heartbeat
+  // Si déjà connecté au chargement → statut en ligne + heartbeat + watch inactivité
   if (currentUser) {
     setOnlineStatus(true);
+    startIdleWatch();
   }
 
   // Rafraîchit les profils (couleurs vert/rouge) toutes les 60 s
@@ -5588,13 +5829,48 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (currentUser) setOnlineStatus(true);
   }, 60000);
 
-  // Garde l'UI de connexion synchronisée (autre onglet, confirmation d'email, expiration de session, etc.)
-  // C'est le SEUL endroit qui décide de la redirection après connexion,
-  // pour éviter tout conflit avec un appel direct depuis handleLogin/handleSignup.
-  supabaseClient.auth.onAuthStateChange((_event, _session) => {
-    const redirectPage = authIntent === 'login' ? 'home' : 'profile';
+  // Synchronisation multi-onglets / multi-appareils
+  // SIGNED_OUT (ex. déconnexion sur un autre appareil avec scope global) → UI locale nettoyée partout
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      // Déjà géré par handleLogout local → ne pas double-nettoyer / double-toast
+      if (isLocalLogout) return;
+
+      const wasLoggedIn = !!currentUser;
+      authIntent = null;
+      currentUser = null;
+      currentPlan = 'FREE';
+      localStorage.removeItem('aupygo_plan');
+      profileSaved = false;
+      stopIdleWatch();
+      unlockIdentityFields();
+      updatePlanUI();
+      updateNavVisibility();
+      if (typeof applyMapRestrictions === 'function') applyMapRestrictions();
+      if (typeof renderMarkers === 'function') renderMarkers();
+      refreshAuthUI('home');
+      // Déconnexion depuis un autre appareil / onglet
+      if (wasLoggedIn) {
+        showToast(t('toast.logged_out'));
+        if (getActivePage() !== 'home' && getActivePage() !== 'plans' && getActivePage() !== 'map') {
+          go('home');
+        }
+      }
+      return;
+    }
+
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      const redirectPage = authIntent === 'login' ? 'home' : (authIntent === 'signup' ? 'profile' : getActivePage());
+      authIntent = null;
+      refreshAuthUI(redirectPage).then(() => {
+        if (currentUser) startIdleWatch();
+      });
+      return;
+    }
+
+    // Autres événements : rafraîchir sans redirection forcée
     authIntent = null;
-    refreshAuthUI(redirectPage);
+    refreshAuthUI(getActivePage());
   });
 
   // Entrée = clique sur le bouton correspondant
