@@ -46,8 +46,9 @@
         <span class="icon">🎉</span>
       </button>
 
-      <button onclick="go('reconnect')" data-nav="reconnect" data-i18n-title="nav.reconnect" data-i18n-aria="nav.reconnect" title="Se retrouver" aria-label="Se retrouver">
+      <button onclick="go('reconnect')" data-nav="reconnect" id="navFriends" data-i18n-title="nav.reconnect" data-i18n-aria="nav.reconnect" title="AupyGo Friend’s" aria-label="AupyGo Friend’s">
         <span class="icon">🤝</span>
+        <span class="friends-badge" id="friendsBadge">0</span>
       </button>
 
       <button onclick="go('messages')" data-nav="messages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
@@ -469,7 +470,7 @@
 <section id="reconnect" class="page">
 
   <div class="section-title">
-    <h2 data-i18n="reconnect.title">🤝 Se retrouver</h2>
+    <h2 data-i18n="reconnect.title">🤝📍 AupyGo Friend’s</h2>
     <p data-i18n="reconnect.subtitle">Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
   </div>
 
@@ -491,13 +492,25 @@
     🔒 <strong>Forfait FREE</strong> : tu vois les profils de tes amis. Passe en STANDARD pour voir les sorties en commun, ou PREMIUM pour discuter.
   </div>
 
-  <div class="grid" id="friendsGrid" style="margin-top:20px">
-    <!-- Rempli dynamiquement avec les vrais amis (acceptés) depuis Supabase — plus de profils fictifs -->
+  <!-- Demandes reçues -->
+  <div class="card" style="margin-bottom:24px" id="requestsSection">
+    <h3 style="margin-bottom:12px">📥 Demandes reçues <span id="requestsCountLabel" style="font-size:14px;color:var(--muted);font-weight:500"></span></h3>
+    <div id="requestsEmpty" class="notice" style="display:none">Aucune demande en attente pour le moment.</div>
+    <div class="grid" id="requestsGrid" style="margin-top:8px"></div>
+  </div>
+
+  <div class="section-title" style="margin-top:8px">
+    <h3>💚 Amis confirmés</h3>
+    <p style="font-size:14px;color:var(--muted)">Les AUPYGO avec qui tu as une amitié validée.</p>
+  </div>
+
+  <div class="grid" id="friendsGrid" style="margin-top:12px">
+    <!-- Rempli dynamiquement — aucun profil fictif -->
     <div id="friendsEmpty" class="card" style="grid-column:1/-1;text-align:center;padding:36px 20px">
-      <div style="font-size:42px;margin-bottom:10px">🤝</div>
+      <div style="font-size:42px;margin-bottom:10px">🤝📍</div>
       <h3 style="margin:0 0 8px">Aucun ami pour le moment</h3>
       <p style="color:var(--muted);font-size:14px;max-width:420px;margin:0 auto 14px">
-        Participe à une sortie, envoie une demande d’ami depuis la carte, et ils apparaîtront ici une fois acceptés.
+        Envoie une demande d’ami depuis la carte. Quand elle est acceptée, la personne apparaît ici.
       </p>
       <button class="btn btn-primary" onclick="go('map')">🗺️ Voir la carte</button>
     </div>
