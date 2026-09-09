@@ -1116,8 +1116,6 @@ function go(page) {
 
   if (page === 'messages') {
     loadFriendsForMessaging();
-    if (typeof applyTranslations === 'function') applyTranslations();
-    if (typeof refreshMessagesStaticTexts === 'function') refreshMessagesStaticTexts();
   }
 
 }
@@ -1129,11 +1127,11 @@ function go(page) {
 
 async function loadProfiles() {
   try {
-    // Charge tous les profils visibles (RLS). Les marqueurs carte n'utilisent
-    // que ceux avec approx_lat/lng ; le compteur "connectés" utilise is_online.
+    // select('*') = compatible même si certaines colonnes (is_online, birth_year…)
+    // n'existent pas encore dans Supabase. Évite l'erreur 400.
     const { data, error } = await supabaseClient
       .from('profiles')
-      .select('id, display_name, gender, country, city, approx_lat, approx_lng, is_online, plan, bio, birth_year');
+      .select('*');
 
     if (error) {
       console.error('Erreur chargement profils:', error);
@@ -1143,9 +1141,9 @@ async function loadProfiles() {
     }
 
     profiles = data || [];
-    console.log('[AUPYGO] Profils chargés:', profiles.length,
-      '| en ligne:', profiles.filter(p => p.is_online === true).length,
-      '| avec GPS:', profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length);
+    const onlineN = profiles.filter(p => p.is_online === true || p.online === true).length;
+    const gpsN = profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length;
+    console.log('[AUPYGO] Profils chargés:', profiles.length, '| en ligne:', onlineN, '| avec GPS:', gpsN);
     updateOnlineCount();
 
     if (map && markersLayer) {
@@ -1943,51 +1941,6 @@ function paidEvent() {
    MESSAGES
 ========================= */
 
-
-/** Ré-applique les textes fixes de la messagerie (au cas où le DOM a été régénéré). */
-function refreshMessagesStaticTexts() {
-  const map = [
-    ['#conversationList .conv-sidebar-header span', 'messages.conversations'],
-    ['#conversationList .btn-create-group', 'messages.create_group'],
-    ['#convFriendsSection .conv-section-label', 'messages.friends_label'],
-    ['#convGroupsSection .conv-section-label', 'messages.groups_label'],
-    ['#sendMsgBtn', 'messages.send'],
-  ];
-  map.forEach(([sel, key]) => {
-    const el = document.querySelector(sel);
-    if (el) el.textContent = t(key);
-  });
-  const input = document.getElementById('messageInput');
-  if (input) input.placeholder = t('messages.write_placeholder') || t('messages.input_placeholder') || input.placeholder;
-
-  // Placeholder chat si aucune conversation active
-  if (!activeConversation) {
-    const header = document.getElementById('chatHeader');
-    if (header) header.textContent = t('messages.select_conversation');
-    const box = document.getElementById('chatMessages');
-    if (box && box.querySelector('.chat-placeholder')) {
-      box.innerHTML = '<div class="chat-placeholder"><div style="font-size:40px;margin-bottom:8px">💬</div><p>' +
-        (t('messages.pick_to_start') || '') + '</p></div>';
-    }
-  }
-  // Empty states amis / groupes
-  const fl = document.getElementById('convFriendsList');
-  if (fl && (!myFriends || !myFriends.length)) {
-    fl.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || '') + '</p>';
-  }
-  const gl = document.getElementById('convGroupsList');
-  if (gl && (!myGroups || !myGroups.length)) {
-    gl.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || '') + '</p>';
-  }
-  // Modal groupe
-  const modalTitle = document.querySelector('#createGroupOverlay h3');
-  if (modalTitle) modalTitle.textContent = t('messages.create_group_title');
-  const modalHint = document.querySelector('#createGroupOverlay p');
-  if (modalHint) modalHint.textContent = t('messages.create_group_hint');
-  const createBtn = document.querySelector('#createGroupOverlay .btn-primary');
-  if (createBtn) createBtn.textContent = t('messages.create_group_btn');
-}
-
 /* =========================
    MESSAGERIE (amis + groupes max 5)
 ========================= */
@@ -2201,11 +2154,9 @@ function changeLanguage(lang) {
   const sel = document.getElementById('language');
   if (sel) sel.value = lang;
   applyTranslations();
-  // Zones dynamiques
+  // Met à jour les zones dynamiques non marquées data-i18n
   if (typeof updateOnlineCount === 'function') updateOnlineCount();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
-  if (typeof refreshMessagesStaticTexts === 'function') refreshMessagesStaticTexts();
-  if (typeof updatePlanUI === 'function') updatePlanUI();
 }
 
 
