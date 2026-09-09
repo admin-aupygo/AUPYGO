@@ -1718,3 +1718,102 @@ footer {
     font-size:22px;
   }
 }
+
+
+/* =========================
+   AupyGo Friend’s — badge + pulse
+========================= */
+.friends-badge {
+  position: absolute;
+  right: -6px;
+  top: -6px;
+  background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  line-height: 1;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 999px;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.45);
+  z-index: 5;
+}
+.friends-badge.show { display: flex; }
+
+nav button.has-requests {
+  animation: friendsPulse 1.8s ease-in-out infinite;
+}
+nav button.has-requests::after {
+  content: "";
+  position: absolute;
+  inset: -3px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #3b82f6, #7c3aed, #ec4899, #3b82f6);
+  background-size: 300% 300%;
+  z-index: -1;
+  opacity: 0.55;
+  animation: gradientShift 2.4s linear infinite;
+}
+@keyframes friendsPulse {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.08); }
+}
+@keyframes gradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+.btn-accept {
+  background: #dcfce7;
+  color: #166534;
+  border: 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-accept:hover { background: #bbf7d0; transform: translateY(-1px); }
+.btn-refuse {
+  background: #fee2e2;
+  color: #991b1b;
+  border: 0;
+  padding: 12px 18px;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  font-size: 14px;
+}
+.btn-refuse:hover { background: #fecaca; transform: translateY(-1px); }
+
+.friend-request-card .status-confirmed {
+  display: none;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: #ecfdf5;
+  color: #166534;
+  border: 1px solid #bbf7d0;
+  border-radius: 12px;
+  padding: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  margin-top: 10px;
+}
+.friend-request-card.accepted .request-actions { display: none; }
+.friend-request-card.accepted .status-confirmed { display: flex; }
+.avatar-gray { filter: grayscale(1); opacity: 0.55; }
+.badge-premium {
+  display: inline-block;
+  padding: 4px 8px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+}
