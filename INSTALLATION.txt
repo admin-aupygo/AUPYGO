@@ -1,0 +1,23 @@
+AUPYGO — Comment mettre à jour le site (très simple)
+=====================================================
+
+1) Télécharge le fichier AUPYGO-A-INSTALLER.zip (fourni par Grok dans le chat)
+
+2) Dézippe-le sur ton ordinateur
+
+3) Ouvre ce lien :
+   https://github.com/admin-aupygo/AUPYGO/upload/main
+
+4) Glisse dans la page :
+   - index.html
+   - le dossier css
+   - le dossier js
+
+5) Clique le bouton vert "Commit changes"
+
+6) Attends 1-2 minutes puis regarde ton site
+
+C'est tout. Rien d'autre à faire.
+
+En cas de doute, tu peux aussi remplacer uniquement index.html
+par le fichier AUPYGO-tout-en-un.html (renomme-le en index.html).
