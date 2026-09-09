@@ -1,0 +1,60 @@
+ass="geo-consent-overlay" id="geoConsentOverlay" onclick="if(event.target===this)declineGeoConsent()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="geoConsentTitle">
+    <div class="geo-consent-icon">📍</div>
+    <h3 id="geoConsentTitle">Activer la géolocalisation ?</h3>
+    <p>
+      Pour te montrer les AUPYGO près de toi, AUPYGO a besoin d’une
+      <strong>position approximative</strong> (jamais exacte).
+    </p>
+    <div class="geo-privacy-box">
+      🔒 <strong>Privacy first</strong><br>
+      • Précision limitée à environ <strong>1 km</strong><br>
+      • Ton emplacement exact n’est jamais affiché ni partagé<br>
+      • Tu peux refuser à tout moment
+    </div>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="acceptGeoConsent()">
+        ✅ Oui, activer (~1 km)
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="declineGeoConsent()">
+        Non merci
+      </button>
+      <button type="button" class="geo-consent-decline" onclick="declineGeoConsent()">
+        Continuer sans position
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- Avertissement inactivité (40 min → déconnexion auto à 45 min) -->
+<div class="geo-consent-overlay" id="idleWarningOverlay" onclick="if(event.target===this)stayActive()">
+  <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="idleWarningTitle">
+    <div class="geo-consent-icon">⏰</div>
+    <h3 id="idleWarningTitle" data-i18n="idle.title">Toujours là ?</h3>
+    <p data-i18n="idle.message">
+      Sans activité de ta part, tu seras déconnecté automatiquement dans 5 minutes pour protéger ta session.
+    </p>
+    <div class="geo-consent-actions">
+      <button type="button" class="btn btn-primary" onclick="stayActive()" data-i18n="idle.stay">
+        ✅ Je suis encore là
+      </button>
+      <button type="button" class="btn btn-secondary" onclick="handleLogout('manual')" data-i18n="idle.logout">
+        Se déconnecter maintenant
+      </button>
+    </div>
+  </div>
+</div>
+
+<div class="toast-container" id="toastContainer"></div>
+
+
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="config.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+
+</body>
+</html>
