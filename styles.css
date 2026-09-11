@@ -1,1 +1,15 @@
-/* fixed styles - see local file */
+/* Ne PAS forcer z-index:auto sur .leaflet-pane :
+   Leaflet gère markerPane (600), overlayPane, etc. */
+.leaflet-top,
+.leaflet-bottom {
+  z-index: 500 !important;
+}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  z-index: 600 !important;
+}
+/* Reset divIcon Leaflet pour ne pas masquer nos avatars */
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
+}/* fixed styles - see local file */
