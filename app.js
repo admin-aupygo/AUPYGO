@@ -1214,28 +1214,20 @@ function getMarkerKind(member) {
 }
 
 
-/** Petit décalage stable (~40–80 m) pour séparer les avatars superposés
- *  (même zone approx. ~1 km) sans révéler la position exacte. */
-function offsetForStack(lat, lng, index, total) {
-  if (total <= 1) return [lat, lng];
-  const radius = 0.00035 + (Math.floor(index / 8) * 0.0002);
-  const angle = (2 * Math.PI * index) / Math.max(total, 1);
-  return [
-    lat + radius * Math.cos(angle),
-    lng + radius * Math.sin(angle)
-  ];
-}
-
 function renderMarkers() {
   if (!markersLayer) return;
   markersLayer.clearLayers();
 
+  // Invité / PREMIUM : pas de limite de distance → vue mondiale
+  // Connecté FREE/STANDARD : filtre selon RADIUS
   const maxKm = (!currentUser) ? null : RADIUS[currentPlan];
-  let list = (Array.isArray(profiles) ? profiles : []).filter(p =>
+  // Uniquement les profils avec position approximative pour la carte
+  const list = (Array.isArray(profiles) ? profiles : []).filter(p =>
     p && p.approx_lat != null && p.approx_lng != null &&
     !Number.isNaN(Number(p.approx_lat)) && !Number.isNaN(Number(p.approx_lng))
   );
 
+  // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
   if (currentUser && userLocation.hasRealGeo) {
     const already = list.some(p => p.id === currentUser.id);
     if (!already) {
@@ -1250,59 +1242,7 @@ function renderMarkers() {
     }
   }
 
-  list = list.filter(member => {
-    const isMe = currentUser && member.id === currentUser.id;
-    if (isMe || maxKm == null) return true;
-    const d = distanceKm(
-      userLocation.lat, userLocation.lng,
-      member.approx_lat, member.approx_lng
-    );
-    return d <= maxKm;
-  });
-
-  const groups = {};
   list.forEach(member => {
-    let lat = Number(member.approx_lat);
-    let lng = Number(member.approx_lng);
-    const isMe = currentUser && member.id === currentUser.id;
-    if (isMe && userLocation.hasRealGeo) {
-      lat = userLocation.lat;
-      lng = userLocation.lng;
-    }
-    const key = lat.toFixed(2) + ',' + lng.toFixed(2);
-    if (!groups[key]) groups[key] = [];
-    groups[key].push({ member, lat, lng, isMe });
-  });
-
-  Object.keys(groups).forEach(key => {
-    const stack = groups[key];
-    stack.sort((a, b) => (b.isMe ? 1 : 0) - (a.isMe ? 1 : 0));
-    stack.forEach((item, index) => {
-      const { member, isMe } = item;
-      const [lat, lng] = offsetForStack(item.lat, item.lng, index, stack.length);
-      const kind = getMarkerKind(member);
-      const m = L.marker(
-        [lat, lng],
-        { icon: createIcon(member.gender, kind), zIndexOffset: isMe ? 1000 : index }
-      );
-      m.on('click', () => {
-        if (!currentUser) {
-          showToast(t('map.login_required'), 'error');
-          go('plans');
-          return;
-        }
-        if (isMe) {
-          showToast('📍 C’est toi (position approx. ~1 km)', 'success');
-          return;
-        }
-        openMemberProfile(member.id);
-      });
-      markersLayer.addLayer(m);
-    });
-  });
-}
-
-  
     if (member.approx_lat == null || member.approx_lng == null) return;
 
     const isMe = currentUser && member.id === currentUser.id;
@@ -1323,11 +1263,8 @@ function renderMarkers() {
     if (isMe && userLocation.hasRealGeo) {
       lat = userLocation.lat;
       lng = userLocation.lng;
-    });
-}
+    }
 
-
-function openMemberProfile(memberId) {
     const kind = getMarkerKind(member);
     const m = L.marker(
       [lat, lng],
