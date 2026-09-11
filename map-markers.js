@@ -1,9 +1,31 @@
-/* AUPYGO — séparation des avatars superposés (même zone ~1 km) */
+/* AUPYGO map-markers.js
+ * Privacy: positions always on ~1 km grid. Never exact GPS.
+ * Overlapping users in the same cell get a small visual offset (~50–80 m)
+ * based on a hash of their id (not real relative position).
+ */
 (function () {
-  function offsetForStack(lat, lng, index, total) {
+  function privacySnap(lat, lng) {
+    return {
+      lat: Math.round(Number(lat) * 100) / 100,
+      lng: Math.round(Number(lng) * 100) / 100
+    };
+  }
+
+  function hash01(str) {
+    var h = 0;
+    var s = String(str || '');
+    for (var i = 0; i < s.length; i++) {
+      h = ((h << 5) - h) + s.charCodeAt(i);
+      h |= 0;
+    }
+    return (Math.abs(h) % 10000) / 10000;
+  }
+
+  function offsetInCell(lat, lng, id, index, total) {
     if (total <= 1) return [lat, lng];
-    var radius = 0.00035 + (Math.floor(index / 8) * 0.0002);
-    var angle = (2 * Math.PI * index) / Math.max(total, 1);
+    var base = 0.00035;
+    var radius = base + (Math.floor(index / 8) * 0.0002);
+    var angle = (2 * Math.PI * (index + hash01(id))) / Math.max(total, 1);
     return [lat + radius * Math.cos(angle), lng + radius * Math.sin(angle)];
   }
 
@@ -17,13 +39,14 @@
         !Number.isNaN(Number(p.approx_lat)) && !Number.isNaN(Number(p.approx_lng));
     });
 
-    if (currentUser && userLocation.hasRealGeo) {
+    if (currentUser && userLocation && userLocation.hasRealGeo) {
       var already = list.some(function (p) { return p.id === currentUser.id; });
       if (!already) {
+        var meSnap = privacySnap(userLocation.lat, userLocation.lng);
         list.push({
           id: currentUser.id,
-          approx_lat: userLocation.lat,
-          approx_lng: userLocation.lng,
+          approx_lat: meSnap.lat,
+          approx_lng: meSnap.lng,
           gender: typeof selectedGender !== 'undefined' ? selectedGender : null,
           display_name: ((document.getElementById('firstName') || {}).value) || 'Moi',
           is_online: true
@@ -34,21 +57,22 @@
     list = list.filter(function (member) {
       var isMe = currentUser && member.id === currentUser.id;
       if (isMe || maxKm == null) return true;
-      return distanceKm(userLocation.lat, userLocation.lng, member.approx_lat, member.approx_lng) <= maxKm;
+      return distanceKm(
+        userLocation.lat, userLocation.lng,
+        member.approx_lat, member.approx_lng
+      ) <= maxKm;
     });
 
     var groups = {};
     list.forEach(function (member) {
-      var lat = Number(member.approx_lat);
-      var lng = Number(member.approx_lng);
+      var snap = privacySnap(member.approx_lat, member.approx_lng);
       var isMe = currentUser && member.id === currentUser.id;
-      if (isMe && userLocation.hasRealGeo) {
-        lat = userLocation.lat;
-        lng = userLocation.lng;
+      if (isMe && userLocation && userLocation.hasRealGeo) {
+        snap = privacySnap(userLocation.lat, userLocation.lng);
       }
-      var key = lat.toFixed(2) + ',' + lng.toFixed(2);
+      var key = snap.lat.toFixed(2) + ',' + snap.lng.toFixed(2);
       if (!groups[key]) groups[key] = [];
-      groups[key].push({ member: member, lat: lat, lng: lng, isMe: isMe });
+      groups[key].push({ member: member, lat: snap.lat, lng: snap.lng, isMe: isMe });
     });
 
     Object.keys(groups).forEach(function (key) {
@@ -57,7 +81,7 @@
       stack.forEach(function (item, index) {
         var member = item.member;
         var isMe = item.isMe;
-        var pos = offsetForStack(item.lat, item.lng, index, stack.length);
+        var pos = offsetInCell(item.lat, item.lng, member.id, index, stack.length);
         var kind = getMarkerKind(member);
         var m = L.marker([pos[0], pos[1]], {
           icon: createIcon(member.gender, kind),
@@ -70,7 +94,7 @@
             return;
           }
           if (isMe) {
-            showToast('📍 C’est toi (position approx. ~1 km)', 'success');
+            showToast('📍 C’est toi — position approximative (~1 km), jamais exacte', 'success');
             return;
           }
           openMemberProfile(member.id);
