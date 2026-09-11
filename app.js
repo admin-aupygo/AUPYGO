@@ -1323,9 +1323,11 @@ function renderMarkers() {
     if (isMe && userLocation.hasRealGeo) {
       lat = userLocation.lat;
       lng = userLocation.lng;
-    }
-function openMemberProfile(memberId) {
+    });
+}
 
+
+function openMemberProfile(memberId) {
     const kind = getMarkerKind(member);
     const m = L.marker(
       [lat, lng],
