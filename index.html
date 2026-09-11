@@ -707,35 +707,35 @@
           <label data-i18n="profile.label_country">Pays d'origine</label>
           <input id="country" list="countries" data-i18n-placeholder="profile.ph_country" placeholder="Ton pays..." autocomplete="country-name">
           <datalist id="countries">
-            <option value="France">
-            <option value="Brésil">
-            <option value="Espagne">
-            <option value="Allemagne">
-            <option value="Royaume-Uni">
-            <option value="États-Unis">
-            <option value="Suisse">
-            <option value="Portugal">
-            <option value="Italie">
-            <option value="Japon">
-            <option value="Canada">
-            <option value="Australie">
-            <option value="Mexique">
-            <option value="Colombie">
-            <option value="Argentine">
-            <option value="Chili">
-            <option value="Pays-Bas">
-            <option value="Belgique">
-            <option value="Autriche">
-            <option value="Irlande">
-            <option value="Suède">
-            <option value="Norvège">
-            <option value="Danemark">
-            <option value="Pologne">
-            <option value="République tchèque">
-            <option value="Chine">
-            <option value="Corée du Sud">
-            <option value="Nouvelle-Zélande">
-            <option value="Afrique du Sud">
+            <option value="France"></option>
+            <option value="Brésil"></option>
+            <option value="Espagne"></option>
+            <option value="Allemagne"></option>
+            <option value="Royaume-Uni"></option>
+            <option value="États-Unis"></option>
+            <option value="Suisse"></option>
+            <option value="Portugal"></option>
+            <option value="Italie"></option>
+            <option value="Japon"></option>
+            <option value="Canada"></option>
+            <option value="Australie"></option>
+            <option value="Mexique"></option>
+            <option value="Colombie"></option>
+            <option value="Argentine"></option>
+            <option value="Chili"></option>
+            <option value="Pays-Bas"></option>
+            <option value="Belgique"></option>
+            <option value="Autriche"></option>
+            <option value="Irlande"></option>
+            <option value="Suède"></option>
+            <option value="Norvège"></option>
+            <option value="Danemark"></option>
+            <option value="Pologne"></option>
+            <option value="République tchèque"></option>
+            <option value="Chine"></option>
+            <option value="Corée du Sud"></option>
+            <option value="Nouvelle-Zélande"></option>
+            <option value="Afrique du Sud"></option>
           </datalist>
         </div>
         <div class="form-group">
@@ -1099,7 +1099,7 @@
 <div class="geo-consent-overlay" id="geoConsentOverlay" onclick="if(event.target===this)declineGeoConsent()">
   <div class="geo-consent-modal" role="dialog" aria-modal="true" aria-labelledby="geoConsentTitle">
     <div class="geo-consent-icon">📍</div>
-    <h3 id="geoConsentTitle">Activer la géolocalisation ?</h3>
+    <h3 id="geoConsentTitle" data-i18n="geo.title">Activer la géolocalisation ?</h3>
     <p>
       Pour te montrer les AUPYGO près de toi, AUPYGO a besoin d’une
       <strong>position approximative</strong> (jamais exacte).
@@ -1111,13 +1111,13 @@
       • Tu peux refuser à tout moment
     </div>
     <div class="geo-consent-actions">
-      <button type="button" class="btn btn-primary" onclick="acceptGeoConsent()">
+      <button type="button" class="btn btn-primary" onclick="acceptGeoConsent()" data-i18n="geo.accept">
         ✅ Oui, activer (~1 km)
       </button>
-      <button type="button" class="btn btn-secondary" onclick="declineGeoConsent()">
+      <button type="button" class="btn btn-secondary" onclick="declineGeoConsent()" data-i18n="geo.decline">
         Non merci
       </button>
-      <button type="button" class="geo-consent-decline" onclick="declineGeoConsent()">
+      <button type="button" class="geo-consent-decline" onclick="declineGeoConsent()" data-i18n="geo.continue">
         Continuer sans position
       </button>
     </div>
