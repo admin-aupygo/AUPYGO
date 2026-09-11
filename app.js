@@ -1324,6 +1324,7 @@ function renderMarkers() {
       lat = userLocation.lat;
       lng = userLocation.lng;
     }
+function openMemberProfile(memberId) {
 
     const kind = getMarkerKind(member);
     const m = L.marker(
