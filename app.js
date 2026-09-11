@@ -1302,31 +1302,7 @@ function renderMarkers() {
   });
 }
 
-  // Invité / PREMIUM : pas de limite de distance → vue mondiale
-  // Connecté FREE/STANDARD : filtre selon RADIUS
-  const maxKm = (!currentUser) ? null : RADIUS[currentPlan];
-  // Uniquement les profils avec position approximative pour la carte
-  const list = (Array.isArray(profiles) ? profiles : []).filter(p =>
-    p && p.approx_lat != null && p.approx_lng != null &&
-    !Number.isNaN(Number(p.approx_lat)) && !Number.isNaN(Number(p.approx_lng))
-  );
-
-  // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
-  if (currentUser && userLocation.hasRealGeo) {
-    const already = list.some(p => p.id === currentUser.id);
-    if (!already) {
-      list.push({
-        id: currentUser.id,
-        approx_lat: userLocation.lat,
-        approx_lng: userLocation.lng,
-        gender: selectedGender || null,
-        display_name: (document.getElementById('firstName') || {}).value || 'Moi',
-        is_online: true
-      });
-    }
-  }
-
-  list.forEach(member => {
+  
     if (member.approx_lat == null || member.approx_lng == null) return;
 
     const isMe = currentUser && member.id === currentUser.id;
