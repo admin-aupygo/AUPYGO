@@ -2611,7 +2611,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 
   // Applique la langue sauvegardée (ou FR par défaut) avant tout le reste
-  document.getElementById('language').value = currentLang;
+   const langEl = document.getElementById('language');
+  if (langEl) langEl.value = currentLang;
   applyTranslations();
 
   loadSavedApproxLocation(); // charge la position approximative déjà autorisée
