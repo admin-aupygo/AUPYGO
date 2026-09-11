@@ -549,10 +549,18 @@ main {
   max-height: 55vh;
 }
 
-.leaflet-pane,
+/* Leaflet panes: ne pas casser le z-index interne (marqueurs sinon invisibles) */
 .leaflet-top,
 .leaflet-bottom {
-  z-index: auto !important;
+  z-index: 500 !important;
+}
+.leaflet-marker-icon,
+.leaflet-marker-shadow {
+  z-index: 600 !important;
+}
+.leaflet-div-icon {
+  background: transparent !important;
+  border: none !important;
 }
 
 .map-privacy {
