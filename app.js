@@ -423,26 +423,43 @@ async function handleLogin() {
 }
 
 
-/** Met à jour is_online dans Supabase pour que la carte affiche vert (connecté) / rouge (hors ligne).
- *  Toi = toujours bleu côté client. Nécessite la colonne profiles.is_online (boolean). */
+/** Un membre est considéré "en ligne" si son dernier heartbeat (last_seen)
+ *  date de moins de 5 minutes. Comme le heartbeat s'arrête dès que l'onglet
+ *  se ferme (crash, perte réseau, fermeture sans clic sur "Se déconnecter"),
+ *  le statut redevient "hors ligne" tout seul après ce délai — sans dépendre
+ *  d'un simple booléen qui ne repasserait jamais à false. */
+function isRecentlyOnline(member) {
+  if (!member || !member.last_seen) return false;
+  return (Date.now() - new Date(member.last_seen).getTime()) < 5 * 60 * 1000;
+}
+
+/** Met à jour is_online + last_seen dans Supabase pour que la carte affiche
+ *  vert (connecté récemment) / rouge (hors ligne). Toi = toujours bleu côté
+ *  client. Nécessite les colonnes profiles.is_online (boolean) et
+ *  profiles.last_seen (timestamptz). */
 async function setOnlineStatus(online) {
   if (!currentUser) return;
   try {
+    const payload = { is_online: !!online };
+    if (online) payload.last_seen = new Date().toISOString();
+
     // update d'abord (profil existant) ; sinon upsert
     const { error } = await supabaseClient
       .from('profiles')
-      .update({ is_online: !!online })
+      .update(payload)
       .eq('id', currentUser.id);
     if (error) {
       await supabaseClient
         .from('profiles')
-        .upsert({ id: currentUser.id, is_online: !!online }, { onConflict: 'id' });
+        .upsert({ id: currentUser.id, ...payload }, { onConflict: 'id' });
     }
     const me = profiles.find(p => p.id === currentUser.id);
-    if (me) me.is_online = !!online;
-    else if (online) {
+    if (me) {
+      me.is_online = !!online;
+      if (online) me.last_seen = payload.last_seen;
+    } else if (online) {
       // garantit que le compteur inclut l'utilisateur courant même sans GPS encore
-      profiles.push({ id: currentUser.id, is_online: true });
+      profiles.push({ id: currentUser.id, is_online: true, last_seen: payload.last_seen });
     }
     if (map) renderMarkers();
     updateOnlineCount();
@@ -454,7 +471,7 @@ async function setOnlineStatus(online) {
 function updateOnlineCount() {
   const el = document.getElementById('onlineCount');
   if (!el) return;
-  const n = (profiles || []).filter(p => p.is_online === true || p.online === true).length;
+  const n = (profiles || []).filter(isRecentlyOnline).length;
   el.textContent = String(n);
 }
 
@@ -1146,7 +1163,7 @@ async function loadProfiles() {
     }
 
     profiles = data || [];
-    const onlineN = profiles.filter(p => p.is_online === true || p.online === true).length;
+    const onlineN = profiles.filter(isRecentlyOnline).length;
     const gpsN = profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length;
     console.log('[AUPYGO] Profils chargés:', profiles.length, '| en ligne:', onlineN, '| avec GPS:', gpsN);
     updateOnlineCount();
@@ -1205,87 +1222,19 @@ function createIcon(gender, kind) {
   });
 }
 
-/** Statut en ligne : champ optionnel is_online / online, sinon hors ligne.
+/** Statut en ligne : basé sur la fraîcheur de last_seen (voir isRecentlyOnline).
  *  Toi-même = toujours « me » (bleu), indépendamment du statut. */
 function getMarkerKind(member) {
   if (currentUser && member.id === currentUser.id) return 'me';
-  const online = member.is_online === true || member.online === true;
-  return online ? 'online' : 'offline';
+  return isRecentlyOnline(member) ? 'online' : 'offline';
 }
 
-
-function renderMarkers() {
-  if (!markersLayer) return;
-  markersLayer.clearLayers();
-
-  // Invité / PREMIUM : pas de limite de distance → vue mondiale
-  // Connecté FREE/STANDARD : filtre selon RADIUS
-  const maxKm = (!currentUser) ? null : RADIUS[currentPlan];
-  // Uniquement les profils avec position approximative pour la carte
-  const list = (Array.isArray(profiles) ? profiles : []).filter(p =>
-    p && p.approx_lat != null && p.approx_lng != null &&
-    !Number.isNaN(Number(p.approx_lat)) && !Number.isNaN(Number(p.approx_lng))
-  );
-
-  // Si connecté + position connue, s'assurer que mon profil apparaît (même si pas encore en base)
-  if (currentUser && userLocation.hasRealGeo) {
-    const already = list.some(p => p.id === currentUser.id);
-    if (!already) {
-      list.push({
-        id: currentUser.id,
-        approx_lat: userLocation.lat,
-        approx_lng: userLocation.lng,
-        gender: selectedGender || null,
-        display_name: (document.getElementById('firstName') || {}).value || 'Moi',
-        is_online: true
-      });
-    }
-  }
-
-  list.forEach(member => {
-    if (member.approx_lat == null || member.approx_lng == null) return;
-
-    const isMe = currentUser && member.id === currentUser.id;
-
-    // Filtre distance : toujours afficher mon avatar ; les autres selon forfait
-    // Invité : aucun filtre (aperçu mondial)
-    if (!isMe && maxKm != null) {
-      const d = distanceKm(
-        userLocation.lat, userLocation.lng,
-        member.approx_lat, member.approx_lng
-      );
-      if (d > maxKm) return;
-    }
-
-    // Si c'est moi et que j'ai une position locale plus fraîche, l'utiliser
-    let lat = member.approx_lat;
-    let lng = member.approx_lng;
-    if (isMe && userLocation.hasRealGeo) {
-      lat = userLocation.lat;
-      lng = userLocation.lng;
-    }
-
-    const kind = getMarkerKind(member);
-    const m = L.marker(
-      [lat, lng],
-      { icon: createIcon(member.gender, kind), zIndexOffset: isMe ? 1000 : 0 }
-    );
-
-    m.on('click', () => {
-      if (!currentUser) {
-        showToast(t('map.login_required'), 'error');
-        go('plans');
-        return;
-      }
-      if (isMe) {
-        showToast('📍 C’est toi (position approx. ~1 km)', 'success');
-        return;
-      }
-      openMemberProfile(member.id);
-    });
-    markersLayer.addLayer(m);
-  });
-}
+// NOTE : le rendu des marqueurs (renderMarkers) est défini dans map-markers.js,
+// qui applique en plus la grille de confidentialité (~1 km) et le décalage
+// visuel pour les marqueurs superposés. Ne pas redéfinir renderMarkers ici :
+// une redéfinition dans ce fichier serait de toute façon écrasée par
+// map-markers.js (chargé après), mais mieux vaut éviter la confusion et
+// avoir une seule source de vérité pour le rendu de la carte.
 
 
 function openMemberProfile(memberId) {
@@ -1306,7 +1255,7 @@ function openMemberProfile(memberId) {
     bio: raw.bio || '',
     languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean),
     hobbies: (raw.interests || '').split(',').map(s => s.trim()).filter(Boolean),
-    online: raw.is_online === true || raw.online === true
+    online: isRecentlyOnline(raw)
   };
 
   const overlay = document.getElementById('memberModalOverlay');
@@ -2066,7 +2015,7 @@ async function renderFriendsUI() {
       city: p.city || p.host_country || '',
       gender: p.gender,
       premium: p.subscription === 'PREMIUM',
-      online: p.is_online === true
+      online: isRecentlyOnline(p)
     });
   });
 
