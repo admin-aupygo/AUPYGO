@@ -1995,7 +1995,8 @@ async function loadConversationHistory(conversationId) {
     box.innerHTML = '<div class="chat-placeholder"><p>Aucun message pour l’instant. Dis bonjour 👋</p></div>';
     return;
   }
-  data.forEach(m => appendBubble(m.content, m.sender_id === currentUser.id));
+lastBubbleDateKey = null;
+data.forEach(m => appendBubble(m.content, m.sender_id === currentUser.id, m.created_at));
   box.scrollTop = box.scrollHeight;
 }
 
