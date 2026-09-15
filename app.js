@@ -1350,6 +1350,7 @@ function closeMemberProfile() {
 function messageMember(memberId) {
   const raw = profiles.find(m => m.id === memberId);
   if (!raw) return;
+
   const name = raw.display_name || 'AUPYGO';
 
   if (currentPlan !== 'PREMIUM') {
@@ -1363,6 +1364,8 @@ function messageMember(memberId) {
   go('messages');
   clearUnreadMessages();
 
+  // Ouvre directement la conversation avec cette personne
+  // (petit délai pour laisser le temps à l’onglet de s’afficher)
   setTimeout(() => {
     openConversation('dm', memberId, name);
   }, 150);
