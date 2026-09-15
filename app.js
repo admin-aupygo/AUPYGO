@@ -1359,6 +1359,12 @@ function messageMember(memberId) {
 
   closeMemberProfile();
   go('messages');
+  clearUnreadMessages();
+
+  setTimeout(() => {
+    openConversation('dm', memberId, name);
+  }, 150);
+}
 
   // Ouvre directement la conversation avec cette personne
   // (petit délai pour laisser le temps à l’onglet de s’afficher)
