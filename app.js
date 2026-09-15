@@ -1349,18 +1349,23 @@ function messageMember(memberId) {
   const raw = profiles.find(m => m.id === memberId);
   if (!raw) return;
   const name = raw.display_name || 'AUPYGO';
-  // Destinataire PREMIUM (sinon pas de bouton). Expéditeur doit être PREMIUM aussi.
+
   if (currentPlan !== 'PREMIUM') {
     showToast(t('messages.send_locked'), 'error');
     closeMemberProfile();
     go('plans');
     return;
   }
+
   closeMemberProfile();
   go('messages');
-  showToast(t('messages.chat_with') + ' ' + name, 'success');
-}
 
+  // Ouvre directement la conversation avec cette personne
+  // (petit délai pour laisser le temps à l’onglet de s’afficher)
+  setTimeout(() => {
+    openConversation('dm', memberId, name);
+  }, 150);
+}
 
 function zoomIn() {
   if(map) map.zoomIn();
