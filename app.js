@@ -2387,7 +2387,7 @@ function setupMessagesRealtime() {
           if (!myConversationIds.has(msg.conversation_id)) return; // pas une conversation à moi
 
           if (activeConversation && activeConversation.type === 'dm' && activeConversation.conversationId === msg.conversation_id) {
-            appendBubble(msg.content, false);
+           appendBubble(msg.content, false, msg.created_at);
           } else {
             showToast('💬 Nouveau message', 'success');
           }
