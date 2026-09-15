@@ -2369,7 +2369,7 @@ async function sendMessage() {
     return;
   }
 
-  appendBubble(text, true);
+ appendBubble(text, true, new Date());
   showToast(t('messages.sent'), 'success');
   input.value = '';
 }
