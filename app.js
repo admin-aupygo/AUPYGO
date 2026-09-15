@@ -1889,11 +1889,41 @@ let messagesChannel = null;
 let myConversationIds = new Set();
 let dmConversationCache = {}; // friendId -> conversationId (évite de rechercher à chaque fois)
 
-function appendBubble(text, isMe) {
+let lastBubbleDateKey = null; // pour les séparateurs de date style WhatsApp
+
+function formatMessageDate(d) {
+  if (!d) return '';
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date.getTime())) return '';
+  const dd = String(date.getDate()).padStart(2, '0');
+  const mm = String(date.getMonth() + 1).padStart(2, '0');
+  const yyyy = date.getFullYear();
+  return dd + '.' + mm + '.' + yyyy;
+}
+
+function getDateKey(d) {
+  if (!d) return null;
+  const date = (d instanceof Date) ? d : new Date(d);
+  if (isNaN(date.getTime())) return null;
+  return date.getFullYear() + '-' + String(date.getMonth()+1).padStart(2,'0') + '-' + String(date.getDate()).padStart(2,'0');
+}
+
+function appendBubble(text, isMe, createdAt) {
   const box = document.getElementById('chatMessages');
   if (!box) return;
   const placeholder = box.querySelector('.chat-placeholder');
   if (placeholder) box.innerHTML = '';
+
+  // Séparateur de date (style WhatsApp) — uniquement quand le jour change
+  const dateKey = getDateKey(createdAt || new Date());
+  if (dateKey && dateKey !== lastBubbleDateKey) {
+    const sep = document.createElement('div');
+    sep.className = 'chat-date-separator';
+    sep.innerHTML = '<span>' + formatMessageDate(createdAt || new Date()) + '</span>';
+    box.appendChild(sep);
+    lastBubbleDateKey = dateKey;
+  }
+
   const bubble = document.createElement('div');
   bubble.className = 'bubble' + (isMe ? ' me' : '');
   bubble.textContent = text;
