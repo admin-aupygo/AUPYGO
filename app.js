@@ -1371,13 +1371,6 @@ function messageMember(memberId) {
   }, 150);
 }
 
-  // Ouvre directement la conversation avec cette personne
-  // (petit délai pour laisser le temps à l’onglet de s’afficher)
-  setTimeout(() => {
-    openConversation('dm', memberId, name);
-  }, 150);
-}
-
 function zoomIn() {
   if(map) map.zoomIn();
 }
