@@ -2430,7 +2430,8 @@ function setupMessagesRealtime() {
           if (activeConversation && activeConversation.type === 'dm' && activeConversation.conversationId === msg.conversation_id) {
            appendBubble(msg.content, false, msg.created_at);
           } else {
-            showToast('💬 Nouveau message', 'success');
+            incrementUnreadMessages();
+showToast('💬 Nouveau message', 'success');
           }
         }
       )
