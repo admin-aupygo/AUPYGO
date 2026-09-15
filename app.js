@@ -521,4 +521,2303 @@ async function handleLogout(reason) {
   document.getElementById('otherHobby').value = '';
   if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
   if (typeof updateProfileCard === 'function') updateProfileCard(null);
+
+  updatePlanUI();
+  await refreshAuthUI();
+
+  if (reason === 'idle') {
+    showToast(t('toast.idle_logged_out'), 'error');
+  } else {
+    showToast(t('toast.logged_out'));
+  }
+  go('home');
+  if (map) {
+    applyMapRestrictions();
+    renderMarkers();
+  }
 }
+
+
+async function refreshAuthUI(redirectPage = 'profile') {
+
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  // On détecte la transition "pas connecté -> connecté" : compte tout juste
+  // créé, connexion, ou retour sur la page après confirmation de l'email.
+  const justLoggedIn = !currentUser && !!user;
+
+  currentUser = user;
+
+  const loggedOut = document.getElementById('authLoggedOut');
+  const loggedIn = document.getElementById('authLoggedIn');
+
+  if (user) {
+
+    loggedOut.style.display = 'none';
+    loggedIn.style.display = 'block';
+    document.getElementById('authUserEmail').textContent = user.email;
+
+    // Charge le profil déjà sauvegardé pour ce compte, s'il existe
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked, languages, other_language, host_country, stay_end, city')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    if (profile && profile.subscription) {
+      currentPlan = profile.subscription;
+      localStorage.setItem('aupygo_plan', currentPlan);
+      updatePlanUI();
+    }
+
+    // === Chargement du profil ===
+    if (profile && profile.identity_locked === true) {
+      // Profil déjà créé et verrouillé
+      document.getElementById('firstName').value = profile.display_name || '';
+      document.getElementById('age').value = profile.age || '';
+      document.getElementById('country').value = profile.country || '';
+      document.getElementById('bio').value = profile.bio || '';
+      if (document.getElementById('city')) document.getElementById('city').value = profile.city || '';
+      if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = profile.host_country || '';
+      if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = profile.stay_end || '';
+      if (document.getElementById('otherLanguage')) document.getElementById('otherLanguage').value = profile.other_language || '';
+
+      if (profile.gender) {
+        selectedGender = profile.gender;
+        document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
+        document.querySelectorAll('.gender-option').forEach(btn => {
+          btn.classList.toggle('selected', btn.textContent.trim().includes(profile.gender));
+        });
+      }
+
+      // Restaure les hobbies
+      selectedHobbies.length = 0;
+      document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
+      if (profile.interests) {
+        profile.interests.split(',').map(s => s.trim()).filter(Boolean).forEach(hobby => {
+          if (selectedHobbies.length >= 3) return;
+          selectedHobbies.push(hobby);
+          const btn = document.querySelector('.hobby[data-hobby="' + hobby + '"]');
+          if (btn) btn.classList.add('selected');
+        });
+      }
+      document.getElementById('otherHobby').style.display =
+        selectedHobbies.includes('Autre') ? 'block' : 'none';
+
+      // Restaure les langues
+      clearLanguageSelection();
+      if (profile.languages) {
+        profile.languages.split(',').map(s => s.trim()).filter(Boolean).forEach(code => {
+          if (selectedLanguages.length >= 3) return;
+          selectedLanguages.push(code);
+          const btn = document.querySelector('.lang-chip[data-lang="' + code + '"]');
+          if (btn) btn.classList.add('selected');
+        });
+        if (selectedLanguages.includes('OTHER')) {
+          const ol = document.getElementById('otherLanguage');
+          if (ol) ol.style.display = 'block';
+        }
+      }
+
+      updateProfileCard({
+        name: profile.display_name,
+        age: profile.age,
+        hostCountry: profile.host_country,
+        stayEnd: profile.stay_end,
+        languages: selectedLanguages.slice(),
+        otherLang: profile.other_language,
+        hobbies: selectedHobbies.slice()
+      });
+
+      profileSaved = true;
+      lockIdentityFields();
+
+    } else {
+      // Pas encore de profil verrouillé
+      if (profile) {
+        document.getElementById('firstName').value = profile.display_name || '';
+        document.getElementById('age').value = profile.age || '';
+        document.getElementById('country').value = profile.country || '';
+        document.getElementById('bio').value = profile.bio || '';
+        if (profile.gender) {
+          selectedGender = profile.gender;
+          document.getElementById('profileAvatar').textContent = profile.gender === 'Homme' ? '👨' : '👩';
+        }
+      }
+
+      profileSaved = false;
+      unlockIdentityFields();
+
+      // Réinitialise les hobbies
+      selectedHobbies.length = 0;
+      document.querySelectorAll('.hobby').forEach(b => b.classList.remove('selected'));
+      document.getElementById('otherHobby').style.display = 'none';
+    }
+
+    // Mise à jour de la navigation AVANT de naviguer
+    updateNavVisibility();
+
+    if (justLoggedIn) {
+      const pendingNotice = document.getElementById('signupPendingNotice');
+      if (pendingNotice) pendingNotice.style.display = 'none';
+
+      go(redirectPage);
+
+      if (redirectPage === 'home') {
+        showToast(t('toast.login_success'), 'success');
+      } else {
+        showToast(
+          profile && profile.display_name
+            ? t('toast.welcome_back')
+            : t('toast.complete_profile'),
+          'success'
+        );
+      }
+
+      // Après validation email / première connexion : proposer la géoloc (~1 km)
+      // dès l’arrivée sur le profil (ou peu après sur l’accueil)
+      setTimeout(() => {
+        if (!userLocation.hasRealGeo) {
+          showGeoConsent((ok) => {
+            if (ok && map) {
+              renderMarkers();
+              applyMapRestrictions();
+            }
+          });
+        }
+      }, 800);
+
+      // Marque le profil comme en ligne (vert sur la carte)
+      setOnlineStatus(true);
+      startIdleWatch();
+      loadFriendshipsFromDB().then(updateFriendsBadge);
+    }
+
+  } else {
+    // Pas connecté
+    loggedOut.style.display = 'block';
+    loggedIn.style.display = 'none';
+    profileSaved = false;
+    unlockIdentityFields();
+    updateNavVisibility();
+  }
+}
+
+
+/* =========================
+   VISIBILITÉ DE LA NAVIGATION
+========================= */
+
+// Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
+// Invité : Accueil + Carte (aperçu mondial) + Abonnement uniquement
+const RESTRICTED_NAV_PAGES = ['events','reconnect','messages','profile'];
+const GUEST_ALLOWED_PAGES = ['home','map','plans'];
+
+function getActivePage() {
+  const activePage = document.querySelector('.page.active');
+  return activePage ? activePage.id : 'home';
+}
+
+function updateNavVisibility() {
+
+  document.querySelectorAll('nav button').forEach(b => {
+
+    const page = b.dataset.nav;
+
+    if (RESTRICTED_NAV_PAGES.includes(page)) {
+      b.style.display = currentUser ? 'flex' : 'none';
+    } else {
+      // home, map, plans : toujours visibles (même non connecté)
+      b.style.display = 'flex';
+    }
+
+  });
+
+  // Si on est sur une page réservée et qu'on n'est plus connecté → accueil
+  if (!currentUser && RESTRICTED_NAV_PAGES.includes(getActivePage())) {
+    go('home');
+  }
+
+}
+
+
+/* =========================
+   FORFAITS
+========================= */
+
+function updatePlanUI() {
+
+  document.getElementById('headerPlan').textContent = currentPlan;
+
+  ['FREE','STANDARD','PREMIUM'].forEach(p => {
+
+    const card = document.getElementById('plan-' + p);
+    const badge = document.getElementById('badge-' + p);
+
+    if(card) {
+      card.classList.toggle('active-plan', p === currentPlan);
+    }
+
+    if(badge) {
+      badge.style.display = p === currentPlan ? 'block' : 'none';
+    }
+
+  });
+
+
+  // Agenda communauté (onglet Sortir)
+  const agendaBox = document.getElementById('agendaBox');
+  const agendaNotice = document.getElementById('agendaNotice');
+
+  if(currentPlan === 'FREE') {
+    if (agendaBox) agendaBox.classList.add('locked');
+    if (agendaNotice) agendaNotice.innerHTML = t('events.agenda_locked');
+  } else {
+    if (agendaBox) agendaBox.classList.remove('locked');
+    if (agendaNotice) agendaNotice.innerHTML = t('events.agenda_unlocked') + ' (' + currentPlan + ')';
+  }
+
+  // Agenda personnel (page Profil) — aussi réservé STANDARD+
+  const personalAgendaBox = document.getElementById('personalAgendaBox');
+  const personalAgendaNotice = document.getElementById('personalAgendaNotice');
+
+  if (personalAgendaBox && personalAgendaNotice) {
+    if (currentPlan === 'FREE') {
+      personalAgendaBox.classList.add('locked');
+      personalAgendaNotice.innerHTML = t('profile.agenda_locked');
+      personalAgendaNotice.style.display = 'block';
+    } else {
+      personalAgendaBox.classList.remove('locked');
+      personalAgendaNotice.innerHTML = t('profile.agenda_unlocked');
+      personalAgendaNotice.style.display = 'block';
+    }
+  }
+
+
+  const messagesBox = document.getElementById('messagesBox');
+  const messagesNotice = document.getElementById('messagesNotice');
+
+  if(currentPlan !== 'PREMIUM') {
+    messagesBox.style.opacity = '0.5';
+    messagesBox.style.pointerEvents = 'none';
+    messagesNotice.innerHTML = t('messages.notice_locked');
+  } else {
+    messagesBox.style.opacity = '1';
+    messagesBox.style.pointerEvents = 'auto';
+    messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
+  }
+
+
+  const isFree = currentPlan === 'FREE';
+
+  const freeNotice = document.getElementById('eventsFreeNotice');
+
+  if(freeNotice) {
+    freeNotice.style.display = isFree ? 'block' : 'none';
+  }
+
+
+  document.querySelectorAll('#eventGrid .event').forEach(event => {
+
+    const detail = event.querySelector('[data-detail]');
+    const locked = event.querySelector('[data-locked]');
+    const joinBtn = event.querySelector('.event-join');
+    const upgradeBtn = event.querySelector('.event-upgrade');
+
+    if(isFree) {
+
+      if(detail) detail.style.display = 'none';
+      if(locked) locked.style.display = 'block';
+      if(joinBtn) joinBtn.style.display = 'none';
+      if(upgradeBtn) upgradeBtn.style.display = 'block';
+
+    } else {
+
+      if(detail) detail.style.display = 'block';
+      if(locked) locked.style.display = 'none';
+      if(joinBtn) joinBtn.style.display = 'inline-block';
+      if(upgradeBtn) upgradeBtn.style.display = 'none';
+
+    }
+
+  });
+
+
+  // === SE RETROUVER (amis) ===
+  const reconnectFreeNotice = document.getElementById('reconnectFreeNotice');
+  if (reconnectFreeNotice) {
+    reconnectFreeNotice.style.display = isFree ? 'block' : 'none';
+  }
+
+  document.querySelectorAll('.friend-card').forEach(card => {
+    const sortie = card.querySelector('.friend-sortie');
+    const msgBtn = card.querySelector('.friend-msg-btn');
+    const msgLocked = card.querySelector('.friend-msg-locked');
+
+    // Sorties en commun : STANDARD et PREMIUM (jamais l’agenda personnel)
+    if (sortie) {
+      sortie.style.display = (currentPlan === 'FREE') ? 'none' : 'block';
+    }
+
+    // Messages : uniquement PREMIUM
+    if (msgBtn && msgLocked) {
+      if (currentPlan === 'PREMIUM') {
+        msgBtn.style.display = 'block';
+        msgLocked.style.display = 'none';
+      } else {
+        msgBtn.style.display = 'none';
+        msgLocked.style.display = 'block';
+      }
+    }
+  });
+
+
+  applyMapRestrictions();
+  if (map) renderMarkers(); // met à jour les marqueurs selon le forfait
+
+}
+
+
+/* =========================
+   CARTE
+========================= */
+
+function kmToDegrees(km) {
+  return km / 111;
+}
+
+
+function getMaxBoundsForPlan() {
+
+  const radiusKm = RADIUS[currentPlan];
+
+  if(!radiusKm) return null;
+
+  const d = kmToDegrees(radiusKm);
+
+  const { lat, lng } = userLocation;
+
+  return L.latLngBounds(
+    [lat - d, lng - d],
+    [lat + d, lng + d]
+  );
+}
+
+
+function getDefaultZoomForPlan() {
+
+  if(currentPlan === 'FREE') return 11;
+  if(currentPlan === 'STANDARD') return 5;
+
+  return 2;
+}
+
+
+function applyMapRestrictions() {
+
+  if(!map) return;
+
+  const btnAround = document.getElementById('btnAround');
+  const btnRegion = document.getElementById('btnRegion');
+  const btnWorld = document.getElementById('btnWorld');
+  const mapNotice = document.getElementById('mapPlanNotice');
+
+  // Toujours nettoyer les classes active avant de réappliquer
+  [btnAround, btnRegion, btnWorld].forEach(b => {
+    if (b) b.classList.remove('active');
+  });
+
+  // ——— Visiteur non connecté : aperçu carte mondiale (lecture seule) ———
+  if (!currentUser) {
+    if (mapNotice) {
+      mapNotice.innerHTML = t('map.notice_guest');
+    }
+    if (btnAround) {
+      btnAround.disabled = true;
+      btnAround.title = t('map.login_required');
+    }
+    if (btnRegion) {
+      btnRegion.disabled = true;
+      btnRegion.title = t('map.login_required');
+    }
+    if (btnWorld) {
+      btnWorld.disabled = false;
+      btnWorld.classList.add('active');
+      btnWorld.title = '';
+    }
+    map.setMaxBounds(null);
+    map.setMinZoom(2);
+    map.setMaxZoom(12);
+    map.setView([20, 0], 2);
+    return;
+  }
+
+  if(currentPlan === 'FREE') {
+
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_free');
+
+    btnAround.disabled = false;
+    btnAround.classList.add('active');
+    btnAround.title = '';
+
+    btnRegion.disabled = true;
+    btnRegion.title = t('map.region_locked');
+
+    btnWorld.disabled = true;
+    btnWorld.title = t('map.world_locked');
+
+  }
+  else if(currentPlan === 'STANDARD') {
+
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_standard');
+
+    btnAround.disabled = false;
+    btnAround.title = '';
+
+    btnRegion.disabled = false;
+    btnRegion.classList.add('active');
+    btnRegion.title = '';
+
+    btnWorld.disabled = true;
+    btnWorld.title = t('map.world_locked');
+
+  }
+  else {
+
+    if (mapNotice) mapNotice.innerHTML = t('map.notice_premium');
+
+    btnAround.disabled = false;
+    btnAround.title = '';
+    btnRegion.disabled = false;
+    btnRegion.title = '';
+
+    btnWorld.disabled = false;
+    btnWorld.classList.add('active');
+    btnWorld.title = '';
+
+  }
+
+
+  const bounds = getMaxBoundsForPlan();
+
+  if(bounds) {
+
+    map.setMaxBounds(bounds);
+    map.setMinZoom(getDefaultZoomForPlan() - 1);
+    map.setMaxZoom(14);
+
+    if(!bounds.contains(map.getCenter())) {
+      map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+    }
+
+  } else {
+
+    map.setMaxBounds(null);
+    map.setMinZoom(2);
+    map.setMaxZoom(18);
+
+  }
+
+}
+
+
+/* =========================
+   PLANS
+========================= */
+
+async function selectPlan(plan) {
+
+  if (!currentUser) {
+    showToast(t('plans.need_login'), 'error');
+    document.getElementById('authCard').scrollIntoView({ behavior:'smooth', block:'center' });
+    return;
+  }
+
+  currentPlan = plan;
+  localStorage.setItem('aupygo_plan', plan);
+  updatePlanUI();
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert({ id: currentUser.id, subscription: plan }, { onConflict:'id' });
+
+  if (error) {
+    console.error(error);
+    showToast('Erreur lors de la sauvegarde du forfait : ' + error.message, 'error');
+    return;
+  }
+
+  if(plan === 'FREE') {
+    showToast(t('plans.free_active'), 'success');
+  }
+  else if(plan === 'STANDARD') {
+    showToast(t('plans.standard_active'), 'success');
+  }
+  else {
+    showToast(t('plans.premium_active'), 'success');
+  }
+
+}
+
+
+/* =========================
+   TOAST
+========================= */
+
+function showToast(msg,type) {
+
+  const c = document.getElementById('toastContainer');
+
+  const t = document.createElement('div');
+
+  t.className = 'toast' + (type ? ' ' + type : '');
+
+  t.textContent = msg;
+
+  c.appendChild(t);
+
+  setTimeout(() => {
+    t.style.opacity = '0';
+    setTimeout(() => t.remove(), 300);
+  },3000);
+
+}
+
+
+/* =========================
+   NAVIGATION
+========================= */
+
+function go(page) {
+
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
+  const el = document.getElementById(page);
+
+  if(el) el.classList.add('active');
+
+
+  document.querySelectorAll('nav button').forEach(b => {
+
+    b.classList.remove('active');
+
+    if(b.dataset.nav === page) {
+      b.classList.add('active');
+    }
+
+  });
+
+
+  window.scrollTo({ top:0, behavior:'smooth' });
+
+
+  // La carte n’existe que dans l’onglet Carte
+  if (page === 'map' && map) {
+    setTimeout(() => {
+      map.invalidateSize();
+      applyMapRestrictions(); // invité → vue monde ; connecté → selon forfait
+      renderMarkers();
+      if (!currentUser) {
+        map.setView([20, 0], 2);
+      } else {
+        map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+      }
+    }, 200);
+  }
+
+  if (page === 'reconnect') {
+    renderFriendsUI();
+  }
+
+  if (page === 'profile') {
+    if (profileSaved) {
+      lockIdentityFields();
+    } else {
+      unlockIdentityFields();
+    }
+  }
+
+  if (page === 'messages') {
+    loadFriendsForMessaging();
+  }
+
+}
+
+
+/* =========================
+   LOCALISATIONS (chargement Supabase)
+========================= */
+
+async function loadProfiles() {
+  try {
+    // select('*') = compatible même si certaines colonnes (is_online, birth_year…)
+    // n'existent pas encore dans Supabase. Évite l'erreur 400.
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('*');
+
+    if (error) {
+      console.error('Erreur chargement profils:', error);
+      profiles = [];
+      updateOnlineCount();
+      return;
+    }
+
+    profiles = data || [];
+    const onlineN = profiles.filter(isRecentlyOnline).length;
+    const gpsN = profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length;
+    console.log('[AUPYGO] Profils chargés:', profiles.length, '| en ligne:', onlineN, '| avec GPS:', gpsN);
+    updateOnlineCount();
+
+    if (map && markersLayer) {
+      renderMarkers();
+    }
+  } catch (e) {
+    console.error('loadProfiles:', e);
+    profiles = [];
+    updateOnlineCount();
+  }
+}
+
+
+/* =========================
+   INITIALISATION CARTE
+========================= */
+
+function initMap() {
+
+  map = L.map('mapCanvas', {
+    zoomControl:false,
+    minZoom:2,
+    maxBoundsViscosity:1.0
+  }).setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+
+
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution:'&copy; OpenStreetMap'
+  }).addTo(map);
+
+
+  markersLayer = L.layerGroup().addTo(map);
+
+  // Clic sur la carte → popup de consentement géoloc (~1 km) si pas encore activée
+  map.on('click', function () {
+    onMapClickForGeo();
+  });
+
+  renderMarkers();
+  applyMapRestrictions();
+
+}
+
+
+function createIcon(gender, kind) {
+  // kind: 'me' | 'online' | 'offline'
+  const emoji = gender === 'Homme' ? '👨' : (gender === 'Femme' ? '👩' : '👤');
+  const cls = 'aupy-marker ' + (kind || 'offline');
+  return L.divIcon({
+    className: '',
+    html: '<div class="' + cls + '">' + emoji + '<span class="status-dot"></span></div>',
+    iconSize: [44, 44],
+    iconAnchor: [22, 44]
+  });
+}
+
+/** Statut en ligne : basé sur la fraîcheur de last_seen (voir isRecentlyOnline).
+ *  Toi-même = toujours « me » (bleu), indépendamment du statut. */
+function getMarkerKind(member) {
+  if (currentUser && member.id === currentUser.id) return 'me';
+  return isRecentlyOnline(member) ? 'online' : 'offline';
+}
+
+// NOTE : le rendu des marqueurs (renderMarkers) est défini dans map-markers.js,
+// qui applique en plus la grille de confidentialité (~1 km) et le décalage
+// visuel pour les marqueurs superposés. Ne pas redéfinir renderMarkers ici :
+// une redéfinition dans ce fichier serait de toute façon écrasée par
+// map-markers.js (chargé après), mais mieux vaut éviter la confusion et
+// avoir une seule source de vérité pour le rendu de la carte.
+
+
+function openMemberProfile(memberId) {
+  const raw = profiles.find(m => m.id === memberId);
+  if (!raw) return;
+
+  // Normalise les champs DB → structure attendue par la modale
+  const member = {
+    id: raw.id,
+    name: raw.display_name || 'AUPYGO',
+    age: raw.age,
+    gender: raw.gender,
+    plan: (raw.subscription || 'FREE').toUpperCase(),
+    city: raw.city || '',
+    origin: raw.country || '',
+    host: raw.host_country || '',
+    stayEnd: raw.stay_end || '',
+    bio: raw.bio || '',
+    languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean),
+    hobbies: (raw.interests || '').split(',').map(s => s.trim()).filter(Boolean),
+    online: isRecentlyOnline(raw)
+  };
+
+  const overlay = document.getElementById('memberModalOverlay');
+  const box = document.getElementById('memberModal');
+  if (!overlay || !box) return;
+
+  const emoji = member.gender === 'Homme' ? '👨' : '👩';
+  const plan = member.plan;
+
+  // Affichage selon le forfait DU PROFIL consulté :
+  // FREE     → fiche seule (pas de voyant)
+  // STANDARD → fiche + voyant en ligne
+  // PREMIUM  → fiche + voyant + bouton Message
+  const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
+  const showMessage = (plan === 'PREMIUM');
+
+  // Demande d'ami : réservée aux visiteurs STANDARD / PREMIUM (pas FREE)
+  const canSendFriendRequest = (currentPlan === 'STANDARD' || currentPlan === 'PREMIUM');
+
+  let onlineHtml = '';
+  if (showOnline) {
+    if (member.online) {
+      onlineHtml = '<div class="member-online"><span class="dot"></span> En ligne</div>';
+    } else {
+      onlineHtml = '<div class="member-online" style="color:#6b7280;background:#f3f4f6;border-color:#e5e7eb"><span class="dot" style="background:#9ca3af;box-shadow:none"></span> Hors ligne</div>';
+    }
+  }
+
+  const langs = (member.languages || []).map(c => {
+    return (typeof LANG_LABEL !== 'undefined' && LANG_LABEL[c]) ? LANG_LABEL[c] : c;
+  }).join(' · ');
+
+  let stayTxt = '';
+  if (member.stayEnd) {
+    const parts = String(member.stayEnd).split('-');
+    if (parts.length >= 2) {
+      const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+      const mi = parseInt(parts[1], 10) - 1;
+      stayTxt = (months[mi] || parts[1]) + ' ' + parts[0];
+    } else {
+      stayTxt = member.stayEnd;
+    }
+  }
+
+  const hobbyEmojis = (member.hobbies || []).map(h => {
+    const e = (typeof HOBBY_EMOJI !== 'undefined' && HOBBY_EMOJI[h]) ? HOBBY_EMOJI[h] : '✨';
+    return '<span class="hobby-emoji" title="' + h + '">' + e + '</span>';
+  }).join('');
+
+  let msgBtn = '';
+  if (showMessage) {
+    if (currentPlan === 'PREMIUM') {
+      msgBtn = '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>';
+    } else {
+      msgBtn = '<button type="button" class="member-msg-btn member-msg-btn-disabled" onclick="showToast(t(\'messages.send_locked\'), \'error\'); closeMemberProfile(); go(\'plans\');">💬 Message</button>';
+    }
+  }
+
+  const friendBtn = canSendFriendRequest
+    ? '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>'
+    : '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Consultation uniquement · passe en STANDARD pour envoyer une demande d\u2019ami</p>';
+
+  box.innerHTML =
+    '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
+    onlineHtml +
+    '<div class="member-avatar">' + emoji + '</div>' +
+    '<h3>' + member.name + '</h3>' +
+    '<p class="member-badge">🛡️ AUPYGO certifié · ' + (member.age || '?') + ' ans</p>' +
+    (member.host ? '<div class="member-info">🏡 Pays d\'accueil : <strong>' + member.host + '</strong></div>' : '') +
+    (member.origin ? '<div class="member-info">🌍 Origine : <strong>' + member.origin + '</strong></div>' : '') +
+    (stayTxt ? '<div class="member-info">📅 Fin du séjour : <strong>' + stayTxt + '</strong></div>' : '') +
+    (langs ? '<div class="member-info">🗣️ ' + langs + '</div>' : '') +
+    (member.city ? '<div class="member-info">📍 ' + member.city + ' <span style="color:#999;font-size:12px">(~1 km)</span></div>' : '') +
+    (member.bio ? '<div class="member-info" style="margin-top:8px;color:#555">' + member.bio + '</div>' : '') +
+    '<div class="member-hobbies-row">' + hobbyEmojis + msgBtn + '</div>' +
+    friendBtn;
+
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMemberProfile() {
+  const overlay = document.getElementById('memberModalOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+
+function messageMember(memberId) {
+  const raw = profiles.find(m => m.id === memberId);
+  if (!raw) return;
+  const name = raw.display_name || 'AUPYGO';
+  // Destinataire PREMIUM (sinon pas de bouton). Expéditeur doit être PREMIUM aussi.
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  closeMemberProfile();
+  go('messages');
+  showToast(t('messages.chat_with') + ' ' + name, 'success');
+}
+
+
+function zoomIn() {
+  if(map) map.zoomIn();
+}
+
+
+function zoomOut() {
+  if(map) map.zoomOut();
+}
+
+
+function resetMap() {
+  if (!map) return;
+
+  // Si pas encore de géoloc, popup de consentement
+  if (!userLocation.hasRealGeo) {
+    showGeoConsent((ok) => {
+      if (ok && map) {
+        map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+        renderMarkers();
+      }
+    });
+    return;
+  }
+
+  map.setView([userLocation.lat, userLocation.lng], getDefaultZoomForPlan());
+  renderMarkers();
+}
+
+
+function mapMode(mode, btn) {
+
+  // Invité : uniquement vue Monde (aperçu)
+  if (!currentUser) {
+    if (mode !== 'world') {
+      showToast(t('map.login_required'), 'error');
+      go('plans');
+      return;
+    }
+    document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
+    if (btn) btn.classList.add('active');
+    if (map) {
+      map.setView([20, 0], 2);
+      renderMarkers();
+    }
+    return;
+  }
+
+  if (currentPlan === 'FREE' && mode !== 'around') {
+    showToast(t('toast.map_region_locked'), 'error');
+    return;
+  }
+
+  if (currentPlan === 'STANDARD' && mode === 'world') {
+    showToast(t('toast.map_world_locked'), 'error');
+    return;
+  }
+
+  document.querySelectorAll('.map-filter button').forEach(b => b.classList.remove('active'));
+  if (btn) btn.classList.add('active');
+
+  // "Autour de moi" → popup de consentement puis géoloc approximative
+  if (mode === 'around') {
+    if (!userLocation.hasRealGeo) {
+      showGeoConsent((ok) => {
+        if (ok && map) {
+          map.setView([userLocation.lat, userLocation.lng], 11);
+          applyMapRestrictions();
+          renderMarkers();
+        }
+      });
+    } else if (map) {
+      map.setView([userLocation.lat, userLocation.lng], 11);
+      renderMarkers();
+    }
+    return;
+  }
+
+  if (mode === 'region' && map) {
+    map.setView([userLocation.lat, userLocation.lng], 6);
+    renderMarkers();
+  } else if (mode === 'world' && map) {
+    map.setView([20, 0], 2);
+    renderMarkers();
+  }
+}
+
+
+function openCity(city) {
+  const first = profiles.find(m => m.city === city);
+  if (first) openMemberProfile(first.id);
+  else showToast(t('toast.city_profiles') + ' ' + city, 'success');
+}
+
+function sendFriendRequest(city) {
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required'), 'error');
+    go('plans');
+    return;
+  }
+  if (currentPlan === 'FREE') {
+    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
+    go('plans');
+    return;
+  }
+  showToast(t('toast.friend_request_sent') + ' ' + city + ' 🤝', 'success');
+}
+
+// Affiche uniquement les sorties en commun avec un ami.
+// L’agenda personnel AUPYGO reste toujours privé.
+function showSharedEvents(friendName) {
+  if (currentPlan === 'FREE') {
+    showToast(t('reconnect.shared_locked'), 'error');
+    go('plans');
+    return;
+  }
+  // Plus de données fictives : les sorties en commun viendront de la table events/participations
+  showToast(t('reconnect.shared_with') + ' ' + friendName + ' : ' + t('reconnect.shared_none'), 'success');
+}
+
+
+/* =========================
+   PROFIL
+========================= */
+
+let selectedGender = null;
+
+
+function selectGender(btn,gender) {
+
+  if (profileLocked) return;
+
+  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
+
+  btn.classList.add('selected');
+  selectedGender = gender;
+
+  document.getElementById('profileAvatar').textContent = gender === 'Homme' ? '👨' : '👩';
+
+}
+
+
+const selectedHobbies = [];
+
+
+
+const selectedLanguages = [];
+
+const HOBBY_EMOJI = {
+  'Plage': '🏖️', 'Lire': '📚', 'Films': '🎬', 'Voyager': '✈️', 'Cuisine': '🍳',
+  'Sport': '🏋️', 'Danse': '💃', 'Musique': '🎵', 'Photo': '📸', 'Nature': '🌿',
+  'Café': '☕', 'Randonnée': '🥾', 'Animaux': '🐶', 'Art': '🎨', 'Yoga': '🧘', 'Autre': '✨'
+};
+
+const LANG_LABEL = {
+  'FR': '🇫🇷 FR', 'EN': '🇬🇧 EN', 'ES': '🇪🇸 ES', 'PT': '🇧🇷 PT',
+  'DE': '🇩🇪 DE', 'IT': '🇮🇹 IT', 'RU': '🇷🇺 RU', 'ZH': '🇨🇳 ZH',
+  'JA': '🇯🇵 JA', 'OTHER': '✨'
+};
+
+function toggleLanguage(btn, code) {
+  const i = selectedLanguages.indexOf(code);
+  if (i >= 0) {
+    selectedLanguages.splice(i, 1);
+    btn.classList.remove('selected');
+  } else {
+    if (selectedLanguages.length >= 3) {
+      showToast('Maximum 3 langues', 'error');
+      return;
+    }
+    selectedLanguages.push(code);
+    btn.classList.add('selected');
+  }
+  const otherInput = document.getElementById('otherLanguage');
+  if (otherInput) {
+    const hasOther = selectedLanguages.includes('OTHER');
+    otherInput.style.display = hasOther ? 'block' : 'none';
+    if (!hasOther) otherInput.value = '';
+  }
+}
+
+function clearLanguageSelection() {
+  selectedLanguages.length = 0;
+  document.querySelectorAll('.lang-chip').forEach(b => b.classList.remove('selected'));
+  const ol = document.getElementById('otherLanguage');
+  if (ol) { ol.style.display = 'none'; ol.value = ''; }
+}
+
+function updateProfileCard(data) {
+  // data: { name, age, hostCountry, stayEnd, languages, otherLang, hobbies }
+  const nameEl = document.getElementById('profileName');
+  const metaEl = document.getElementById('profileMeta');
+  const extras = document.getElementById('profileCardExtras');
+  const hostEl = document.getElementById('profileCardHost');
+  const stayEl = document.getElementById('profileCardStay');
+  const langsEl = document.getElementById('profileCardLangs');
+  const hobbiesEl = document.getElementById('profileCardHobbies');
+
+  if (!data || !data.name) {
+    if (nameEl) nameEl.textContent = t('profile.name_placeholder');
+    if (metaEl) metaEl.textContent = t('profile.meta_placeholder');
+    if (extras) extras.style.display = 'none';
+    return;
+  }
+
+  if (nameEl) nameEl.textContent = data.name;
+  if (metaEl) {
+    const agePart = data.age ? (data.age + ' ' + t('common.years')) : '';
+    metaEl.innerHTML = '🛡️ <strong>AUPYGO certifié</strong>' + (agePart ? ' · ' + agePart : '');
+  }
+
+  if (extras) extras.style.display = 'block';
+
+  if (hostEl) {
+    hostEl.innerHTML = data.hostCountry
+      ? '🏡 <span>Pays d\'accueil : <strong>' + data.hostCountry + '</strong></span>'
+      : '';
+  }
+  if (stayEl) {
+    let stayTxt = '';
+    if (data.stayEnd) {
+      // data.stayEnd = "YYYY-MM"
+      const parts = String(data.stayEnd).split('-');
+      if (parts.length >= 2) {
+        const months = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+        const mi = parseInt(parts[1], 10) - 1;
+        stayTxt = (months[mi] || parts[1]) + ' ' + parts[0];
+      } else {
+        stayTxt = data.stayEnd;
+      }
+      stayEl.innerHTML = '📅 <span>Fin du séjour : <strong>' + stayTxt + '</strong></span>';
+    } else {
+      stayEl.innerHTML = '';
+    }
+  }
+  if (langsEl) {
+    const codes = data.languages || [];
+    if (codes.length) {
+      const labels = codes.map(c => {
+        if (c === 'OTHER') {
+          return data.otherLang ? ('✨ ' + data.otherLang) : '✨ Autre';
+        }
+        return LANG_LABEL[c] || c;
+      });
+      langsEl.innerHTML = '🗣️ <span>' + labels.join(' · ') + '</span>';
+    } else {
+      langsEl.innerHTML = '';
+    }
+  }
+  if (hobbiesEl) {
+    const list = data.hobbies || [];
+    if (list.length) {
+      hobbiesEl.innerHTML = list.map(h => {
+        const emoji = HOBBY_EMOJI[h] || '✨';
+        return '<span class="hobby-emoji" title="' + h + '">' + emoji + '</span>';
+      }).join('');
+    } else {
+      hobbiesEl.innerHTML = '';
+    }
+  }
+}
+
+function toggleHobby(btn,hobby) {
+
+  const i = selectedHobbies.indexOf(hobby);
+
+  if(i >= 0) {
+
+    selectedHobbies.splice(i,1);
+    btn.classList.remove('selected');
+
+  } else {
+
+    if(selectedHobbies.length >= 3) {
+      showToast(t('profile.max_hobbies'), 'error');
+      return;
+    }
+
+    selectedHobbies.push(hobby);
+    btn.classList.add('selected');
+
+  }
+
+  document.getElementById('otherHobby').style.display =
+    selectedHobbies.includes('Autre') ? 'block' : 'none';
+
+}
+
+
+async function saveProfile() {
+
+  // Récupère l'utilisateur connecté
+  const { data: { user } } = await supabaseClient.auth.getUser();
+
+  if (!user) {
+    showToast(t('profile.login_required'), 'error');
+    go('plans');
+    return;
+  }
+
+  const name = document.getElementById('firstName').value.trim();
+  const ageValue = document.getElementById('age').value;
+  const country = document.getElementById('country').value;
+  const bio = document.getElementById('bio').value;
+
+  // Première création : tous les champs identité sont obligatoires
+  if (!profileSaved) {
+    if (!name) {
+      showToast(t('profile.first_name_error'), 'error');
+      return;
+    }
+    if (!ageValue || Number(ageValue) < 18) {
+      showToast(t('profile.age_error'), 'error');
+      return;
+    }
+    if (!selectedGender) {
+      showToast(t('profile.gender_error'), 'error');
+      return;
+    }
+  }
+
+  // Construction de l'objet à upsert
+  // Si le profil est déjà figé, on n'envoie que les champs modifiables (bio + interests)
+  // + on conserve les valeurs identité déjà présentes.
+  const profile = {
+    id: user.id,
+    bio: bio,
+    interests: selectedHobbies.join(','),
+    subscription: currentPlan
+  };
+
+  if (!profileSaved) {
+    // Première sauvegarde : on enregistre aussi l'identité
+    profile.display_name = name;
+    profile.age = Number(ageValue);
+    profile.gender = selectedGender;
+    profile.country = country;
+    profile.city = (document.getElementById('city') || {}).value || userLocation.city;
+    profile.approx_lat = userLocation.lat;
+    profile.approx_lng = userLocation.lng;
+    profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
+    profile.identity_locked = true;
+    profile.languages = selectedLanguages.join(',');
+    profile.other_language = (document.getElementById('otherLanguage') || {}).value || '';
+    profile.host_country = (document.getElementById('hostCountry') || {}).value || '';
+    profile.stay_end = (document.getElementById('stayEnd') || {}).value || null;
+  }
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .upsert([profile], { onConflict:'id' });
+
+  if (error) {
+    console.error(error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  // Collect extra fields for card + DB
+  const hostCountry = (document.getElementById('hostCountry') || {}).value || '';
+  const stayEnd = (document.getElementById('stayEnd') || {}).value || '';
+  const otherLangVal = (document.getElementById('otherLanguage') || {}).value || '';
+  const cityVal = (document.getElementById('city') || {}).value || '';
+
+  // Re-upsert with extra fields (second write keeps things simple for prototype)
+  try {
+    await supabaseClient.from('profiles').upsert({
+      id: user.id,
+      languages: selectedLanguages.join(','),
+      other_language: otherLangVal,
+      host_country: hostCountry,
+      stay_end: stayEnd || null,
+      city: cityVal || null,
+      interests: selectedHobbies.join(','),
+      bio: bio
+    }, { onConflict: 'id' });
+  } catch (e) { console.error(e); }
+
+  updateProfileCard({
+    name: name || document.getElementById('firstName').value.trim(),
+    age: ageValue || document.getElementById('age').value,
+    hostCountry: hostCountry,
+    stayEnd: stayEnd,
+    languages: selectedLanguages.slice(),
+    otherLang: otherLangVal,
+    hobbies: selectedHobbies.slice()
+  });
+
+  if (!profileSaved) {
+    profileSaved = true;
+    lockIdentityFields();
+    showToast(t('profile.saved_first'), 'success');
+  } else {
+    showToast(t('profile.saved_update'), 'success');
+  }
+
+}
+
+
+async function handleDeleteProfile() {
+
+  if (!currentUser) {
+    showToast(t('profile.delete_login_required'), 'error');
+    return;
+  }
+
+  const confirmed = confirm(t('profile.delete_confirm'));
+
+  if (!confirmed) return;
+
+  const { error } = await supabaseClient
+    .from('profiles')
+    .delete()
+    .eq('id', currentUser.id);
+
+  if (error) {
+    console.error(error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  // Supprime aussi le compte d'authentification (nécessite la fonction SQL
+  // "delete_user" créée côté Supabase, cf. documentation du projet).
+  const { error: authError } = await supabaseClient.rpc('delete_user');
+
+  if (authError) {
+    console.error(authError);
+    showToast('Profil supprimé, mais erreur lors de la suppression du compte : ' + authError.message, 'error');
+  }
+
+  await supabaseClient.auth.signOut();
+
+  currentUser = null;
+  currentPlan = 'FREE';
+  localStorage.removeItem('aupygo_plan');
+
+  profileSaved = false;
+  unlockIdentityFields();
+
+  // Réinitialise le formulaire affiché à l'écran
+  document.getElementById('firstName').value = '';
+  document.getElementById('age').value = '';
+  document.getElementById('bio').value = '';
+  document.getElementById('country').value = '';
+  document.getElementById('profileName').textContent = t('profile.name_placeholder');
+  document.getElementById('profileMeta').textContent = t('profile.meta_placeholder');
+  document.getElementById('profileAvatar').textContent = '👤';
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
+  if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = '';
+  if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = '';
+  if (document.getElementById('city')) document.getElementById('city').value = '';
+  selectedGender = null;
+  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
+  selectedHobbies.length = 0;
+  document.querySelectorAll('.hobby.selected').forEach(b => b.classList.remove('selected'));
+  document.getElementById('otherHobby').style.display = 'none';
+  document.getElementById('otherHobby').value = '';
+  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
+  if (typeof updateProfileCard === 'function') updateProfileCard(null);
+
+  updatePlanUI();
+  await refreshAuthUI();
+
+  showToast(t('profile.deleted'), 'success');
+
+  go('home');
+
+}
+
+
+/* =========================
+   EVENEMENTS
+========================= */
+
+function joinEvent(name) {
+
+  if(currentPlan === 'FREE') {
+    showToast(t('events.join_locked'), 'error');
+    return;
+  }
+
+  showToast('🎉 ' + name + ' ' + t('events.joined'), 'success');
+
+}
+
+
+function joinRestaurantEvent() {
+
+  if(currentPlan === 'FREE') {
+    showToast(t('events.join_locked'), 'error');
+    return;
+  }
+
+  showToast(t('events.restaurant_confirm'));
+
+}
+
+
+function paidEvent() {
+
+  if(currentPlan === 'FREE') {
+    showToast(t('events.special_locked'), 'error');
+    return;
+  }
+
+  showToast(t('events.special_soon'));
+
+}
+
+
+/* =========================
+   MESSAGES
+========================= */
+
+/* =========================
+   MESSAGERIE (amis + groupes max 5)
+========================= */
+
+let activeConversation = null; // { type: 'dm'|'group', id, name, conversationId }
+let myFriends = [];            // profils amis acceptés (réels)
+let myGroups = [];             // groupes locaux / Supabase
+let groupPickIds = [];         // sélection dans le modal (max 4 + toi = 5)
+
+let messagesChannel = null;
+let myConversationIds = new Set();
+let dmConversationCache = {}; // friendId -> conversationId (évite de rechercher à chaque fois)
+
+function appendBubble(text, isMe) {
+  const box = document.getElementById('chatMessages');
+  if (!box) return;
+  const placeholder = box.querySelector('.chat-placeholder');
+  if (placeholder) box.innerHTML = '';
+  const bubble = document.createElement('div');
+  bubble.className = 'bubble' + (isMe ? ' me' : '');
+  bubble.textContent = text;
+  box.appendChild(bubble);
+  box.scrollTop = box.scrollHeight;
+}
+
+async function refreshMyConversationIds() {
+  if (!currentUser) { myConversationIds = new Set(); return; }
+  const { data, error } = await supabaseClient
+    .from('conversation_members')
+    .select('conversation_id')
+    .eq('user_id', currentUser.id);
+  if (error) { console.error('refreshMyConversationIds:', error); return; }
+  myConversationIds = new Set((data || []).map(r => r.conversation_id));
+}
+
+// Trouve la conversation privée (à 2 membres) entre moi et "friendId",
+// ou en crée une nouvelle si elle n'existe pas encore.
+async function getOrCreateDmConversation(friendId) {
+  if (dmConversationCache[friendId]) return dmConversationCache[friendId];
+
+  const { data: mine, error: e1 } = await supabaseClient
+    .from('conversation_members')
+    .select('conversation_id')
+    .eq('user_id', currentUser.id);
+  if (e1) { console.error(e1); return null; }
+
+  const myConvIds = (mine || []).map(r => r.conversation_id);
+
+  if (myConvIds.length) {
+    const { data: shared, error: e2 } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', friendId)
+      .in('conversation_id', myConvIds);
+    if (e2) { console.error(e2); return null; }
+
+    const sharedIds = (shared || []).map(r => r.conversation_id);
+
+    if (sharedIds.length) {
+      const { data: allMembers, error: e3 } = await supabaseClient
+        .from('conversation_members')
+        .select('conversation_id')
+        .in('conversation_id', sharedIds);
+      if (!e3 && allMembers) {
+        const tally = {};
+        allMembers.forEach(r => { tally[r.conversation_id] = (tally[r.conversation_id] || 0) + 1; });
+        const dmId = Object.keys(tally).find(id => tally[id] === 2);
+        if (dmId) {
+          dmConversationCache[friendId] = dmId;
+          return dmId;
+        }
+      }
+    }
+  }
+
+  // Aucune conversation existante avec cet ami → on en crée une
+  const { data: conv, error: e4 } = await supabaseClient
+    .from('conversations')
+    .insert({ created_by: currentUser.id })
+    .select()
+    .single();
+  if (e4) { console.error(e4); showToast('Erreur création conversation : ' + e4.message, 'error'); return null; }
+
+  const { error: e5 } = await supabaseClient
+    .from('conversation_members')
+    .insert([
+      { conversation_id: conv.id, user_id: currentUser.id },
+      { conversation_id: conv.id, user_id: friendId }
+    ]);
+  if (e5) { console.error(e5); showToast('Erreur création conversation : ' + e5.message, 'error'); return null; }
+
+  dmConversationCache[friendId] = conv.id;
+  myConversationIds.add(conv.id);
+  return conv.id;
+}
+
+async function loadConversationHistory(conversationId) {
+  const box = document.getElementById('chatMessages');
+  if (!box) return;
+  box.innerHTML = '<div class="chat-placeholder"><p>Chargement…</p></div>';
+
+  const { data, error } = await supabaseClient
+    .from('messages')
+    .select('*')
+    .eq('conversation_id', conversationId)
+    .order('created_at', { ascending: true });
+
+  if (error) {
+    console.error('loadConversationHistory:', error);
+    box.innerHTML = '';
+    showToast('Erreur chargement messages : ' + error.message, 'error');
+    return;
+  }
+
+  box.innerHTML = '';
+  if (!data || !data.length) {
+    box.innerHTML = '<div class="chat-placeholder"><p>Aucun message pour l’instant. Dis bonjour 👋</p></div>';
+    return;
+  }
+  data.forEach(m => appendBubble(m.content, m.sender_id === currentUser.id));
+  box.scrollTop = box.scrollHeight;
+}
+
+/* =========================
+   AupyGo Friend’s (demandes + amis)
+   Stocké dans Supabase (table "friendships") — partagé entre tous les appareils
+========================= */
+
+let friendshipsCache = []; // lignes { id, from_id, to_id, status, created_at } depuis Supabase
+
+// Recharge les demandes/amitiés de l'utilisateur connecté depuis Supabase
+async function loadFriendshipsFromDB() {
+  if (!currentUser) {
+    friendshipsCache = [];
+    return friendshipsCache;
+  }
+  try {
+    const { data, error } = await supabaseClient
+      .from('friendships')
+      .select('*')
+      .or('from_id.eq.' + currentUser.id + ',to_id.eq.' + currentUser.id);
+
+    if (error) {
+      console.error('Erreur chargement amitiés:', error);
+      friendshipsCache = [];
+      return friendshipsCache;
+    }
+
+    friendshipsCache = data || [];
+    return friendshipsCache;
+  } catch (e) {
+    console.error('loadFriendshipsFromDB:', e);
+    friendshipsCache = [];
+    return friendshipsCache;
+  }
+}
+
+// Retrouve un profil déjà chargé (tableau global "profiles") par id,
+// avec un repli minimal si le profil n'est pas encore en cache local.
+function getProfileById(id) {
+  const found = (profiles || []).find(p => p.id === id);
+  return found || { id, display_name: 'AUPYGO', age: null, gender: null, city: '', host_country: '', subscription: 'FREE', is_online: false };
+}
+
+function updateFriendsBadge() {
+  if (!currentUser) {
+    const badge = document.getElementById('friendsBadge');
+    const navBtn = document.getElementById('navFriends');
+    if (badge) badge.classList.remove('show');
+    if (navBtn) navBtn.classList.remove('has-requests');
+    return;
+  }
+  const store = friendshipsCache;
+  // Demandes reçues en attente
+  const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
+  const n = pending.length;
+  const badge = document.getElementById('friendsBadge');
+  const navBtn = document.getElementById('navFriends');
+  const label = document.getElementById('requestsCountLabel');
+  if (badge) {
+    badge.textContent = String(n);
+    if (n > 0) badge.classList.add('show');
+    else badge.classList.remove('show');
+  }
+  if (navBtn) {
+    if (n > 0) navBtn.classList.add('has-requests');
+    else navBtn.classList.remove('has-requests');
+  }
+  if (label) label.textContent = n ? '(' + n + ')' : '';
+}
+
+async function renderFriendsUI() {
+  if (!currentUser) {
+    updateFriendsBadge();
+    return;
+  }
+  await loadFriendshipsFromDB();
+  const store = friendshipsCache;
+  const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
+
+  const requestsGrid = document.getElementById('requestsGrid');
+  const requestsEmpty = document.getElementById('requestsEmpty');
+  if (requestsGrid) {
+    requestsGrid.innerHTML = '';
+    if (pending.length === 0) {
+      if (requestsEmpty) requestsEmpty.style.display = 'block';
+    } else {
+      if (requestsEmpty) requestsEmpty.style.display = 'none';
+      pending.forEach(req => {
+        const p = getProfileById(req.from_id);
+        const emoji = p.gender === 'Homme' ? '👨' : '👩';
+        const age = p.age ? (p.age + ' ans') : '';
+        const city = p.city || p.host_country || '';
+        const meta = [age, city].filter(Boolean).join(' · ');
+        const isPremium = p.subscription === 'PREMIUM';
+        const card = document.createElement('div');
+        card.className = 'card friend-request-card';
+        card.dataset.id = req.id;
+        card.innerHTML =
+          '<div style="text-align:center;margin-bottom:12px">' +
+            '<div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">' + emoji + '</div>' +
+            '<h3 style="margin:0">' + (p.display_name || 'AUPYGO') + '</h3>' +
+            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
+            (isPremium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
+          '</div>' +
+          '<div class="request-actions" style="display:flex;gap:8px">' +
+            '<button class="btn-accept" style="flex:1" onclick="acceptFriendRequest(\'' + req.id + '\')">✅ Accepter</button>' +
+            '<button class="btn-refuse" style="flex:1" onclick="refuseFriendRequest(\'' + req.id + '\')">❌ Refuser</button>' +
+          '</div>' +
+          '<div class="status-confirmed">💚 Ami confirmé</div>';
+        requestsGrid.appendChild(card);
+      });
+    }
+  }
+
+  // Amis confirmés (des deux côtés)
+  const friendIds = new Set();
+  const friends = [];
+  store.filter(r => r.status === 'accepted').forEach(r => {
+    let otherId;
+    if (r.from_id === currentUser.id) otherId = r.to_id;
+    else if (r.to_id === currentUser.id) otherId = r.from_id;
+    else return;
+    if (friendIds.has(otherId)) return;
+    friendIds.add(otherId);
+    const p = getProfileById(otherId);
+    friends.push({
+      id: otherId,
+      name: p.display_name || 'AUPYGO',
+      age: p.age,
+      city: p.city || p.host_country || '',
+      gender: p.gender,
+      premium: p.subscription === 'PREMIUM',
+      online: isRecentlyOnline(p)
+    });
+  });
+
+  const friendsGrid = document.getElementById('friendsGrid');
+  const friendsEmpty = document.getElementById('friendsEmpty');
+  if (friendsGrid) {
+    // garder friendsEmpty en référence
+    Array.from(friendsGrid.querySelectorAll('.friend-card, .card:not(#friendsEmpty)')).forEach(el => {
+      if (el.id !== 'friendsEmpty') el.remove();
+    });
+    if (friends.length === 0) {
+      if (friendsEmpty) friendsEmpty.style.display = 'block';
+    } else {
+      if (friendsEmpty) friendsEmpty.style.display = 'none';
+      friends.forEach(f => {
+        const emoji = f.gender === 'Homme' ? '👨' : '👩';
+        const meta = [f.age ? (f.age + ' ans') : '', f.city || ''].filter(Boolean).join(' · ');
+        const card = document.createElement('div');
+        card.className = 'card friend-card';
+        const msgBtn = currentPlan === 'PREMIUM'
+          ? '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + String(f.name).replace(/'/g, "\\'") + '\')">💬 Message</button>'
+          : '<button class="btn btn-locked" style="width:100%" onclick="go(\'plans\')">🔒 Messages PREMIUM</button>';
+        card.innerHTML =
+          '<div style="text-align:center;margin-bottom:12px">' +
+            '<div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">' + emoji + '</div>' +
+            '<h3 style="margin:0">' + f.name + '</h3>' +
+            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
+            (f.premium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
+          '</div>' +
+          '<p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">💚 Ami confirmé</p>' +
+          '<div style="display:flex;flex-direction:column;gap:8px">' +
+            '<button class="btn btn-secondary" style="width:100%" onclick="showSharedEvents(\'' + String(f.name).replace(/'/g, "\\'") + '\')">Sorties en commun</button>' +
+            msgBtn +
+          '</div>';
+        friendsGrid.appendChild(card);
+      });
+    }
+  }
+
+  // Alimente myFriends pour la messagerie
+  myFriends = friends.map(f => ({
+    id: f.id,
+    display_name: f.name,
+    gender: f.gender,
+    is_online: f.online,
+    subscription: f.premium ? 'PREMIUM' : 'FREE'
+  }));
+
+  updateFriendsBadge();
+  const freeNotice = document.getElementById('reconnectFreeNotice');
+  if (freeNotice) freeNotice.style.display = currentPlan === 'FREE' ? 'block' : 'none';
+}
+
+async function acceptFriendRequest(reqId) {
+  const req = friendshipsCache.find(r => r.id === reqId);
+  if (!req || req.status !== 'pending') return;
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .update({ status: 'accepted' })
+    .eq('id', reqId);
+
+  if (error) {
+    console.error('acceptFriendRequest:', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  const p = getProfileById(req.from_id);
+  showToast('💚 Tu es maintenant ami(e) avec ' + (p.display_name || 'cet AUPYGO'), 'success');
+  await renderFriendsUI();
+  if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+}
+
+async function refuseFriendRequest(reqId) {
+  const req = friendshipsCache.find(r => r.id === reqId);
+  if (!req || req.status !== 'pending') return;
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .update({ status: 'refused' })
+    .eq('id', reqId);
+
+  if (error) {
+    console.error('refuseFriendRequest:', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  showToast('Demande refusée', 'success');
+  await renderFriendsUI();
+}
+
+async function sendFriendRequestToMember(memberId) {
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required'), 'error');
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  if (currentPlan === 'FREE') {
+    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
+    closeMemberProfile();
+    go('plans');
+    return;
+  }
+  if (memberId === currentUser.id) {
+    showToast('Tu ne peux pas t’ajouter toi-même', 'error');
+    return;
+  }
+
+  const raw = profiles.find(m => m.id === memberId);
+  const name = raw ? (raw.display_name || 'AUPYGO') : 'AUPYGO';
+
+  // Vérifie l'état actuel (Supabase = source de vérité, pas le cache local)
+  const { data: existingRows, error: checkError } = await supabaseClient
+    .from('friendships')
+    .select('*')
+    .or('and(from_id.eq.' + currentUser.id + ',to_id.eq.' + memberId + '),and(from_id.eq.' + memberId + ',to_id.eq.' + currentUser.id + ')');
+
+  if (checkError) {
+    console.error('sendFriendRequestToMember (check):', checkError);
+    showToast('Erreur : ' + checkError.message, 'error');
+    return;
+  }
+
+  const existing = (existingRows || [])[0];
+  if (existing) {
+    if (existing.status === 'refused') {
+      showToast('🚫 Demande impossible (déjà refusée)', 'error');
+      closeMemberProfile();
+      return;
+    }
+    if (existing.status === 'accepted') {
+      showToast('💚 Vous êtes déjà amis', 'success');
+      closeMemberProfile();
+      return;
+    }
+    if (existing.status === 'pending') {
+      showToast('Demande déjà envoyée', 'success');
+      closeMemberProfile();
+      return;
+    }
+  }
+
+  const { error } = await supabaseClient
+    .from('friendships')
+    .insert({
+      from_id: currentUser.id,
+      to_id: memberId,
+      status: 'pending'
+    });
+
+  if (error) {
+    console.error('sendFriendRequestToMember (insert):', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  showToast(t('toast.friend_request_sent') + ' ' + name + ' 🤝', 'success');
+  await loadFriendshipsFromDB();
+  updateFriendsBadge();
+  closeMemberProfile();
+}
+
+
+async function openConversation(type, id, name) {
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    go('plans');
+    return;
+  }
+
+  const header = document.getElementById('chatHeader');
+  if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
+
+  const input = document.getElementById('messageInput');
+  const btn = document.getElementById('sendMsgBtn');
+  if (input) { input.disabled = false; input.focus(); }
+  if (btn) btn.disabled = false;
+
+  if (type !== 'dm') {
+    activeConversation = { type, id, name, conversationId: null };
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Les groupes ne sont pas encore synchronisés en ligne (à venir).</p></div>';
+    renderConversationSidebar();
+    return;
+  }
+
+  activeConversation = { type, id, name, conversationId: null };
+  renderConversationSidebar();
+
+  const convId = await getOrCreateDmConversation(id);
+  if (!convId) {
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Impossible de charger la conversation.</p></div>';
+    return;
+  }
+  activeConversation.conversationId = convId;
+  await loadConversationHistory(convId);
+}
+
+async function sendMessage() {
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    return;
+  }
+  if (!activeConversation) {
+    showToast(t('messages.select_first') || 'Sélectionne une conversation d’abord', 'error');
+    return;
+  }
+  if (activeConversation.type !== 'dm') {
+    showToast('Les messages de groupe arrivent bientôt', 'error');
+    return;
+  }
+  if (!activeConversation.conversationId) {
+    showToast('Conversation en cours de préparation, réessaie dans un instant.', 'error');
+    return;
+  }
+
+  const input = document.getElementById('messageInput');
+  if (!input || !input.value.trim()) return;
+  const text = input.value.trim();
+
+  const { error } = await supabaseClient
+    .from('messages')
+    .insert({
+      conversation_id: activeConversation.conversationId,
+      sender_id: currentUser.id,
+      content: text
+    });
+
+  if (error) {
+    console.error('sendMessage:', error);
+    showToast('Erreur : ' + error.message, 'error');
+    return;
+  }
+
+  appendBubble(text, true);
+  showToast(t('messages.sent'), 'success');
+  input.value = '';
+}
+
+function setupMessagesRealtime() {
+  if (!currentUser || currentPlan !== 'PREMIUM' || messagesChannel) return;
+  refreshMyConversationIds().then(() => {
+    messagesChannel = supabaseClient
+      .channel('messages-' + currentUser.id)
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const msg = payload.new;
+          if (msg.sender_id === currentUser.id) return; // déjà affiché localement
+          if (!myConversationIds.has(msg.conversation_id)) return; // pas une conversation à moi
+
+          if (activeConversation && activeConversation.type === 'dm' && activeConversation.conversationId === msg.conversation_id) {
+            appendBubble(msg.content, false);
+          } else {
+            showToast('💬 Nouveau message', 'success');
+          }
+        }
+      )
+      .subscribe();
+  });
+}
+
+function teardownMessagesRealtime() {
+  if (messagesChannel) {
+    supabaseClient.removeChannel(messagesChannel);
+    messagesChannel = null;
+  }
+  myConversationIds = new Set();
+  dmConversationCache = {};
+}
+
+function renderConversationSidebar() {
+  const friendsList = document.getElementById('convFriendsList');
+  const groupsList = document.getElementById('convGroupsList');
+  if (!friendsList || !groupsList) return;
+
+  if (!myFriends.length) {
+    friendsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_friends') || 'Aucun ami pour discuter. Ajoute des amis depuis la carte.') + '</p>';
+  } else {
+    friendsList.innerHTML = myFriends.map(f => {
+      const emoji = f.gender === 'Homme' ? '👨' : '👩';
+      const online = f.is_online === true || f.online === true;
+      const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
+          '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+
+  if (!myGroups.length) {
+    groupsList.innerHTML = '<p class="conv-empty">' + (t('messages.no_groups') || 'Aucun groupe. Crée-en un (max 5 personnes).') + '</p>';
+  } else {
+    groupsList.innerHTML = myGroups.map(g => {
+      const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
+      return (
+        '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
+          '<div class="conv-avatar group">👥</div>' +
+          '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div>' +
+          '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
+        '</div>'
+      );
+    }).join('');
+  }
+}
+
+function openCreateGroupModal() {
+  if (currentPlan !== 'PREMIUM') {
+    showToast(t('messages.send_locked'), 'error');
+    go('plans');
+    return;
+  }
+  groupPickIds = [];
+  const title = document.getElementById('groupTitleInput');
+  if (title) title.value = '';
+  renderGroupFriendsPick();
+  const overlay = document.getElementById('createGroupOverlay');
+  if (overlay) {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeCreateGroupModal() {
+  const overlay = document.getElementById('createGroupOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function renderGroupFriendsPick() {
+  const box = document.getElementById('groupFriendsPick');
+  const countEl = document.getElementById('groupPickCount');
+  if (!box) return;
+  if (!myFriends.length) {
+    box.innerHTML = '<p class="conv-empty" style="padding:12px">Aucun ami disponible. Ajoute des amis d’abord.</p>';
+    if (countEl) countEl.textContent = '(0/4)';
+    return;
+  }
+  box.innerHTML = myFriends.map(f => {
+    const emoji = f.gender === 'Homme' ? '👨' : '👩';
+    const checked = groupPickIds.includes(f.id);
+    return (
+      '<label class="group-pick-item' + (checked ? ' selected' : '') + '">' +
+        '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleGroupPick(\'' + f.id + '\', this.checked)">' +
+        '<span style="font-size:20px">' + emoji + '</span>' +
+        '<span>' + (f.display_name || 'Ami') + '</span>' +
+      '</label>'
+    );
+  }).join('');
+  if (countEl) countEl.textContent = '(' + groupPickIds.length + '/4)';
+}
+
+function toggleGroupPick(id, checked) {
+  if (checked) {
+    if (groupPickIds.length >= 4) {
+      showToast('Maximum 4 amis (+ toi = 5 personnes max)', 'error');
+      renderGroupFriendsPick();
+      return;
+    }
+    if (!groupPickIds.includes(id)) groupPickIds.push(id);
+  } else {
+    groupPickIds = groupPickIds.filter(x => x !== id);
+  }
+  renderGroupFriendsPick();
+}
+
+function createGroupChat() {
+  const titleEl = document.getElementById('groupTitleInput');
+  const title = (titleEl && titleEl.value.trim()) || '';
+  if (!title) {
+    showToast('Donne un titre au groupe (ex. Café team)', 'error');
+    return;
+  }
+  if (groupPickIds.length < 1) {
+    showToast('Choisis au moins 1 ami', 'error');
+    return;
+  }
+  if (groupPickIds.length > 4) {
+    showToast('Maximum 5 personnes (toi inclus)', 'error');
+    return;
+  }
+  const memberIds = currentUser ? [currentUser.id, ...groupPickIds] : groupPickIds.slice();
+  const group = {
+    id: 'g_' + Date.now(),
+    title: title.slice(0, 40),
+    memberIds: memberIds
+  };
+  myGroups.push(group);
+  // TODO Supabase : table groups + group_members
+  closeCreateGroupModal();
+  renderConversationSidebar();
+  openConversation('group', group.id, group.title);
+  showToast('Groupe « ' + group.title + ' » créé (' + memberIds.length + ' personnes)', 'success');
+}
+
+async function loadFriendsForMessaging() {
+  myFriends = [];
+  try {
+    if (currentUser) {
+      await renderFriendsUI(); // met aussi à jour myFriends
+    }
+  } catch (e) {
+    console.error('loadFriendsForMessaging:', e);
+  }
+  renderConversationSidebar();
+  if (typeof renderGroupFriendsPick === 'function') renderGroupFriendsPick();
+  setupMessagesRealtime();
+}
+
+
+/* =========================
+   LANGUES
+========================= */
+
+// Changement de langue à la volée : met à jour le dictionnaire actif,
+// retraduit le DOM et persiste le choix, sans recharger la page
+// (donc sans perdre la session Supabase ni l'état de l'UI).
+function changeLanguage(lang) {
+  if (!I18N[lang]) return;
+  currentLang = lang;
+  localStorage.setItem('aupygo_lang', lang);
+  const sel = document.getElementById('language');
+  if (sel) sel.value = lang;
+  applyTranslations();
+  // Met à jour les zones dynamiques non marquées data-i18n
+  if (typeof updateOnlineCount === 'function') updateOnlineCount();
+  if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+}
+
+
+/* =========================
+   INACTIVITÉ (45 min → déconnexion auto)
+   Avertissement à 40 min
+========================= */
+
+const IDLE_WARN_MS = 40 * 60 * 1000;   // 40 minutes
+const IDLE_LOGOUT_MS = 45 * 60 * 1000; // 45 minutes
+let lastActivityAt = Date.now();
+let idleWarnTimer = null;
+let idleLogoutTimer = null;
+let idleCheckInterval = null;
+let idleWarningShown = false;
+
+function markActivity() {
+  if (!currentUser) return;
+  lastActivityAt = Date.now();
+  if (idleWarningShown) {
+    closeIdleWarning();
+  }
+  scheduleIdleTimers();
+}
+
+function scheduleIdleTimers() {
+  clearTimeout(idleWarnTimer);
+  clearTimeout(idleLogoutTimer);
+  if (!currentUser) return;
+
+  const elapsed = Date.now() - lastActivityAt;
+  const warnIn = Math.max(0, IDLE_WARN_MS - elapsed);
+  const logoutIn = Math.max(0, IDLE_LOGOUT_MS - elapsed);
+
+  idleWarnTimer = setTimeout(() => {
+    if (!currentUser) return;
+    showIdleWarning();
+  }, warnIn);
+
+  idleLogoutTimer = setTimeout(() => {
+    if (!currentUser) return;
+    closeIdleWarning();
+    handleLogout('idle');
+  }, logoutIn);
+}
+
+function showIdleWarning() {
+  if (!currentUser || idleWarningShown) return;
+  idleWarningShown = true;
+  const overlay = document.getElementById('idleWarningOverlay');
+  if (overlay) {
+    // Applique la langue courante sur le modal
+    const title = overlay.querySelector('#idleWarningTitle');
+    const msg = overlay.querySelector('p');
+    const stayBtn = overlay.querySelector('.btn-primary');
+    const logoutBtn = overlay.querySelector('.btn-secondary');
+    if (title) title.textContent = t('idle.title');
+    if (msg) msg.textContent = t('idle.message');
+    if (stayBtn) stayBtn.textContent = t('idle.stay');
+    if (logoutBtn) logoutBtn.textContent = t('idle.logout');
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeIdleWarning() {
+  idleWarningShown = false;
+  const overlay = document.getElementById('idleWarningOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function stayActive() {
+  closeIdleWarning();
+  markActivity();
+  showToast(t('idle.stayed'), 'success');
+}
+
+function startIdleWatch() {
+  stopIdleWatch();
+  if (!currentUser) return;
+  lastActivityAt = Date.now();
+  idleWarningShown = false;
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach(ev => window.addEventListener(ev, markActivity, { passive: true }));
+  scheduleIdleTimers();
+  // Contrôle de secours toutes les 30 s
+  idleCheckInterval = setInterval(() => {
+    if (!currentUser) return;
+    const elapsed = Date.now() - lastActivityAt;
+    if (elapsed >= IDLE_LOGOUT_MS) {
+      closeIdleWarning();
+      handleLogout('idle');
+    } else if (elapsed >= IDLE_WARN_MS && !idleWarningShown) {
+      showIdleWarning();
+    }
+  }, 30000);
+}
+
+function stopIdleWatch() {
+  clearTimeout(idleWarnTimer);
+  clearTimeout(idleLogoutTimer);
+  clearInterval(idleCheckInterval);
+  idleWarnTimer = idleLogoutTimer = idleCheckInterval = null;
+  closeIdleWarning();
+  const events = ['mousemove', 'mousedown', 'keydown', 'touchstart', 'scroll', 'click'];
+  events.forEach(ev => window.removeEventListener(ev, markActivity));
+}
+
+
+/* =========================
+   DÉMARRAGE
+========================= */
+
+/* =========================
+   TOUCHE ENTRÉE = VALIDATION
+========================= */
+
+function bindEnterKey(id, handler) {
+
+  const el = document.getElementById(id);
+
+  if (!el) return;
+
+  el.addEventListener('keydown', (e) => {
+
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handler();
+    }
+
+  });
+
+}
+
+function toggleFooter(id) {
+  const boxes = ['faqBox', 'contactBox', 'cguBox', 'privacyBox', 'legalBox', 'howItWorksBox'];
+  const target = document.getElementById(id);
+  if (!target) return;
+
+  // Ferme tous les autres, bascule celui cliqué
+  boxes.forEach(boxId => {
+    const el = document.getElementById(boxId);
+    if (!el) return;
+    if (boxId === id) {
+      el.style.display = (el.style.display === 'block') ? 'none' : 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  });
+}
+
+document.addEventListener('DOMContentLoaded', async () => {
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeMemberProfile();
+      closeGeoConsent();
+      if (typeof closeCreateGroupModal === 'function') closeCreateGroupModal();
+    }
+  });
+
+  const bioEl = document.getElementById('bio');
+  const bioCounter = document.getElementById('bioCounter');
+  if (bioEl && bioCounter) {
+    bioEl.addEventListener('input', () => {
+      bioCounter.textContent = bioEl.value.length;
+    });
+  }
+
+
+  // Applique la langue sauvegardée (ou FR par défaut) avant tout le reste
+   const langEl = document.getElementById('language');
+  if (langEl) langEl.value = currentLang;
+  applyTranslations();
+
+  loadSavedApproxLocation(); // charge la position approximative déjà autorisée
+  initMap();
+  await loadProfiles(); // charge les profils avec coordonnées pour la carte
+  updatePlanUI();
+  updateNavVisibility();
+  await refreshAuthUI();
+  if (currentUser) {
+    await loadFriendshipsFromDB();
+  }
+  if (typeof loadFriendsForMessaging === 'function') await loadFriendsForMessaging();
+  if (typeof updateFriendsBadge === 'function') updateFriendsBadge();
+
+  // Si déjà connecté au chargement → statut en ligne + heartbeat + watch inactivité
+  if (currentUser) {
+    setOnlineStatus(true);
+    startIdleWatch();
+  }
+
+  // Rafraîchit les profils (couleurs vert/rouge) et les amitiés toutes les 60 s
+  setInterval(() => {
+    loadProfiles();
+    if (currentUser) {
+      setOnlineStatus(true);
+      loadFriendshipsFromDB().then(updateFriendsBadge);
+    }
+  }, 60000);
+
+  // Synchronisation multi-onglets / multi-appareils
+  // SIGNED_OUT (ex. déconnexion sur un autre appareil avec scope global) → UI locale nettoyée partout
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    if (event === 'SIGNED_OUT') {
+      // Déjà géré par handleLogout local → ne pas double-nettoyer / double-toast
+      if (isLocalLogout) return;
+
+      const wasLoggedIn = !!currentUser;
+      authIntent = null;
+      currentUser = null;
+      currentPlan = 'FREE';
+      localStorage.removeItem('aupygo_plan');
+      profileSaved = false;
+      stopIdleWatch();
+      teardownMessagesRealtime();
+      unlockIdentityFields();
+      updatePlanUI();
+      updateNavVisibility();
+      if (typeof applyMapRestrictions === 'function') applyMapRestrictions();
+      if (typeof renderMarkers === 'function') renderMarkers();
+      refreshAuthUI('home');
+      // Déconnexion depuis un autre appareil / onglet
+      if (wasLoggedIn) {
+        showToast(t('toast.logged_out'));
+        if (getActivePage() !== 'home' && getActivePage() !== 'plans' && getActivePage() !== 'map') {
+          go('home');
+        }
+      }
+      return;
+    }
+
+    if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED' || event === 'USER_UPDATED') {
+      const redirectPage = authIntent === 'login' ? 'home' : (authIntent === 'signup' ? 'profile' : getActivePage());
+      authIntent = null;
+      refreshAuthUI(redirectPage).then(() => {
+        if (currentUser) startIdleWatch();
+      });
+      return;
+    }
+
+    // Autres événements : rafraîchir sans redirection forcée
+    authIntent = null;
+    refreshAuthUI(getActivePage());
+  });
+
+  // Entrée = clique sur le bouton correspondant
+  bindEnterKey('signupEmail', handleSignup);
+  bindEnterKey('signupPassword', handleSignup);
+  bindEnterKey('loginEmail', handleLogin);
+  bindEnterKey('loginPassword', handleLogin);
+  bindEnterKey('firstName', saveProfile);
+  bindEnterKey('age', saveProfile);
+  bindEnterKey('country', saveProfile);
+
+});
