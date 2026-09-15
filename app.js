@@ -1095,7 +1095,9 @@ function go(page) {
   const el = document.getElementById(page);
 
   if(el) el.classList.add('active');
-
+  if (page === 'messages') {
+    clearUnreadMessages();
+  }
 
   document.querySelectorAll('nav button').forEach(b => {
 
