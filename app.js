@@ -2105,6 +2105,10 @@ function clearUnreadMessages() {
   unreadMessagesCount = 0;
   updateMessagesBadge();
 }
+
+function updateFriendsBadge() {
+  if (!currentUser) return;
+  const store = friendshipsCache;
   // Demandes reçues en attente
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
   const n = pending.length;
