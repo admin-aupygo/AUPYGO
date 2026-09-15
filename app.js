@@ -2084,15 +2084,31 @@ function getProfileById(id) {
   return found || { id, display_name: 'AUPYGO', age: null, gender: null, city: '', host_country: '', subscription: 'FREE', is_online: false };
 }
 
-function updateFriendsBadge() {
-  if (!currentUser) {
-    const badge = document.getElementById('friendsBadge');
-    const navBtn = document.getElementById('navFriends');
-    if (badge) badge.classList.remove('show');
-    if (navBtn) navBtn.classList.remove('has-requests');
-    return;
+let unreadMessagesCount = 0;
+
+function updateMessagesBadge() {
+  const badge = document.getElementById('messagesBadge');
+  const navBtn = document.getElementById('navMessages');
+  if (!badge || !navBtn) return;
+  if (unreadMessagesCount > 0) {
+    badge.textContent = unreadMessagesCount > 99 ? '99+' : String(unreadMessagesCount);
+    badge.classList.add('show');
+    navBtn.classList.add('has-unread-messages');
+  } else {
+    badge.classList.remove('show');
+    navBtn.classList.remove('has-unread-messages');
   }
-  const store = friendshipsCache;
+}
+
+function incrementUnreadMessages() {
+  unreadMessagesCount++;
+  updateMessagesBadge();
+}
+
+function clearUnreadMessages() {
+  unreadMessagesCount = 0;
+  updateMessagesBadge();
+}
   // Demandes reçues en attente
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
   const n = pending.length;
