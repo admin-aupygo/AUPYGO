@@ -691,6 +691,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       setOnlineStatus(true);
       startIdleWatch();
       loadFriendshipsFromDB().then(updateFriendsBadge);
+      loadUnreadCounts();
     }
 
   } else {
@@ -1095,9 +1096,8 @@ function go(page) {
   const el = document.getElementById(page);
 
   if(el) el.classList.add('active');
-  if (page === 'messages') {
-    clearUnreadMessages();
-  }
+  // NB : on ne vide plus le badge ici — seule l'ouverture effective
+  // d'une conversation (openConversation) marque son contenu comme lu.
 
   document.querySelectorAll('nav button').forEach(b => {
 
@@ -1321,10 +1321,16 @@ function openMemberProfile(memberId) {
     ? '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>'
     : '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Consultation uniquement · passe en STANDARD pour envoyer une demande d\u2019ami</p>';
 
+  // Visiteur PREMIUM face à un profil non-PREMIUM : pastille rouge explicative
+  // sur l'avatar (messagerie privée indisponible pour ce contact).
+  const restrictedBadge = (currentPlan === 'PREMIUM' && plan !== 'PREMIUM')
+    ? '<span class="member-restricted-badge" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒</span>'
+    : '';
+
   box.innerHTML =
     '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
     onlineHtml +
-    '<div class="member-avatar">' + emoji + '</div>' +
+    '<div class="member-avatar">' + emoji + restrictedBadge + '</div>' +
     '<h3>' + member.name + '</h3>' +
     '<p class="member-badge">🛡️ AUPYGO certifié · ' + (member.age || '?') + ' ans</p>' +
     (member.host ? '<div class="member-info">🏡 Pays d\'accueil : <strong>' + member.host + '</strong></div>' : '') +
@@ -1360,9 +1366,16 @@ function messageMember(memberId) {
     return;
   }
 
+  // PREMIUM → STANDARD (ou FREE) : la messagerie privée exige que les DEUX
+  // comptes soient PREMIUM. Avertissement immédiat, rien n'est envoyé.
+  if ((raw.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+    showToast(t('messages.contact_not_premium_full'), 'error');
+    closeMemberProfile();
+    return;
+  }
+
   closeMemberProfile();
   go('messages');
-  clearUnreadMessages();
 
   // Ouvre directement la conversation avec cette personne
   // (petit délai pour laisser le temps à l’onglet de s’afficher)
@@ -1984,6 +1997,7 @@ async function getOrCreateDmConversation(friendId) {
         const dmId = Object.keys(tally).find(id => tally[id] === 2);
         if (dmId) {
           dmConversationCache[friendId] = dmId;
+          friendIdByConversation[dmId] = friendId;
           return dmId;
         }
       }
@@ -2007,6 +2021,7 @@ async function getOrCreateDmConversation(friendId) {
   if (e5) { console.error(e5); showToast('Erreur création conversation : ' + e5.message, 'error'); return null; }
 
   dmConversationCache[friendId] = conv.id;
+  friendIdByConversation[conv.id] = friendId;
   myConversationIds.add(conv.id);
   return conv.id;
 }
@@ -2034,8 +2049,8 @@ async function loadConversationHistory(conversationId) {
     box.innerHTML = '<div class="chat-placeholder"><p>Aucun message pour l’instant. Dis bonjour 👋</p></div>';
     return;
   }
-lastBubbleDateKey = null;
-data.forEach(m => appendBubble(m.content, m.sender_id === currentUser.id, m.created_at));
+  lastBubbleDateKey = null;
+  data.forEach(m => appendBubble(m.content, m.sender_id === currentUser.id, m.created_at));
   box.scrollTop = box.scrollHeight;
 }
 
@@ -2080,32 +2095,167 @@ function getProfileById(id) {
   return found || { id, display_name: 'AUPYGO', age: null, gender: null, city: '', host_country: '', subscription: 'FREE', is_online: false };
 }
 
-let unreadMessagesCount = 0;
+/* =========================
+   MESSAGES NON LUS
+   — comptage par conversation (DM), persistance via
+     conversation_members.last_read_at (Supabase) pour une
+     synchro correcte multi-onglets / multi-appareils.
+   NOTE MIGRATION REQUISE : ajouter la colonne
+     conversation_members.last_read_at (timestamptz, nullable)
+   côté Supabase. Sans cette colonne, les compteurs fonctionnent
+   uniquement pour la session en cours (fallback en mémoire).
+========================= */
+
+let unreadByConversation = {};   // conversationId -> nombre de messages non lus
+let friendIdByConversation = {}; // conversationId -> friendId (DM uniquement)
+let unreadByFriend = {};         // friendId -> nombre de messages non lus (raccourci pour l'UI)
+
+function escapeAttr(str) {
+  return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+function getTotalUnreadCount() {
+  return Object.values(unreadByConversation).reduce((a, b) => a + b, 0);
+}
 
 function updateMessagesBadge() {
   const badge = document.getElementById('messagesBadge');
   const navBtn = document.getElementById('navMessages');
   if (!badge || !navBtn) return;
-  if (unreadMessagesCount > 0) {
-    badge.textContent = unreadMessagesCount > 99 ? '99+' : String(unreadMessagesCount);
+  const total = getTotalUnreadCount();
+  if (total > 0) {
+    badge.textContent = total > 99 ? '99+' : String(total);
     badge.classList.add('show');
-    navBtn.classList.add('has-unread-messages');
+    navBtn.classList.add('has-unread-messages', 'nav-blink');
   } else {
     badge.classList.remove('show');
-    navBtn.classList.remove('has-unread-messages');
+    navBtn.classList.remove('has-unread-messages', 'nav-blink');
   }
 }
 
-function incrementUnreadMessages() {
-  unreadMessagesCount++;
-  updateMessagesBadge();
+// Recharge depuis Supabase l'état "non lu" de toutes mes conversations DM.
+// Résout au passage la correspondance conversation <-> ami (friendIdByConversation)
+// et alimente le cache dmConversationCache pour éviter des recherches redondantes.
+async function loadUnreadCounts() {
+  if (!currentUser) {
+    unreadByConversation = {};
+    friendIdByConversation = {};
+    unreadByFriend = {};
+    updateMessagesBadge();
+    if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+    return;
+  }
+
+  try {
+    const { data: memberRows, error: mErr } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id, last_read_at')
+      .eq('user_id', currentUser.id);
+
+    if (mErr) {
+      // Colonne last_read_at absente ou autre erreur : on n'écrase pas
+      // l'état en mémoire déjà construit par les événements temps réel.
+      console.error('loadUnreadCounts (members):', mErr);
+      return;
+    }
+
+    const myRows = memberRows || [];
+    const convIds = myRows.map(r => r.conversation_id);
+
+    if (!convIds.length) {
+      unreadByConversation = {};
+      friendIdByConversation = {};
+      unreadByFriend = {};
+      updateMessagesBadge();
+      if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+      return;
+    }
+
+    // Résout l'autre membre de chaque conversation privée (DM à 2 membres)
+    const { data: allMembers, error: allErr } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id, user_id')
+      .in('conversation_id', convIds);
+    if (allErr) console.error('loadUnreadCounts (allMembers):', allErr);
+
+    const membersByConv = {};
+    (allMembers || []).forEach(r => {
+      if (!membersByConv[r.conversation_id]) membersByConv[r.conversation_id] = [];
+      membersByConv[r.conversation_id].push(r.user_id);
+    });
+
+    const newFriendIdByConv = {};
+    Object.keys(membersByConv).forEach(convId => {
+      const members = membersByConv[convId];
+      if (members.length === 2) {
+        const other = members.find(id => id !== currentUser.id);
+        if (other) {
+          newFriendIdByConv[convId] = other;
+          dmConversationCache[other] = convId;
+        }
+      }
+    });
+    friendIdByConversation = newFriendIdByConv;
+
+    const newUnreadByConv = {};
+    const newUnreadByFriend = {};
+
+    for (const row of myRows) {
+      const convId = row.conversation_id;
+      const since = row.last_read_at || '1970-01-01T00:00:00.000Z';
+      const { count, error: cErr } = await supabaseClient
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', convId)
+        .neq('sender_id', currentUser.id)
+        .gt('created_at', since);
+      if (cErr) { console.error('loadUnreadCounts (count):', cErr); continue; }
+      if (count && count > 0) {
+        newUnreadByConv[convId] = count;
+        const fid = friendIdByConversation[convId];
+        if (fid) newUnreadByFriend[fid] = count;
+      }
+    }
+
+    unreadByConversation = newUnreadByConv;
+    unreadByFriend = newUnreadByFriend;
+    updateMessagesBadge();
+    if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+    if (typeof renderFriendsUI === 'function' && getActivePage() === 'reconnect') renderFriendsUI();
+  } catch (e) {
+    console.error('loadUnreadCounts:', e);
+  }
 }
 
+// Marque une conversation comme lue : nettoie l'état local (badge + clignotement)
+// et persiste last_read_at côté Supabase pour la synchro multi-appareils.
+async function markConversationRead(conversationId, friendId) {
+  if (!conversationId) return;
+  if (unreadByConversation[conversationId]) delete unreadByConversation[conversationId];
+  if (friendId && unreadByFriend[friendId]) delete unreadByFriend[friendId];
+  updateMessagesBadge();
+  if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+
+  if (!currentUser) return;
+  try {
+    await supabaseClient
+      .from('conversation_members')
+      .update({ last_read_at: new Date().toISOString() })
+      .eq('conversation_id', conversationId)
+      .eq('user_id', currentUser.id);
+  } catch (e) {
+    console.error('markConversationRead:', e);
+  }
+}
+
+// Conservée pour compatibilité : ne remet plus tout à zéro (voir cahier des
+// charges — le badge global ne doit disparaître qu'une fois CHAQUE
+// conversation lue individuellement, pas seulement en visitant l'onglet).
 function clearUnreadMessages() {
-  unreadMessagesCount = 0;
-  updateMessagesBadge();
+  // Volontairement no-op : voir markConversationRead(conversationId, friendId).
 }
 
+// Met à jour le badge des demandes d'ami en attente (icône navigation "Amis")
 function updateFriendsBadge() {
   if (!currentUser) return;
   const store = friendshipsCache;
@@ -2209,13 +2359,26 @@ async function renderFriendsUI() {
         const meta = [f.age ? (f.age + ' ans') : '', f.city || ''].filter(Boolean).join(' · ');
         const card = document.createElement('div');
         card.className = 'card friend-card';
-        const msgBtn = currentPlan === 'PREMIUM'
-          ? '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + String(f.name).replace(/'/g, "\\'") + '\')">💬 Message</button>'
-          : '<button class="btn btn-locked" style="width:100%" onclick="go(\'plans\')">🔒 Messages PREMIUM</button>';
+        const nameSafe = String(f.name).replace(/'/g, "\\'");
+        let msgBtn;
+        if (currentPlan !== 'PREMIUM') {
+          msgBtn = '<button class="btn btn-locked" style="width:100%" onclick="go(\'plans\')">🔒 Messages PREMIUM</button>';
+        } else if (!f.premium) {
+          // Moi PREMIUM, mais ce contact n'est pas PREMIUM : messagerie indisponible.
+          msgBtn = '<button class="btn btn-locked" style="width:100%" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒 ' + t('messages.contact_not_premium_short') + '</button>';
+        } else {
+          msgBtn = '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">💬 Message</button>';
+        }
+        const unread = unreadByFriend[f.id] || 0;
+        const isUnread = unread > 0;
+        const restrictedDot = (currentPlan === 'PREMIUM' && !f.premium)
+          ? '<span class="member-restricted-badge" style="position:absolute;top:0;right:calc(50% - 46px)" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="event.stopPropagation(); showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒</span>'
+          : '';
         card.innerHTML =
-          '<div style="text-align:center;margin-bottom:12px">' +
-            '<div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">' + emoji + '</div>' +
-            '<h3 style="margin:0">' + f.name + '</h3>' +
+          '<div style="text-align:center;margin-bottom:12px;position:relative">' +
+            '<div class="avatar' + (isUnread ? ' conv-blink' : '') + '" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px;position:relative;display:inline-flex;align-items:center;justify-content:center">' + emoji + '</div>' +
+            restrictedDot +
+            '<h3 style="margin:0" class="' + (isUnread ? 'conv-name-unread' : '') + '">' + f.name + (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</h3>' +
             (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
             (f.premium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
           '</div>' +
@@ -2363,6 +2526,15 @@ async function openConversation(type, id, name) {
     return;
   }
 
+  // PREMIUM → STANDARD/FREE : messagerie indisponible, avertissement immédiat.
+  if (type === 'dm') {
+    const targetProfile = getProfileById(id);
+    if ((targetProfile.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+      showToast(t('messages.contact_not_premium_full'), 'error');
+      return;
+    }
+  }
+
   const header = document.getElementById('chatHeader');
   if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
 
@@ -2389,7 +2561,11 @@ async function openConversation(type, id, name) {
     return;
   }
   activeConversation.conversationId = convId;
+  friendIdByConversation[convId] = id;
   await loadConversationHistory(convId);
+
+  // La conversation est maintenant affichée à l'écran : elle est considérée lue.
+  await markConversationRead(convId, id);
 }
 
 async function sendMessage() {
@@ -2407,6 +2583,15 @@ async function sendMessage() {
   }
   if (!activeConversation.conversationId) {
     showToast('Conversation en cours de préparation, réessaie dans un instant.', 'error');
+    return;
+  }
+
+  // Double vérification défensive (l'accès à la conversation est déjà filtré
+  // par openConversation, mais on ne prend aucun risque avant l'écriture en base) :
+  // aucun message ne doit être enregistré si le contact n'est plus PREMIUM.
+  const targetProfile = getProfileById(activeConversation.id);
+  if ((targetProfile.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+    showToast(t('messages.contact_not_premium_full'), 'error');
     return;
   }
 
@@ -2428,7 +2613,7 @@ async function sendMessage() {
     return;
   }
 
- appendBubble(text, true, new Date());
+  appendBubble(text, true, new Date());
   showToast(t('messages.sent'), 'success');
   input.value = '';
 }
@@ -2445,11 +2630,22 @@ function setupMessagesRealtime() {
           if (msg.sender_id === currentUser.id) return; // déjà affiché localement
           if (!myConversationIds.has(msg.conversation_id)) return; // pas une conversation à moi
 
-          if (activeConversation && activeConversation.type === 'dm' && activeConversation.conversationId === msg.conversation_id) {
-           appendBubble(msg.content, false, msg.created_at);
+          const isConversationOpen = activeConversation
+            && activeConversation.type === 'dm'
+            && activeConversation.conversationId === msg.conversation_id
+            && getActivePage() === 'messages';
+
+          if (isConversationOpen) {
+            appendBubble(msg.content, false, msg.created_at);
+            // Conversation déjà à l'écran → jamais comptée comme non lue.
+            markConversationRead(msg.conversation_id, activeConversation.id);
           } else {
-            incrementUnreadMessages();
-showToast('💬 Nouveau message', 'success');
+            const friendId = friendIdByConversation[msg.conversation_id];
+            unreadByConversation[msg.conversation_id] = (unreadByConversation[msg.conversation_id] || 0) + 1;
+            if (friendId) unreadByFriend[friendId] = (unreadByFriend[friendId] || 0) + 1;
+            updateMessagesBadge();
+            if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+            showToast('💬 ' + t('messages.new_message_toast'), 'success');
           }
         }
       )
@@ -2464,6 +2660,10 @@ function teardownMessagesRealtime() {
   }
   myConversationIds = new Set();
   dmConversationCache = {};
+  unreadByConversation = {};
+  friendIdByConversation = {};
+  unreadByFriend = {};
+  updateMessagesBadge();
 }
 
 function renderConversationSidebar() {
@@ -2478,10 +2678,22 @@ function renderConversationSidebar() {
       const emoji = f.gender === 'Homme' ? '👨' : '👩';
       const online = f.is_online === true || f.online === true;
       const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
+      const unread = unreadByFriend[f.id] || 0;
+      const isUnread = unread > 0;
+      const nameSafe = (f.display_name || 'Ami').replace(/'/g, "\\'");
+      // Destinataire non-PREMIUM : messagerie privée indisponible pour lui.
+      const isRestricted = f.premium !== true;
+      const restrictedDot = isRestricted
+        ? '<span class="conv-restricted-dot" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="event.stopPropagation(); showToast(t(\'messages.contact_not_premium_full\'), \'error\');">!</span>'
+        : '';
       return (
-        '<div class="conversation' + active + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + (f.display_name || 'Ami').replace(/'/g, "\\'") + '\')">' +
-          '<div class="conv-avatar">' + emoji + '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span></div>' +
-          '<div class="conv-meta"><div class="conv-name">' + (f.display_name || 'Ami') + '</div>' +
+        '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">' +
+          '<div class="conv-avatar' + (isUnread ? ' conv-blink' : '') + '">' + emoji +
+            '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span>' +
+            restrictedDot +
+          '</div>' +
+          '<div class="conv-meta"><div class="conv-name' + (isUnread ? ' conv-name-unread' : '') + '">' + (f.display_name || 'Ami') +
+            (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</div>' +
           '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
         '</div>'
       );
@@ -2605,6 +2817,7 @@ async function loadFriendsForMessaging() {
   renderConversationSidebar();
   if (typeof renderGroupFriendsPick === 'function') renderGroupFriendsPick();
   setupMessagesRealtime();
+  loadUnreadCounts();
 }
 
 
@@ -2777,7 +2990,90 @@ function toggleFooter(id) {
   });
 }
 
+/* =========================
+   STYLES — notifications de messagerie
+   (injectés en JS pour ne pas dépendre d'une modification du CSS externe ;
+   à terme, ces règles peuvent être déplacées dans la feuille de style du projet)
+========================= */
+function injectMessagingNotificationStyles() {
+  if (document.getElementById('aupygo-messaging-styles')) return;
+  const style = document.createElement('style');
+  style.id = 'aupygo-messaging-styles';
+  style.textContent = `
+    @keyframes aupygoBlinkBlue {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.65); }
+      50% { box-shadow: 0 0 0 6px rgba(37, 99, 235, 0); }
+    }
+    #navMessages.nav-blink,
+    .conv-avatar.conv-blink,
+    .avatar.conv-blink {
+      animation: aupygoBlinkBlue 1.1s ease-in-out infinite;
+      border-radius: 50%;
+    }
+    #navMessages { position: relative; }
+    #messagesBadge {
+      display: none;
+      position: absolute;
+      top: -4px;
+      right: -4px;
+      min-width: 18px;
+      height: 18px;
+      padding: 0 4px;
+      border-radius: 9px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 18px;
+      text-align: center;
+    }
+    #messagesBadge.show { display: block; }
+    .conv-name-unread {
+      color: #2563eb;
+      font-weight: 700;
+    }
+    .conv-unread-count {
+      display: inline-block;
+      min-width: 16px;
+      padding: 0 5px;
+      border-radius: 8px;
+      background: #2563eb;
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      line-height: 16px;
+      text-align: center;
+      margin-left: 4px;
+    }
+    .conv-restricted-dot,
+    .member-restricted-badge {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: absolute;
+      bottom: -2px;
+      right: -2px;
+      min-width: 16px;
+      height: 16px;
+      padding: 0 2px;
+      border-radius: 50%;
+      background: #dc2626;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      line-height: 16px;
+      cursor: pointer;
+      box-shadow: 0 0 0 2px #fff;
+    }
+    .conv-avatar { position: relative; }
+    .member-avatar { position: relative; display: inline-flex; }
+  `;
+  document.head.appendChild(style);
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
+  injectMessagingNotificationStyles();
+
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeMemberProfile();
@@ -2818,14 +3114,22 @@ document.addEventListener('DOMContentLoaded', async () => {
     startIdleWatch();
   }
 
-  // Rafraîchit les profils (couleurs vert/rouge) et les amitiés toutes les 60 s
+  // Rafraîchit les profils (couleurs vert/rouge), les amitiés et les messages
+  // non lus toutes les 60 s (synchro multi-appareils via last_read_at)
   setInterval(() => {
     loadProfiles();
     if (currentUser) {
       setOnlineStatus(true);
       loadFriendshipsFromDB().then(updateFriendsBadge);
+      loadUnreadCounts();
     }
   }, 60000);
+
+  // Un retour sur l'onglet / la fenêtre revérifie tout de suite les non-lus,
+  // sans attendre le prochain tick des 60 s (utile en multi-onglets).
+  window.addEventListener('focus', () => {
+    if (currentUser) loadUnreadCounts();
+  });
 
   // Synchronisation multi-onglets / multi-appareils
   // SIGNED_OUT (ex. déconnexion sur un autre appareil avec scope global) → UI locale nettoyée partout
