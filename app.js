@@ -1250,7 +1250,7 @@ function openMemberProfile(memberId) {
     name: raw.display_name || 'AUPYGO',
     age: raw.age,
     gender: raw.gender,
-    plan: (raw.subscription || 'FREE').toUpperCase(),
+    plan: (raw.subscription || 'FREE').toString().trim().toUpperCase(),
     city: raw.city || '',
     origin: raw.country || '',
     host: raw.host_country || '',
@@ -1353,7 +1353,7 @@ function closeMemberProfile() {
 }
 
 
-function messageMember(memberId) {
+async function messageMember(memberId) {
   const raw = profiles.find(m => m.id === memberId);
   if (!raw) return;
 
@@ -1368,7 +1368,8 @@ function messageMember(memberId) {
 
   // PREMIUM → STANDARD (ou FREE) : la messagerie privée exige que les DEUX
   // comptes soient PREMIUM. Avertissement immédiat, rien n'est envoyé.
-  if ((raw.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+  // Vérifié en direct sur Supabase (le cache local peut être périmé jusqu'à 60 s).
+  if (!(await isContactPremium(memberId))) {
     showToast(t('messages.contact_not_premium_full'), 'error');
     closeMemberProfile();
     return;
@@ -2109,9 +2110,45 @@ function getProfileById(id) {
 let unreadByConversation = {};   // conversationId -> nombre de messages non lus
 let friendIdByConversation = {}; // conversationId -> friendId (DM uniquement)
 let unreadByFriend = {};         // friendId -> nombre de messages non lus (raccourci pour l'UI)
+let unreadCountsUnavailable = false; // true si conversation_members.last_read_at n'existe pas en base
 
 function escapeAttr(str) {
   return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+}
+
+// Normalise une valeur d'abonnement (espaces, casse) avant comparaison —
+// évite les faux négatifs si la valeur en base est "Premium" ou " PREMIUM ".
+function isPremiumValue(sub) {
+  return String(sub || '').trim().toUpperCase() === 'PREMIUM';
+}
+
+// Interroge Supabase EN DIRECT pour l'abonnement d'un profil, plutôt que de
+// se fier au tableau local "profiles" (rafraîchi seulement toutes les 60 s,
+// donc potentiellement périmé juste après un changement d'abonnement).
+// Utilisé uniquement pour les décisions de blocage (jamais pour le simple
+// affichage, où le cache local suffit).
+async function fetchSubscriptionFresh(userId) {
+  try {
+    const { data, error } = await supabaseClient
+      .from('profiles')
+      .select('subscription')
+      .eq('id', userId)
+      .maybeSingle();
+    if (error) { console.error('fetchSubscriptionFresh:', error); return null; }
+    return data ? data.subscription : null;
+  } catch (e) {
+    console.error('fetchSubscriptionFresh:', e);
+    return null;
+  }
+}
+
+// true si le contact "id" est actuellement PREMIUM, vérifié en direct.
+// En cas d'échec réseau, on se rabat sur le cache local plutôt que de
+// bloquer injustement l'utilisateur.
+async function isContactPremium(userId) {
+  const fresh = await fetchSubscriptionFresh(userId);
+  if (fresh !== null) return isPremiumValue(fresh);
+  return isPremiumValue(getProfileById(userId).subscription);
 }
 
 function getTotalUnreadCount() {
@@ -2146,6 +2183,11 @@ async function loadUnreadCounts() {
     return;
   }
 
+  // La colonne last_read_at n'a pas encore été ajoutée côté Supabase
+  // (migration requise, cf. conversation_members.last_read_at) :
+  // on arrête d'interroger pour ne pas spammer la console à chaque poll.
+  if (unreadCountsUnavailable) return;
+
   try {
     const { data: memberRows, error: mErr } = await supabaseClient
       .from('conversation_members')
@@ -2153,9 +2195,11 @@ async function loadUnreadCounts() {
       .eq('user_id', currentUser.id);
 
     if (mErr) {
-      // Colonne last_read_at absente ou autre erreur : on n'écrase pas
-      // l'état en mémoire déjà construit par les événements temps réel.
-      console.error('loadUnreadCounts (members):', mErr);
+      // Colonne last_read_at absente (code Postgres 42703) ou autre erreur :
+      // on n'écrase pas l'état en mémoire déjà construit par le temps réel,
+      // et on coupe les futurs appels si la colonne manque vraiment.
+      console.error('loadUnreadCounts (members) — as-tu ajouté la colonne conversation_members.last_read_at (timestamptz) dans Supabase ?', mErr);
+      if (mErr.code === '42703') unreadCountsUnavailable = true;
       return;
     }
 
@@ -2236,13 +2280,14 @@ async function markConversationRead(conversationId, friendId) {
   updateMessagesBadge();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
 
-  if (!currentUser) return;
+  if (!currentUser || unreadCountsUnavailable) return;
   try {
-    await supabaseClient
+    const { error } = await supabaseClient
       .from('conversation_members')
       .update({ last_read_at: new Date().toISOString() })
       .eq('conversation_id', conversationId)
       .eq('user_id', currentUser.id);
+    if (error && error.code === '42703') unreadCountsUnavailable = true;
   } catch (e) {
     console.error('markConversationRead:', e);
   }
@@ -2338,7 +2383,7 @@ async function renderFriendsUI() {
       age: p.age,
       city: p.city || p.host_country || '',
       gender: p.gender,
-      premium: p.subscription === 'PREMIUM',
+      premium: isPremiumValue(p.subscription),
       online: isRecentlyOnline(p)
     });
   });
@@ -2527,9 +2572,10 @@ async function openConversation(type, id, name) {
   }
 
   // PREMIUM → STANDARD/FREE : messagerie indisponible, avertissement immédiat.
+  // Vérifié en direct sur Supabase (le cache local "profiles" peut être
+  // périmé jusqu'à 60 s après un changement d'abonnement du contact).
   if (type === 'dm') {
-    const targetProfile = getProfileById(id);
-    if ((targetProfile.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+    if (!(await isContactPremium(id))) {
       showToast(t('messages.contact_not_premium_full'), 'error');
       return;
     }
@@ -2589,8 +2635,8 @@ async function sendMessage() {
   // Double vérification défensive (l'accès à la conversation est déjà filtré
   // par openConversation, mais on ne prend aucun risque avant l'écriture en base) :
   // aucun message ne doit être enregistré si le contact n'est plus PREMIUM.
-  const targetProfile = getProfileById(activeConversation.id);
-  if ((targetProfile.subscription || 'FREE').toUpperCase() !== 'PREMIUM') {
+  // Vérifié en direct sur Supabase (jamais depuis le cache local périmé).
+  if (!(await isContactPremium(activeConversation.id))) {
     showToast(t('messages.contact_not_premium_full'), 'error');
     return;
   }
