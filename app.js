@@ -2443,7 +2443,8 @@ async function renderFriendsUI() {
     display_name: f.name,
     gender: f.gender,
     is_online: f.online,
-    subscription: f.premium ? 'PREMIUM' : 'FREE'
+    subscription: f.premium ? 'PREMIUM' : 'FREE',
+    premium: f.premium === true
   }));
 
   updateFriendsBadge();
@@ -2728,7 +2729,11 @@ function renderConversationSidebar() {
       const isUnread = unread > 0;
       const nameSafe = (f.display_name || 'Ami').replace(/'/g, "\\'");
       // Destinataire non-PREMIUM : messagerie privée indisponible pour lui.
-      const isRestricted = f.premium !== true;
+      // Accepte soit f.premium (booléen), soit f.subscription (string) —
+      // selon la structure fournie par l'appelant.
+      const isRestricted = f.premium === true
+        ? false
+        : (f.subscription !== undefined ? !isPremiumValue(f.subscription) : true);
       const restrictedDot = isRestricted
         ? '<span class="conv-restricted-dot" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="event.stopPropagation(); showToast(t(\'messages.contact_not_premium_full\'), \'error\');">!</span>'
         : '';
