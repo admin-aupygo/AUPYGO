@@ -1110,65 +1110,36 @@ function showToast(msg,type) {
 
 function go(page) {
 
-  // Profil pas encore complété …
+  // Profil pas encore complété : on garde l'utilisateur guidé sur l'étape de profil,
+  // sauf pour Accueil / Carte / Abonnement (toujours accessibles).
   if (currentUser && !profileSaved && page !== 'profile' && !GUEST_ALLOWED_PAGES.includes(page)) {
     page = 'profile';
   }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+
   const el = document.getElementById(page);
   if (el) el.classList.add('active');
 
   document.querySelectorAll('nav button').forEach(b => {
     b.classList.remove('active');
-    if (b.dataset.nav === page) b.classList.add('active');
+    if (b.dataset.nav === page) {
+      b.classList.add('active');
+    }
   });
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
-     if (page === 'home') {
-    updateHomeView();
-  }
 
-  // --- NOUVEAU : bascule landing / dashboard ---
+  // Bascule landing / dashboard sur la page d'accueil
   if (page === 'home') {
     updateHomeView();
   }
-
-  // … (garde tout le reste de la fonction go tel quel : map, reconnect, profile, etc.)
-   
-  // guidé sur l'étape de profil, comme pour un invité non connecté — à
-  // l'exception d'Accueil / Carte / Abonnement, toujours accessibles.
-  if (currentUser && !profileSaved && page !== 'profile' && !GUEST_ALLOWED_PAGES.includes(page)) {
-    page = 'profile';
-  }
-
-  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
-
-  const el = document.getElementById(page);
-
-  if(el) el.classList.add('active');
-  // NB : on ne vide plus le badge ici — seule l'ouverture effective
-  // d'une conversation (openConversation) marque son contenu comme lu.
-
-  document.querySelectorAll('nav button').forEach(b => {
-
-    b.classList.remove('active');
-
-    if(b.dataset.nav === page) {
-      b.classList.add('active');
-    }
-
-  });
-
-
-  window.scrollTo({ top:0, behavior:'smooth' });
-
 
   // La carte n’existe que dans l’onglet Carte
   if (page === 'map' && map) {
     setTimeout(() => {
       map.invalidateSize();
-      applyMapRestrictions(); // invité → vue monde ; connecté → selon forfait
+      applyMapRestrictions();
       renderMarkers();
       if (!currentUser) {
         map.setView([20, 0], 2);
