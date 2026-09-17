@@ -1126,6 +1126,9 @@ function go(page) {
   });
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
+     if (page === 'home') {
+    updateHomeView();
+  }
 
   // --- NOUVEAU : bascule landing / dashboard ---
   if (page === 'home') {
