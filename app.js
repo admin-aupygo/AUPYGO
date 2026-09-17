@@ -1835,11 +1835,6 @@ Continuer ?`
 
   try {
 
-    showToast(
-      'Suppression du compte...',
-      'success'
-    );
-
     const { error } =
       await supabaseClient.rpc(
         'delete_account_complete'
@@ -1848,7 +1843,10 @@ Continuer ?`
     if (error) throw error;
 
     stopIdleWatch();
-    teardownMessagesRealtime();
+
+    try {
+      teardownMessagesRealtime();
+    } catch(e) {}
 
     try {
       await setOnlineStatus(false);
