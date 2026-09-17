@@ -2614,6 +2614,11 @@ async function openConversation(type, id, name) {
     }
   }
 
+  // Bascule sur l'onglet Messagerie : sans ça, un clic depuis "Se retrouver"
+  // (ou toute autre page) chargeait bien la conversation, mais dans des
+  // éléments DOM restés cachés — d'où l'impression que "rien ne se passe".
+  if (getActivePage() !== 'messages') go('messages');
+
   const header = document.getElementById('chatHeader');
   if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
 
