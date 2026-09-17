@@ -1835,29 +1835,45 @@ Continuer ?`
 
   try {
 
-    const { error } =
-      await supabaseClient.rpc(
-        'delete_account_complete'
-      );
+    showToast(
+      'Suppression du compte...',
+      'success'
+    );
 
-    if (error) throw error;
+    const { error } = await supabaseClient.rpc(
+      'delete_account_complete'
+    );
+
+    if (error) {
+      throw error;
+    }
 
     stopIdleWatch();
 
     try {
       teardownMessagesRealtime();
-    } catch(e) {}
+    } catch (e) {
+      console.warn(e);
+    }
 
     try {
       await setOnlineStatus(false);
-    } catch(e) {}
+    } catch (e) {
+      console.warn(e);
+    }
 
     localStorage.clear();
     sessionStorage.clear();
 
-    await supabaseClient.auth.signOut({
-      scope: 'global'
-    });
+    try {
+      await supabaseClient.auth.signOut({
+        scope: 'global'
+      });
+    } catch (e) {
+      try {
+        await supabaseClient.auth.signOut();
+      } catch (e2) {}
+    }
 
     currentUser = null;
     currentPlan = 'FREE';
@@ -1865,73 +1881,92 @@ Continuer ?`
 
     unlockIdentityFields();
 
+    const firstName = document.getElementById('firstName');
+    const age = document.getElementById('age');
+    const bio = document.getElementById('bio');
+    const country = document.getElementById('country');
+    const city = document.getElementById('city');
+    const hostCountry = document.getElementById('hostCountry');
+    const stayEnd = document.getElementById('stayEnd');
+
+    if (firstName) firstName.value = '';
+    if (age) age.value = '';
+    if (bio) bio.value = '';
+    if (country) country.value = '';
+    if (city) city.value = '';
+    if (hostCountry) hostCountry.value = '';
+    if (stayEnd) stayEnd.value = '';
+
+    const profileName = document.getElementById('profileName');
+    const profileMeta = document.getElementById('profileMeta');
+    const profileAvatar = document.getElementById('profileAvatar');
+
+    if (profileName) {
+      profileName.textContent = t('profile.name_placeholder');
+    }
+    if (profileMeta) {
+      profileMeta.textContent = t('profile.meta_placeholder');
+    }
+    if (profileAvatar) {
+      profileAvatar.textContent = '👤';
+    }
+
+    selectedGender = null;
+    document.querySelectorAll('.gender-option').forEach(btn =>
+      btn.classList.remove('selected')
+    );
+
+    selectedHobbies.length = 0;
+    document.querySelectorAll('.hobby').forEach(btn =>
+      btn.classList.remove('selected')
+    );
+
+    const otherHobby = document.getElementById('otherHobby');
+    if (otherHobby) {
+      otherHobby.style.display = 'none';
+      otherHobby.value = '';
+    }
+
+    if (typeof clearLanguageSelection === 'function') {
+      clearLanguageSelection();
+    }
+    if (typeof updateProfileCard === 'function') {
+      updateProfileCard(null);
+    }
+
     updatePlanUI();
-    updateNavVisibility();
+
+    if (typeof refreshAuthUI === 'function') {
+      await refreshAuthUI();
+    }
+    if (typeof updateNavVisibility === 'function') {
+      updateNavVisibility();
+    }
+    if (typeof updateHomeView === 'function') {
+      updateHomeView();
+    }
 
     showToast(
       'Compte supprimé définitivement',
       'success'
     );
 
-    go('home');
+    if (typeof go === 'function') {
+      go('home');
+    }
 
-  } catch(err) {
+    if (typeof map !== 'undefined' && map) {
+      applyMapRestrictions();
+      renderMarkers();
+    }
 
+  } catch (err) {
     console.error(err);
-
     showToast(
       'Erreur : ' + err.message,
       'error'
     );
   }
-}
-  // Supprime aussi le compte d'authentification (nécessite la fonction SQL
-  // "delete_user" créée côté Supabase, cf. documentation du projet).
-  const { error: authError } = await supabaseClient.rpc('delete_user');
-
-  if (authError) {
-    console.error(authError);
-    showToast('Profil supprimé, mais erreur lors de la suppression du compte : ' + authError.message, 'error');
-  }
-
-  await supabaseClient.auth.signOut();
-
-  currentUser = null;
-  currentPlan = 'FREE';
-  localStorage.removeItem('aupygo_plan');
-
-  profileSaved = false;
-  unlockIdentityFields();
-
-  // Réinitialise le formulaire affiché à l'écran
-  document.getElementById('firstName').value = '';
-  document.getElementById('age').value = '';
-  document.getElementById('bio').value = '';
-  document.getElementById('country').value = '';
-  document.getElementById('profileName').textContent = t('profile.name_placeholder');
-  document.getElementById('profileMeta').textContent = t('profile.meta_placeholder');
-  document.getElementById('profileAvatar').textContent = '👤';
-  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
-  if (typeof updateProfileCard === 'function') updateProfileCard(null);
-  if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = '';
-  if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = '';
-  if (document.getElementById('city')) document.getElementById('city').value = '';
-  selectedGender = null;
-  document.querySelectorAll('.gender-option').forEach(b => b.classList.remove('selected'));
-  selectedHobbies.length = 0;
-  document.querySelectorAll('.hobby.selected').forEach(b => b.classList.remove('selected'));
-  document.getElementById('otherHobby').style.display = 'none';
-  document.getElementById('otherHobby').value = '';
-  if (typeof clearLanguageSelection === 'function') clearLanguageSelection();
-  if (typeof updateProfileCard === 'function') updateProfileCard(null);
-
-  updatePlanUI();
-  await refreshAuthUI();
-
-  showToast(t('profile.deleted'), 'success');
-
-  go('home');
-
 }
 
 /* =========================
