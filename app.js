@@ -1878,25 +1878,6 @@ async function handleDeleteProfile() {
   go('home');
 
 }
-function updateHomeView() {
-  const landing = document.getElementById('homeLanding');
-  const dash = document.getElementById('homeDashboard');
-  if (!landing || !dash) return;
-
-  const showDash = !!(currentUser && profileSaved);
-  landing.style.display = showDash ? 'none' : 'block';
-  dash.style.display = showDash ? 'block' : 'none';
-
-  if (showDash) {
-    const nameEl = document.getElementById('dashName');
-    const first = document.getElementById('firstName');
-    if (nameEl) {
-      nameEl.textContent = (first && first.value.trim())
-        ? first.value.trim()
-        : (currentUser?.user_metadata?.display_name || 'Aupy');
-    }
-  }
-}
 
 /* =========================
    EVENEMENTS
