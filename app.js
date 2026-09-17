@@ -661,17 +661,20 @@ async function refreshAuthUI(redirectPage = 'profile') {
       const pendingNotice = document.getElementById('signupPendingNotice');
       if (pendingNotice) pendingNotice.style.display = 'none';
 
-      go(redirectPage);
+      // Le profil incomplet prime toujours sur la destination demandée :
+      // signup ET login redirigent vers "profile" tant qu'il n'est pas
+      // complété (ex. un utilisateur inscrit mais parti avant de finir son
+      // profil, qui revient se connecter plus tard). Une fois le profil
+      // complété, on suit la destination normale (accueil après connexion).
+      const finalRedirect = profileSaved ? redirectPage : 'profile';
+      go(finalRedirect);
 
-      if (redirectPage === 'home') {
+      if (finalRedirect === 'home') {
         showToast(t('toast.login_success'), 'success');
+      } else if (!profileSaved) {
+        showToast(t('toast.complete_profile'), 'success');
       } else {
-        showToast(
-          profile && profile.display_name
-            ? t('toast.welcome_back')
-            : t('toast.complete_profile'),
-          'success'
-        );
+        showToast(t('toast.welcome_back'), 'success');
       }
 
       // Après validation email / première connexion : proposer la géoloc (~1 km)
@@ -726,7 +729,10 @@ function updateNavVisibility() {
     const page = b.dataset.nav;
 
     if (RESTRICTED_NAV_PAGES.includes(page)) {
-      b.style.display = currentUser ? 'flex' : 'none';
+      // "Profil" reste visible dès la connexion, même profil incomplet : c'est
+      // l'étape vers laquelle l'utilisateur est guidé. Les autres pages
+      // réservées n'apparaissent qu'une fois le profil complété.
+      b.style.display = (currentUser && (page === 'profile' || profileSaved)) ? 'flex' : 'none';
     } else {
       // home, map, plans : toujours visibles (même non connecté)
       b.style.display = 'flex';
@@ -1090,6 +1096,13 @@ function showToast(msg,type) {
 ========================= */
 
 function go(page) {
+
+  // Profil pas encore complété (voir saveProfile()) : on garde l'utilisateur
+  // guidé sur l'étape de profil, comme pour un invité non connecté — à
+  // l'exception d'Accueil / Carte / Abonnement, toujours accessibles.
+  if (currentUser && !profileSaved && page !== 'profile' && !GUEST_ALLOWED_PAGES.includes(page)) {
+    page = 'profile';
+  }
 
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
 
@@ -1775,7 +1788,9 @@ async function saveProfile() {
   if (!profileSaved) {
     profileSaved = true;
     lockIdentityFields();
+    updateNavVisibility(); // révèle immédiatement Sorties / Amis / Messages / etc.
     showToast(t('profile.saved_first'), 'success');
+    go('home');
   } else {
     showToast(t('profile.saved_update'), 'success');
   }
