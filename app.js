@@ -1828,6 +1828,7 @@ async function saveProfile() {
     updateNavVisibility(); // révèle immédiatement Sorties / Amis / Messages / etc.
     showToast(t('profile.saved_first'), 'success');
     go('home');
+     updateHomeView();
   } else {
     showToast(t('profile.saved_update'), 'success');
   }
