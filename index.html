@@ -34,38 +34,37 @@
 
     <nav>
 
-      <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
-        <span class="icon">🏠</span>
-      </button>
+  <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
+    <span class="icon">🏠</span>
+  </button>
 
-      <button onclick="go('map')" data-nav="map" data-i18n-title="nav.map" data-i18n-aria="nav.map" title="Carte" aria-label="Carte">
-        <span class="icon">🗺️</span>
-      </button>
+  <button onclick="go('map')" data-nav="map" data-i18n-title="nav.discover" data-i18n-aria="nav.discover" title="Découvrir" aria-label="Découvrir">
+    <span class="icon">🗺️</span>
+  </button>
 
-      <button onclick="go('events')" data-nav="events" data-i18n-title="nav.events" data-i18n-aria="nav.events" title="Sorties" aria-label="Sorties">
-        <span class="icon">🎉</span>
-      </button>
+  <button onclick="go('events')" data-nav="events" data-i18n-title="nav.events" data-i18n-aria="nav.events" title="Sorties" aria-label="Sorties">
+    <span class="icon">🎉</span>
+  </button>
 
-      <button onclick="go('reconnect')" data-nav="reconnect" id="navFriends" data-i18n-title="nav.reconnect" data-i18n-aria="nav.reconnect" title="AupyGo Friend’s" aria-label="AupyGo Friend’s">
-        <span class="icon">🤝</span>
-        <span class="friends-badge" id="friendsBadge">0</span>
-      </button>
+  <button onclick="go('agenda')" data-nav="agenda" data-i18n-title="nav.agenda" data-i18n-aria="nav.agenda" title="Agenda" aria-label="Agenda">
+    <span class="icon">📅</span>
+  </button>
 
-      <button onclick="go('messages')" data-nav="messages" id="navMessages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
-        <span class="icon">💬</span>
-        <span class="messages-badge" id="messagesBadge">0</span>
-      </button>
+  <button onclick="go('messages')" data-nav="messages" id="navMessages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
+    <span class="icon">💬</span>
+    <span class="messages-badge" id="messagesBadge">0</span>
+  </button>
 
-      <button onclick="go('profile')" data-nav="profile" data-i18n-title="nav.profile" data-i18n-aria="nav.profile" title="Profil" aria-label="Profil">
-        <span class="icon">👤</span>
-      </button>
+  <button onclick="go('reconnect')" data-nav="reconnect" id="navFriends" data-i18n-title="nav.friends" data-i18n-aria="nav.friends" title="Amis" aria-label="Amis">
+    <span class="icon">🤝</span>
+    <span class="friends-badge" id="friendsBadge">0</span>
+  </button>
 
-      <button onclick="go('plans')" data-nav="plans" data-i18n-title="nav.plans" data-i18n-aria="nav.plans" title="Abonnement" aria-label="Abonnement">
-        <span class="icon">💎</span>
-        <span class="plan-badge" id="headerPlan">FREE</span>
-      </button>
+  <button onclick="go('profile')" data-nav="profile" data-i18n-title="nav.profile" data-i18n-aria="nav.profile" title="Profil" aria-label="Profil">
+    <span class="icon">👤</span>
+  </button>
 
-    </nav>
+</nav>
 
     <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
       <option value="fr">🇫🇷 Français</option>
