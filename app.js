@@ -722,8 +722,23 @@ function getActivePage() {
   return activePage ? activePage.id : 'home';
 }
 
-function updateNavVisibility() {
+function updateHomeView() {
+  const landing = document.getElementById('homeLanding');
+  const dash = document.getElementById('homeDashboard');
+  if (!landing || !dash) return;
 
+  const showDash = !!(currentUser && profileSaved);
+  landing.style.display = showDash ? 'none' : 'block';
+  dash.style.display = showDash ? 'block' : 'none';
+
+  if (showDash) {
+    const nameEl = document.getElementById('dashName');
+    const first = document.getElementById('firstName');
+    if (nameEl) {
+      nameEl.textContent = (first && first.value) ? first.value : (currentUser?.user_metadata?.display_name || 'Aupy');
+    }
+  }
+}
   document.querySelectorAll('nav button').forEach(b => {
 
     const page = b.dataset.nav;
