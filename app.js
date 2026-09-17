@@ -714,9 +714,8 @@ async function refreshAuthUI(redirectPage = 'profile') {
 
 // Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
 // Invité : Accueil + Carte (aperçu mondial) + Abonnement uniquement
-const RESTRICTED_NAV_PAGES = ['events','reconnect','messages','profile'];
 const GUEST_ALLOWED_PAGES = ['home','map','plans'];
-
+const RESTRICTED_NAV_PAGES = ['events','reconnect','messages','profile','agenda'];
 function getActivePage() {
   const activePage = document.querySelector('.page.active');
   return activePage ? activePage.id : 'home';
