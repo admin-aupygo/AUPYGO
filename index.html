@@ -83,144 +83,109 @@
 
 <section id="home" class="page active">
 
-  <div class="hero">
-
-    <div>
-
-      <span class="badge" data-i18n="home.badge">🌍 La communauté des au pairs</span>
-
-      <h1>
-        <span class="gradient" data-i18n="home.title1">Meet.</span><br>
-        <span data-i18n="home.title2">Go out.</span><br>
-        <span data-i18n="home.title3">Make friends.</span>
-      </h1>
-
-      <p><strong data-i18n="home.subtitle">Parce qu’être au pair ne veut pas dire être seul.</strong></p>
-
-      <p data-i18n="home.description">
-        AUPYGO, c’est la communauté faite pour les au pairs.
-        Découvre, sors et crée de vraies amitiés, en toute confidentialité.
-      </p>
-
-      <p style="margin:14px 0 4px">
-        <button class="btn btn-secondary" onclick="go('plans')" style="font-size:13px;padding:8px 16px;border-radius:20px" data-i18n="home.cta_signup">
-          ✨ Nouveau ? Inscris-toi gratuitement
-        </button>
-      </p>
-
-      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
-        <button class="btn btn-primary" onclick="go('map')" data-i18n="home.btn_discover">🗺️ Découvrir</button>
-        <button class="btn btn-secondary" onclick="go('events')" data-i18n="home.btn_go_out">🎉 Sortir</button>
-        <button class="btn btn-secondary" onclick="go('reconnect')" data-i18n="home.btn_reconnect">🤝 Se retrouver</button>
-      </div>
-
-    </div>
-
-    <div class="hero-card" onclick="go('map')" data-i18n-title="home.card_title_attr" title="Voir la communauté sur la carte">
-
-      <div class="hero-visual">
-
-        <div class="global-aupy">
-
-          <div class="country-person person-1">
-            <div class="face">👩</div>
-            <span class="country-flag">🇫🇷</span>
-          </div>
-
-          <div class="country-person person-2">
-            <div class="face">👨</div>
-            <span class="country-flag">🇧🇷</span>
-          </div>
-
-          <div class="country-person person-3">
-            <div class="face">👩</div>
-            <span class="country-flag">🇯🇵</span>
-          </div>
-
-          <div class="country-person person-4">
-            <div class="face">👨</div>
-            <span class="country-flag">🇬🇧</span>
-          </div>
-
-          <div class="country-person person-5">
-            <div class="face">👩</div>
-            <span class="country-flag">🇩🇪</span>
-          </div>
-
-          <div class="country-person person-6">
-            <div class="face">👨</div>
-            <span class="country-flag">🇨🇭</span>
-          </div>
-
-          <div class="country-person person-7">
-            <div class="face">👩</div>
-            <span class="country-flag">🇺🇸</span>
-          </div>
-
-          <div class="country-person person-8">
-            <div class="face">👨</div>
-            <span class="country-flag">🇪🇸</span>
-          </div>
-
-          <div class="world-symbol">🌍</div>
-
+  <!-- ===== LANDING (visible uniquement si non connecté ou profil incomplet) ===== -->
+  <div id="homeLanding">
+    <div class="hero">
+      <div>
+        <span class="badge" data-i18n="home.badge">🌍 La communauté des au pairs</span>
+        <h1>
+          <span class="gradient" data-i18n="home.title1">Meet.</span><br>
+          <span data-i18n="home.title2">Go out.</span><br>
+          <span data-i18n="home.title3">Make friends.</span>
+        </h1>
+        <p><strong data-i18n="home.subtitle">Parce qu’être au pair ne veut pas dire être seul.</strong></p>
+        <p data-i18n="home.description">
+          AUPYGO, c’est la communauté faite pour les au pairs.
+          Découvre, sors et crée de vraies amitiés, en toute confidentialité.
+        </p>
+        <p style="margin:14px 0 4px">
+          <button class="btn btn-secondary" onclick="go('plans')" style="font-size:13px;padding:8px 16px;border-radius:20px" data-i18n="home.cta_signup">
+            ✨ Nouveau ? Inscris-toi gratuitement
+          </button>
+        </p>
+        <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:14px">
+          <button class="btn btn-primary" onclick="go('map')" data-i18n="home.btn_discover">🗺️ Découvrir</button>
+          <button class="btn btn-secondary" onclick="go('events')" data-i18n="home.btn_go_out">🎉 Sortir</button>
+          <button class="btn btn-secondary" onclick="go('reconnect')" data-i18n="home.btn_reconnect">🤝 Se retrouver</button>
         </div>
-
       </div>
-
-      <h3 style="margin-top:14px" data-i18n="home.card_title">Une communauté mondiale</h3>
-
-      <p class="footer-muted" style="font-size:14px;margin-top:6px" data-i18n="home.card_subtitle">
-        Déjà des AUPYGO dans 12+ pays.
-      </p>
-
-      <p style="font-size:13px;margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center">
-        <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 6px #22c55e;display:inline-block"></span>
-        <strong id="onlineCount">0</strong> <span data-i18n="home.online_now">connectés maintenant</span>
-      </p>
-
-      <p class="footer-muted" style="font-size:13px;margin-top:8px" data-i18n="home.card_cta">
-        Clique pour explorer la carte →
-      </p>
-
+      <div class="hero-card" onclick="go('map')" title="Voir la communauté sur la carte">
+        <!-- garde ton bloc hero-visual existant (global-aupy) tel quel -->
+        <div class="hero-visual">
+          <div class="global-aupy">
+            <!-- ... tes 8 country-person + world-symbol ... -->
+          </div>
+        </div>
+        <h3 style="margin-top:14px" data-i18n="home.card_title">Une communauté mondiale</h3>
+        <p class="footer-muted" style="font-size:14px;margin-top:6px" data-i18n="home.card_subtitle">Déjà des AUPYGO dans 12+ pays.</p>
+        <p style="font-size:13px;margin-top:8px;display:flex;align-items:center;gap:6px;justify-content:center">
+          <span style="width:8px;height:8px;background:#22c55e;border-radius:50%;box-shadow:0 0 6px #22c55e;display:inline-block"></span>
+          <strong id="onlineCount">0</strong> <span data-i18n="home.online_now">connectés maintenant</span>
+        </p>
+        <p class="footer-muted" style="font-size:13px;margin-top:8px" data-i18n="home.card_cta">Clique pour explorer la carte →</p>
+      </div>
     </div>
-
+    <div class="notice security" data-i18n-html="home.security_notice">
+      🔒 <strong>Confidentialité & sécurité :</strong><br>
+      AUPYGO n’affiche jamais la position GPS exacte. Les positions sont approximatives.<br><br>
+      👤 <strong>Aucune photo personnelle n’est affichée.</strong> Tous les profils utilisent des avatars universels.
+    </div>
+    <div class="grid">
+      <div class="card" onclick="go('map')" style="cursor:pointer">
+        <h3 data-i18n="home.card1_title">🗺️ Découvrir la communauté</h3>
+        <p data-i18n="home.card1_text">Trouve les AUPYGO autour de toi, en préservant la confidentialité de chacun.</p>
+      </div>
+      <div class="card" onclick="go('events')" style="cursor:pointer">
+        <h3 data-i18n="home.card2_title">🎉 Sortir</h3>
+        <p data-i18n="home.card2_text">Cafés, randonnées, restaurants et activités avec la communauté.</p>
+      </div>
+      <div class="card" onclick="go('reconnect')" style="cursor:pointer">
+        <h3 data-i18n="home.card3_title">🤝 Retrouver tes AUPYGO</h3>
+        <p data-i18n="home.card3_text">Retrouve ceux avec qui tu as déjà partagé une sortie.</p>
+      </div>
+    </div>
   </div>
 
-  <div class="notice security" data-i18n-html="home.security_notice">
-
-    🔒 <strong>Confidentialité & sécurité :</strong><br>
-
-    AUPYGO n’affiche jamais la position GPS exacte.
-    Les positions sont approximatives.
-
-    <br><br>
-
-    👤 <strong>Aucune photo personnelle n’est affichée.</strong>
-    Tous les profils utilisent des avatars universels.
-
-  </div>
-
-  <div class="grid">
-
-    <div class="card" onclick="go('map')" style="cursor:pointer">
-      <h3 data-i18n="home.card1_title">🗺️ Découvrir la communauté</h3>
-      <p data-i18n="home.card1_text">Trouve les AUPYGO autour de toi, en préservant la confidentialité de chacun.</p>
-      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card1_link">Vois qui est près de toi →</p>
+  <!-- ===== DASHBOARD (visible uniquement si connecté + profil complété) ===== -->
+  <div id="homeDashboard" style="display:none">
+    <div class="section-title">
+      <h2>👋 <span data-i18n="dashboard.welcome">Bienvenue</span>, <span id="dashName">…</span></h2>
+      <p data-i18n="dashboard.subtitle">Voici ce qui se passe autour de toi.</p>
     </div>
 
-    <div class="card" onclick="go('events')" style="cursor:pointer">
-      <h3 data-i18n="home.card2_title">🎉 Sortir</h3>
-      <p data-i18n="home.card2_text">Cafés, randonnées, restaurants et activités avec la communauté.</p>
-      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card2_link">📅 Agenda des sorties AUPYGO</p>
+    <div class="grid" style="margin-bottom:24px">
+      <div class="card" onclick="go('map')" style="cursor:pointer">
+        <h3>🗺️ <span data-i18n="dashboard.discover">Découvrir</span></h3>
+        <p data-i18n="dashboard.discover_text">Vois qui est près de toi sur la carte.</p>
+      </div>
+      <div class="card" onclick="go('events')" style="cursor:pointer">
+        <h3>🎉 <span data-i18n="dashboard.events">Sorties</span></h3>
+        <p data-i18n="dashboard.events_text">Les propositions de la communauté.</p>
+      </div>
+      <div class="card" onclick="go('agenda')" style="cursor:pointer">
+        <h3>📅 <span data-i18n="dashboard.agenda">Mon agenda</span></h3>
+        <p data-i18n="dashboard.agenda_text">Tes événements à venir.</p>
+      </div>
+      <div class="card" onclick="go('messages')" style="cursor:pointer">
+        <h3>💬 <span data-i18n="dashboard.messages">Messages</span></h3>
+        <p data-i18n="dashboard.messages_text">Tes conversations.</p>
+      </div>
+      <div class="card" onclick="go('reconnect')" style="cursor:pointer">
+        <h3>🤝 <span data-i18n="dashboard.friends">Amis</span></h3>
+        <p data-i18n="dashboard.friends_text">Tes contacts et demandes.</p>
+      </div>
+      <div class="card" onclick="go('profile')" style="cursor:pointer">
+        <h3>👤 <span data-i18n="dashboard.profile">Profil</span></h3>
+        <p data-i18n="dashboard.profile_text">Modifier tes infos.</p>
+      </div>
     </div>
 
-    <div class="card" onclick="go('reconnect')" style="cursor:pointer">
-      <h3 data-i18n="home.card3_title">🤝 Retrouver tes AUPYGO</h3>
-      <p data-i18n="home.card3_text">Retrouve ceux avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
-      <p style="margin-top:8px;font-size:13px;color:var(--primary);font-weight:600" data-i18n="home.card3_link">Tes vraies rencontres, en confiance →</p>
+    <div class="card">
+      <h3 data-i18n="dashboard.recent">Activité récente</h3>
+      <div id="dashRecent">
+        <p class="footer-muted" data-i18n="dashboard.recent_empty">Rien de neuf pour le moment.</p>
+      </div>
     </div>
-
   </div>
 
 </section>
