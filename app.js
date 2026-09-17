@@ -712,10 +712,10 @@ async function refreshAuthUI(redirectPage = 'profile') {
    VISIBILITÉ DE LA NAVIGATION
 ========================= */
 
-// Tant qu'on n'est pas inscrit/connecté, seuls Accueil et Abonnement sont visibles.
 // Invité : Accueil + Carte (aperçu mondial) + Abonnement uniquement
 const GUEST_ALLOWED_PAGES = ['home','map','plans'];
 const RESTRICTED_NAV_PAGES = ['events','reconnect','messages','profile','agenda'];
+
 function getActivePage() {
   const activePage = document.querySelector('.page.active');
   return activePage ? activePage.id : 'home';
@@ -734,33 +734,32 @@ function updateHomeView() {
     const nameEl = document.getElementById('dashName');
     const first = document.getElementById('firstName');
     if (nameEl) {
-      nameEl.textContent = (first && first.value) ? first.value : (currentUser?.user_metadata?.display_name || 'Aupy');
+      nameEl.textContent = (first && first.value.trim())
+        ? first.value.trim()
+        : (currentUser?.user_metadata?.display_name || 'Aupy');
     }
   }
 }
-  document.querySelectorAll('nav button').forEach(b => {
 
+function updateNavVisibility() {
+  document.querySelectorAll('nav button').forEach(b => {
     const page = b.dataset.nav;
 
     if (RESTRICTED_NAV_PAGES.includes(page)) {
-      // "Profil" reste visible dès la connexion, même profil incomplet : c'est
-      // l'étape vers laquelle l'utilisateur est guidé. Les autres pages
-      // réservées n'apparaissent qu'une fois le profil complété.
+      // "Profil" reste visible dès la connexion, même profil incomplet.
+      // Les autres pages réservées n'apparaissent qu'une fois le profil complété.
       b.style.display = (currentUser && (page === 'profile' || profileSaved)) ? 'flex' : 'none';
     } else {
       // home, map, plans : toujours visibles (même non connecté)
       b.style.display = 'flex';
     }
-
   });
 
   // Si on est sur une page réservée et qu'on n'est plus connecté → accueil
   if (!currentUser && RESTRICTED_NAV_PAGES.includes(getActivePage())) {
     go('home');
   }
-
 }
-
 
 /* =========================
    FORFAITS
