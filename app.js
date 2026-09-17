@@ -1811,25 +1811,82 @@ async function saveProfile() {
 async function handleDeleteProfile() {
 
   if (!currentUser) {
-    showToast(t('profile.delete_login_required'), 'error');
+    showToast(
+      t('profile.delete_login_required'),
+      'error'
+    );
     return;
   }
 
-  const confirmed = confirm(t('profile.delete_confirm'));
+  const confirmed = confirm(
+`Vous êtes sur le point de supprimer définitivement votre compte.
+
+Cette action est irréversible.
+
+Toutes vos données personnelles, vos informations de profil, vos amis, vos messages et vos contenus associés seront supprimés définitivement.
+
+Votre abonnement ne sera pas remboursé pour la période en cours.
+Son renouvellement automatique sera annulé.
+
+Continuer ?`
+  );
 
   if (!confirmed) return;
 
-  const { error } = await supabaseClient
-    .from('profiles')
-    .delete()
-    .eq('id', currentUser.id);
+  try {
 
-  if (error) {
-    console.error(error);
-    showToast('Erreur : ' + error.message, 'error');
-    return;
+    showToast(
+      'Suppression du compte...',
+      'success'
+    );
+
+    const { error } =
+      await supabaseClient.rpc(
+        'delete_account_complete'
+      );
+
+    if (error) throw error;
+
+    stopIdleWatch();
+    teardownMessagesRealtime();
+
+    try {
+      await setOnlineStatus(false);
+    } catch(e) {}
+
+    localStorage.clear();
+    sessionStorage.clear();
+
+    await supabaseClient.auth.signOut({
+      scope: 'global'
+    });
+
+    currentUser = null;
+    currentPlan = 'FREE';
+    profileSaved = false;
+
+    unlockIdentityFields();
+
+    updatePlanUI();
+    updateNavVisibility();
+
+    showToast(
+      'Compte supprimé définitivement',
+      'success'
+    );
+
+    go('home');
+
+  } catch(err) {
+
+    console.error(err);
+
+    showToast(
+      'Erreur : ' + err.message,
+      'error'
+    );
   }
-
+}
   // Supprime aussi le compte d'authentification (nécessite la fonction SQL
   // "delete_user" créée côté Supabase, cf. documentation du projet).
   const { error: authError } = await supabaseClient.rpc('delete_user');
