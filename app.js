@@ -2273,6 +2273,17 @@ async function loadUnreadCounts() {
 
 // Marque une conversation comme lue : nettoie l'état local (badge + clignotement)
 // et persiste last_read_at côté Supabase pour la synchro multi-appareils.
+// Filet de sécurité local : garantit que l'état "lu" survient même si
+// l'écriture Supabase échoue silencieusement (ex. policy RLS UPDATE
+// manquante sur conversation_members → 0 ligne modifiée, sans erreur).
+// Ne remplace pas la synchro multi-appareils, qui reste basée sur la DB.
+function getLocalLastRead(conversationId) {
+  try { return localStorage.getItem('aupygo_last_read_' + conversationId); } catch (e) { return null; }
+}
+function setLocalLastRead(conversationId, iso) {
+  try { localStorage.setItem('aupygo_last_read_' + conversationId, iso); } catch (e) {}
+}
+
 async function markConversationRead(conversationId, friendId) {
   if (!conversationId) return;
   if (unreadByConversation[conversationId]) delete unreadByConversation[conversationId];
@@ -2280,14 +2291,35 @@ async function markConversationRead(conversationId, friendId) {
   updateMessagesBadge();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
 
+  const nowIso = new Date().toISOString();
+  // Toujours écrit en local, même sans compte connecté ou si la DB échoue.
+  setLocalLastRead(conversationId, nowIso);
+
   if (!currentUser || unreadCountsUnavailable) return;
   try {
-    const { error } = await supabaseClient
+    const { data, error } = await supabaseClient
       .from('conversation_members')
-      .update({ last_read_at: new Date().toISOString() })
+      .update({ last_read_at: nowIso })
       .eq('conversation_id', conversationId)
-      .eq('user_id', currentUser.id);
-    if (error && error.code === '42703') unreadCountsUnavailable = true;
+      .eq('user_id', currentUser.id)
+      .select('conversation_id');
+
+    if (error) {
+      console.error('markConversationRead — écriture last_read_at refusée par Supabase :', error);
+      if (error.code === '42703') unreadCountsUnavailable = true;
+      return;
+    }
+    if (!data || data.length === 0) {
+      // 0 ligne modifiée sans erreur = quasi certainement une policy RLS UPDATE
+      // manquante sur conversation_members. Le filet localStorage prend le relais
+      // pour cet appareil, mais la synchro multi-appareils restera cassée tant
+      // que la policy n'est pas ajoutée côté Supabase.
+      console.warn(
+        'markConversationRead : aucune ligne mise à jour dans conversation_members. ' +
+        "Vérifie qu'une policy RLS UPDATE existe pour que chaque utilisateur puisse " +
+        "modifier sa propre ligne (ex. USING (auth.uid() = user_id))."
+      );
+    }
   } catch (e) {
     console.error('markConversationRead:', e);
   }
@@ -2869,6 +2901,195 @@ async function loadFriendsForMessaging() {
   if (typeof renderGroupFriendsPick === 'function') renderGroupFriendsPick();
   setupMessagesRealtime();
   loadUnreadCounts();
+  checkOldMessagesCleanup();
+}
+
+
+/* =========================
+   ANTI-SURCHARGE : NETTOYAGE DES ANCIENS MESSAGES LUS
+   — Au-delà de 7 jours, propose (popup Accepter/Refuser) de supprimer les
+     messages déjà lus par TOUS les membres de la conversation, pour éviter
+     que la table "messages" n'enfle indéfiniment.
+   — On ne supprime JAMAIS un message qu'un des deux membres n'a pas encore
+     lu (on prend le plus ancien "last_read_at" parmi les membres = le
+     point de coupure sûr), et jamais sans confirmation explicite.
+   NOTE MIGRATION : nécessite que conversation_members.last_read_at existe
+   (voir bug reset) ET qu'une policy RLS DELETE existe sur "messages" pour
+   que l'utilisateur connecté puisse supprimer les messages de ses propres
+   conversations, ex. :
+     create policy "Delete own conversation messages"
+     on messages for delete
+     using (conversation_id in (
+       select conversation_id from conversation_members where user_id = auth.uid()
+     ));
+========================= */
+
+const CLEANUP_MAX_AGE_MS = 7 * 24 * 60 * 60 * 1000; // 7 jours
+const CLEANUP_PROMPT_KEY = 'aupygo_cleanup_last_prompt';
+const CLEANUP_REFUSED_KEY = 'aupygo_cleanup_refused_until';
+const CLEANUP_RECHECK_MS = 24 * 60 * 60 * 1000;      // au plus 1 vérification / jour
+const CLEANUP_SNOOZE_MS = 7 * 24 * 60 * 60 * 1000;   // si refusé, on ne redemande pas avant 7 jours
+
+let cleanupPending = null; // { totalEligible, conversations: [{ convId, friendId, cutoff }] }
+
+// Vérifie s'il existe des messages "lus par tout le monde" et vieux de plus
+// d'une semaine, dans les conversations de l'utilisateur. N'affiche le popup
+// que si c'est le cas, et au maximum 1×/jour (ou 7 jours après un refus).
+async function checkOldMessagesCleanup() {
+  if (!currentUser || unreadCountsUnavailable) return;
+
+  try {
+    const lastPrompt = Number(localStorage.getItem(CLEANUP_PROMPT_KEY) || 0);
+    if (Date.now() - lastPrompt < CLEANUP_RECHECK_MS) return;
+
+    const refusedUntil = Number(localStorage.getItem(CLEANUP_REFUSED_KEY) || 0);
+    if (Date.now() < refusedUntil) return;
+
+    const { data: memberRows, error } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id, user_id, last_read_at')
+      .eq('user_id', currentUser.id);
+    if (error) { console.error('checkOldMessagesCleanup (members):', error); return; }
+
+    const myConvIds = (memberRows || []).map(r => r.conversation_id);
+    if (!myConvIds.length) { localStorage.setItem(CLEANUP_PROMPT_KEY, String(Date.now())); return; }
+
+    const { data: allMembers, error: allErr } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id, user_id, last_read_at')
+      .in('conversation_id', myConvIds);
+    if (allErr) { console.error('checkOldMessagesCleanup (allMembers):', allErr); return; }
+
+    const byConv = {};
+    (allMembers || []).forEach(r => {
+      if (!byConv[r.conversation_id]) byConv[r.conversation_id] = [];
+      byConv[r.conversation_id].push(r);
+    });
+
+    const sevenDaysAgoIso = new Date(Date.now() - CLEANUP_MAX_AGE_MS).toISOString();
+    const eligible = [];
+    let totalEligible = 0;
+
+    for (const convId of Object.keys(byConv)) {
+      const rows = byConv[convId];
+      // Si un membre (moi inclus) n'a encore jamais rien lu dans cette
+      // conversation, on ne touche à rien (impossible de garantir la lecture).
+      if (rows.some(r => !r.last_read_at)) continue;
+
+      // Coupure sûre = le PLUS ANCIEN last_read_at parmi les membres,
+      // et jamais plus récent que "il y a 7 jours".
+      let cutoff = rows[0].last_read_at;
+      rows.forEach(r => { if (r.last_read_at < cutoff) cutoff = r.last_read_at; });
+      if (cutoff > sevenDaysAgoIso) cutoff = sevenDaysAgoIso;
+
+      const { count, error: cErr } = await supabaseClient
+        .from('messages')
+        .select('id', { count: 'exact', head: true })
+        .eq('conversation_id', convId)
+        .lt('created_at', cutoff);
+      if (cErr) { console.error('checkOldMessagesCleanup (count):', cErr); continue; }
+
+      if (count && count > 0) {
+        const friendId = friendIdByConversation[convId] || (rows.find(r => r.user_id !== currentUser.id) || {}).user_id;
+        eligible.push({ convId, friendId, cutoff });
+        totalEligible += count;
+      }
+    }
+
+    localStorage.setItem(CLEANUP_PROMPT_KEY, String(Date.now()));
+
+    if (totalEligible > 0) {
+      cleanupPending = { totalEligible, conversations: eligible };
+      showCleanupConfirmDialog(totalEligible);
+    }
+  } catch (e) {
+    console.error('checkOldMessagesCleanup:', e);
+  }
+}
+
+// Construit (une seule fois) le popup de confirmation, entièrement en JS
+// pour ne pas dépendre d'un ajout manuel dans le HTML existant.
+function injectCleanupModal() {
+  if (document.getElementById('cleanupOverlay')) return;
+
+  const overlay = document.createElement('div');
+  overlay.id = 'cleanupOverlay';
+  overlay.className = 'aupygo-cleanup-overlay';
+  overlay.innerHTML =
+    '<div class="aupygo-cleanup-box">' +
+      '<h3 id="cleanupTitle">🧹 ' + (t('cleanup.title') || 'Nettoyage des anciens messages') + '</h3>' +
+      '<p id="cleanupBody"></p>' +
+      '<div class="aupygo-cleanup-actions">' +
+        '<button type="button" id="cleanupRefuseBtn" class="btn btn-secondary">' + (t('cleanup.refuse') || 'Garder') + '</button>' +
+        '<button type="button" id="cleanupAcceptBtn" class="btn btn-primary">' + (t('cleanup.accept') || 'Supprimer') + '</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+
+  document.getElementById('cleanupAcceptBtn').addEventListener('click', onCleanupAccept);
+  document.getElementById('cleanupRefuseBtn').addEventListener('click', onCleanupRefuse);
+}
+
+function showCleanupConfirmDialog(count) {
+  injectCleanupModal();
+  const overlay = document.getElementById('cleanupOverlay');
+  const body = document.getElementById('cleanupBody');
+  if (body) {
+    const template = t('cleanup.body') || 'Tu as {n} ancien(s) message(s) déjà lu(s) depuis plus d\'une semaine. Veux-tu les supprimer pour libérer de l\'espace ? Cette action est définitive.';
+    body.textContent = template.replace('{n}', String(count));
+  }
+  if (overlay) {
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+}
+
+function closeCleanupModal() {
+  const overlay = document.getElementById('cleanupOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function onCleanupAccept() {
+  const pending = cleanupPending;
+  cleanupPending = null;
+  closeCleanupModal();
+  if (!pending || !pending.conversations.length) return;
+
+  let deletedTotal = 0;
+  for (const { convId, cutoff } of pending.conversations) {
+    try {
+      const { error, count } = await supabaseClient
+        .from('messages')
+        .delete({ count: 'exact' })
+        .eq('conversation_id', convId)
+        .lt('created_at', cutoff);
+      if (error) {
+        console.error('onCleanupAccept (delete):', error);
+        continue;
+      }
+      deletedTotal += count || 0;
+    } catch (e) {
+      console.error('onCleanupAccept:', e);
+    }
+  }
+
+  const doneTemplate = t('cleanup.done') || '{n} ancien(s) message(s) supprimé(s).';
+  showToast('🧹 ' + doneTemplate.replace('{n}', String(deletedTotal)), 'success');
+
+  // Si la conversation actuellement ouverte a été nettoyée, on rafraîchit
+  // l'affichage pour ne pas laisser de bulles fantômes à l'écran.
+  if (activeConversation && activeConversation.type === 'dm' && activeConversation.conversationId
+      && pending.conversations.some(c => c.convId === activeConversation.conversationId)) {
+    loadConversationHistory(activeConversation.conversationId);
+  }
+}
+
+function onCleanupRefuse() {
+  cleanupPending = null;
+  closeCleanupModal();
+  try { localStorage.setItem(CLEANUP_REFUSED_KEY, String(Date.now() + CLEANUP_SNOOZE_MS)); } catch (e) {}
+  showToast(t('cleanup.refused') || 'Messages conservés.', 'success');
 }
 
 
@@ -3118,6 +3339,49 @@ function injectMessagingNotificationStyles() {
     }
     .conv-avatar { position: relative; }
     .member-avatar { position: relative; display: inline-flex; }
+
+    .aupygo-cleanup-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(17, 24, 39, 0.55);
+      z-index: 9999;
+      align-items: center;
+      justify-content: center;
+      padding: 16px;
+    }
+    .aupygo-cleanup-overlay.open { display: flex; }
+    .aupygo-cleanup-box {
+      background: #fff;
+      border-radius: 14px;
+      max-width: 420px;
+      width: 100%;
+      padding: 24px;
+      box-shadow: 0 20px 45px rgba(0,0,0,0.25);
+    }
+    .aupygo-cleanup-box h3 {
+      margin: 0 0 12px;
+      font-size: 18px;
+    }
+    .aupygo-cleanup-box p {
+      margin: 0 0 20px;
+      color: #4b5563;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    .aupygo-cleanup-actions {
+      display: flex;
+      gap: 10px;
+      justify-content: flex-end;
+    }
+    .aupygo-cleanup-actions .btn {
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: none;
+      cursor: pointer;
+      font-weight: 600;
+      font-size: 14px;
+    }
   `;
   document.head.appendChild(style);
 }
