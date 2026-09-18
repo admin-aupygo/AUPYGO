@@ -1506,6 +1506,11 @@ function sendFriendRequest(city) {
 // Affiche uniquement les sorties en commun avec un ami.
 // L’agenda personnel AUPYGO reste toujours privé.
 function showSharedEvents(friendName) {
+  if (!currentUser) {
+    showToast(t('plans.need_login'), 'error');
+    go('plans');
+    return;
+  }
   if (currentPlan === 'FREE') {
     showToast(t('reconnect.shared_locked'), 'error');
     go('plans');
