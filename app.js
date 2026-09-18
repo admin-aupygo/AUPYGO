@@ -834,9 +834,7 @@ function updatePlanUI() {
     messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
   }
    
-
-
-  const isFree = currentPlan === 'FREE';
+ const isFree = currentPlan === 'FREE';
 
   const freeNotice = document.getElementById('eventsFreeNotice');
 
@@ -845,7 +843,7 @@ function updatePlanUI() {
   }
 
 
-  document.querySelectorAll('#eventGrid .event').forEach(event => {
+    document.querySelectorAll('#eventGrid .event').forEach(event => {
 
     const detail = event.querySelector('[data-detail]');
     const locked = event.querySelector('[data-locked]');
@@ -867,7 +865,11 @@ function updatePlanUI() {
       if(upgradeBtn) upgradeBtn.style.display = 'none';
 
     }
-   // ===== Cadenas sur le bouton Messagerie de la page d'accueil =====
+
+  });
+
+
+  // ===== Cadenas sur le bouton Messagerie de la page d'accueil =====
   const homeMsgBtn = document.getElementById('homeBtnMessages');
   const homeMsgLock = document.getElementById('homeMessagesLock');
 
