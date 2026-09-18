@@ -720,7 +720,13 @@ function getActivePage() {
   const activePage = document.querySelector('.page.active');
   return activePage ? activePage.id : 'home';
 }
+function updateGuestBanner() {
+  const banner = document.getElementById('guestBanner');
+  if (!banner) return;
+  banner.style.display = currentUser ? 'none' : 'flex';
+}
 
+function updateHomeView() {
 function updateHomeView() {
   const landing = document.getElementById('homeLanding');
   const dash = document.getElementById('homeDashboard');
