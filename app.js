@@ -3264,25 +3264,29 @@ function onCleanupRefuse() {
    LANGUES
 ========================= */
 
-// Changement de langue à la volée : met à jour le dictionnaire actif,
-// retraduit le DOM et persiste le choix, sans recharger la page
-// (donc sans perdre la session Supabase ni l'état de l'UI).
+// Langue courante (persistée). Déclarée ici pour éviter ReferenceError au chargement.
+let currentLang = localStorage.getItem('aupygo_lang') || 'fr';
+
+// Applique les traductions via i18n.js (applyI18n) + zones dynamiques
 function applyTranslations() {
-  console.log("Translations appliquées");
-}
-function changeLanguage(lang) {
-  if (!I18N[lang]) return;
-  currentLang = lang;
-  localStorage.setItem('aupygo_lang', lang);
-  const sel = document.getElementById('language');
-  if (sel) sel.value = lang;
-  applyTranslations();
+  if (typeof applyI18n === 'function') {
+    applyI18n(currentLang);
+  } else {
+    console.warn('applyI18n non disponible (i18n.js manquant ?)');
+  }
   // Met à jour les zones dynamiques non marquées data-i18n
   if (typeof updateOnlineCount === 'function') updateOnlineCount();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
 }
 
-
+function changeLanguage(lang) {
+  if (!I18N || !I18N[lang]) return;
+  currentLang = lang;
+  localStorage.setItem('aupygo_lang', lang);
+  const sel = document.getElementById('language');
+  if (sel) sel.value = lang;
+  applyTranslations();
+}
 /* =========================
    INACTIVITÉ (45 min → déconnexion auto)
    Avertissement à 40 min
