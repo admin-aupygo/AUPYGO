@@ -318,9 +318,10 @@ async function handleSignup() {
 
 
 function lockIdentityFields() {
-
-  document.getElementById('firstName').readOnly = true;
-  document.getElementById('country').readOnly = true;
+  const firstName = document.getElementById('firstName');
+  const country = document.getElementById('country');
+  if (firstName) firstName.readOnly = true;
+  if (country) country.readOnly = true;
 
   // age = <select> : readOnly ne fonctionne pas → disabled
   const ageEl = document.getElementById('age');
@@ -342,9 +343,10 @@ function lockIdentityFields() {
 
 
 function unlockIdentityFields() {
-
-  document.getElementById('firstName').readOnly = false;
-  document.getElementById('country').readOnly = false;
+  const firstName = document.getElementById('firstName');
+  const country = document.getElementById('country');
+  if (firstName) firstName.readOnly = false;
+  if (country) country.readOnly = false;
 
   const ageEl = document.getElementById('age');
   if (ageEl) {
@@ -362,7 +364,6 @@ function unlockIdentityFields() {
 
   profileLocked = false;
 }
-
 
 async function handleLogin() {
 
