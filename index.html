@@ -861,9 +861,12 @@
         <span class="bio-counter"><span id="bioCounter">0</span>/300</span>
       </div>
 
-      <div class="profile-actions">
+            <div class="profile-actions">
         <button class="btn btn-primary" style="width:100%" onclick="saveProfile()" data-i18n="profile.btn_save">💾 Enregistrer</button>
         <button class="btn btn-secondary" style="width:100%" onclick="go('plans')" data-i18n="profile.btn_plans">💎 Voir les abonnements</button>
+        <button type="button" class="btn btn-secondary" style="width:100%" id="profileLogoutBtn" onclick="handleLogout()" data-i18n="plans.btn_logout">
+          Se déconnecter
+        </button>
         <button type="button" class="btn-danger" onclick="handleDeleteProfile()" data-i18n="profile.btn_delete">
           🗑️ Supprimer mon profil
         </button>
