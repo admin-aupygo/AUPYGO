@@ -1964,6 +1964,12 @@ Continuer ?`
 
 function joinEvent(name) {
 
+  if (!currentUser) {
+    showToast(t('plans.need_login'), 'error');
+    go('plans');
+    return;
+  }
+
   if(currentPlan === 'FREE') {
     showToast(t('events.join_locked'), 'error');
     return;
@@ -1975,6 +1981,12 @@ function joinEvent(name) {
 
 
 function joinRestaurantEvent() {
+
+  if (!currentUser) {
+    showToast(t('plans.need_login'), 'error');
+    go('plans');
+    return;
+  }
 
   if(currentPlan === 'FREE') {
     showToast(t('events.join_locked'), 'error');
@@ -1988,6 +2000,12 @@ function joinRestaurantEvent() {
 
 function paidEvent() {
 
+  if (!currentUser) {
+    showToast(t('plans.need_login'), 'error');
+    go('plans');
+    return;
+  }
+
   if(currentPlan === 'FREE') {
     showToast(t('events.special_locked'), 'error');
     return;
@@ -1996,7 +2014,6 @@ function paidEvent() {
   showToast(t('events.special_soon'));
 
 }
-
 
 /* =========================
    MESSAGES
