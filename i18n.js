@@ -66,6 +66,8 @@ const I18N = {
     "map.privacy_notice":"🔒 <strong>Privacy :</strong> position approximative uniquement (~1 km).<br>Ton emplacement exact n’est jamais affiché ni partagé avec les autres.",
     "map.region_locked":"Disponible avec STANDARD",
     "map.world_locked":"Disponible avec PREMIUM",
+    "guest.banner_text":"👀 Tu explores AUPYGO en mode invité.",
+    "guest.banner_cta":"✨ S'inscrire / Se connecter",
 
     "idle.title":"Toujours là ?",
     "idle.message":"Sans activité de ta part, tu seras déconnecté automatiquement dans 5 minutes pour protéger ta session.",
