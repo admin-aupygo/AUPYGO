@@ -774,8 +774,11 @@ function updateNavVisibility() {
 
 function updatePlanUI() {
 
-  document.getElementById('headerPlan').textContent = currentPlan;
+  const headerPlan = document.getElementById('headerPlan');
 
+if (headerPlan) {
+  headerPlan.textContent = currentPlan;
+}
   ['FREE','STANDARD','PREMIUM'].forEach(p => {
 
     const card = document.getElementById('plan-' + p);
