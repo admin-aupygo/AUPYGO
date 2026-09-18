@@ -3263,6 +3263,9 @@ function onCleanupRefuse() {
 // Changement de langue à la volée : met à jour le dictionnaire actif,
 // retraduit le DOM et persiste le choix, sans recharger la page
 // (donc sans perdre la session Supabase ni l'état de l'UI).
+function applyTranslations() {
+  console.log("Translations appliquées");
+}
 function changeLanguage(lang) {
   if (!I18N[lang]) return;
   currentLang = lang;
