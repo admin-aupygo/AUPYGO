@@ -728,6 +728,12 @@ function updateGuestBanner() {
   banner.style.display = currentUser ? 'none' : 'flex';
 }
 
+function updateProfileLogoutButton() {
+  const btn = document.getElementById('profileLogoutBtn');
+  if (!btn) return;
+  // Visible uniquement si on est connecté (inutile pour un visiteur)
+  btn.style.display = currentUser ? 'block' : 'none';
+}
 function updateHomeView() {
   const landing = document.getElementById('homeLanding');
   const dash = document.getElementById('homeDashboard');
