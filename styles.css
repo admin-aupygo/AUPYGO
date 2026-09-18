@@ -1270,7 +1270,7 @@ select[multiple] {
 }
 
 .locked::after {
-  content:"🔒 Disponible à partir de STANDARD";
+  content:"🔒 Premium uniquement";
   position:absolute;
   inset:0;
   background:rgba(255,255,255,.88);
