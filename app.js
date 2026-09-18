@@ -702,11 +702,10 @@ async function refreshAuthUI(redirectPage = 'profile') {
       loadFriendshipsFromDB().then(updateFriendsBadge);
       loadUnreadCounts();
     }
-
-     } else {
+  } else {
     // Pas connecté
-    loggedOut.style.display = 'block';
-    loggedIn.style.display = 'none';
+    if (loggedOut) loggedOut.style.display = 'block';
+    if (loggedIn) loggedIn.style.display = 'none';
     profileSaved = false;
     unlockIdentityFields();
     updateNavVisibility();
