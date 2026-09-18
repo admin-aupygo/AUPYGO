@@ -1909,3 +1909,25 @@ nav button.has-unread-messages::after {
   0%, 100% { transform: scale(1); }
   50% { transform: scale(1.08); }
 }
+.guest-banner {
+  position: sticky;
+  top: 0;
+  z-index: 1500;
+  display: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  background: linear-gradient(135deg,#7c3aed,#ec4899);
+  color: #fff;
+  padding: 10px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  text-align: center;
+}
+.guest-banner .btn-primary {
+  background: #fff;
+  color: var(--primary);
+  padding: 8px 14px;
+  font-size: 13px;
+}
