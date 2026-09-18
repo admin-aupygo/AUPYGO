@@ -729,7 +729,6 @@ function updateGuestBanner() {
 }
 
 function updateHomeView() {
-function updateHomeView() {
   const landing = document.getElementById('homeLanding');
   const dash = document.getElementById('homeDashboard');
   if (!landing || !dash) return;
