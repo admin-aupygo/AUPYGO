@@ -503,7 +503,8 @@ const I18N = {
     "map.privacy_notice":"🔒 <strong>Privacidad:</strong> posición aproximada únicamente (~1 km).<br>Tu ubicación exacta nunca se muestra ni se comparte con otros.",
     "map.region_locked":"Disponible con STANDARD",
     "map.world_locked":"Disponible con PREMIUM",
-
+    "guest.banner_text":"👀 Estás explorando AUPYGO como invitado.",
+    "guest.banner_cta":"✨ Regístrate / Inicia sesión",
     "idle.title":"¿Sigues ahí?",
     "idle.message":"Sin actividad, se cerrará tu sesión automáticamente en 5 minutos para protegerla.",
     "idle.stay":"✅ Sigo aquí",
