@@ -833,6 +833,7 @@ function updatePlanUI() {
     messagesBox.style.pointerEvents = 'auto';
     messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
   }
+   
 
 
   const isFree = currentPlan === 'FREE';
@@ -866,8 +867,20 @@ function updatePlanUI() {
       if(upgradeBtn) upgradeBtn.style.display = 'none';
 
     }
+   // ===== Cadenas sur le bouton Messagerie de la page d'accueil =====
+  const homeMsgBtn = document.getElementById('homeBtnMessages');
+  const homeMsgLock = document.getElementById('homeMessagesLock');
 
-  });
+  if (homeMsgBtn && homeMsgLock) {
+    if (currentPlan === 'PREMIUM') {
+      homeMsgLock.style.display = 'none';
+      homeMsgBtn.classList.remove('locked');
+    } else {
+      // Free ou Standard → on affiche le cadenas
+      homeMsgLock.style.display = 'inline-block';
+      homeMsgBtn.classList.add('locked');
+    }
+  }
 
 
   // === SE RETROUVER (amis) ===
