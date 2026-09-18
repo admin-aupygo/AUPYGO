@@ -553,14 +553,15 @@ async function refreshAuthUI(redirectPage = 'profile') {
 
   currentUser = user;
 
-  const loggedOut = document.getElementById('authLoggedOut');
+    const loggedOut = document.getElementById('authLoggedOut');
   const loggedIn = document.getElementById('authLoggedIn');
 
   if (user) {
 
-    loggedOut.style.display = 'none';
-    loggedIn.style.display = 'block';
-    document.getElementById('authUserEmail').textContent = user.email;
+    if (loggedOut) loggedOut.style.display = 'none';
+    if (loggedIn) loggedIn.style.display = 'block';
+    const authEmail = document.getElementById('authUserEmail');
+    if (authEmail) authEmail.textContent = user.email;
 
     // Charge le profil déjà sauvegardé pour ce compte, s'il existe
     const { data: profile } = await supabaseClient
