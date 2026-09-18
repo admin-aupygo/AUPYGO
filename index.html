@@ -167,48 +167,59 @@
     </div>
   </div>
 
-  <!-- DASHBOARD (connecté + profil complété) -->
+   <!-- DASHBOARD (connecté + profil complété) -->
   <div id="homeDashboard" style="display:none">
+
     <div class="section-title">
       <h2>👋 <span data-i18n="dashboard.welcome">Bienvenue</span>, <span id="dashName">…</span></h2>
-      <p data-i18n="dashboard.subtitle">Voici ce qui se passe autour de toi.</p>
+      <p data-i18n="dashboard.subtitle">Voici tes accès principaux.</p>
     </div>
 
-    <div class="grid" style="margin-bottom:24px">
-      <div class="card" onclick="go('map')" style="cursor:pointer">
-        <h3>🗺️ <span data-i18n="dashboard.discover">Découvrir</span></h3>
-        <p data-i18n="dashboard.discover_text">Vois qui est près de toi sur la carte.</p>
-      </div>
-      <div class="card" onclick="go('events')" style="cursor:pointer">
-        <h3>🎉 <span data-i18n="dashboard.events">Sorties</span></h3>
-        <p data-i18n="dashboard.events_text">Les propositions de la communauté.</p>
-      </div>
-      <div class="card" onclick="go('agenda')" style="cursor:pointer">
-        <h3>📅 <span data-i18n="dashboard.agenda">Mon agenda</span></h3>
-        <p data-i18n="dashboard.agenda_text">Tes événements à venir.</p>
-      </div>
-      <div class="card" onclick="go('messages')" style="cursor:pointer">
-        <h3>💬 <span data-i18n="dashboard.messages">Messages</span></h3>
-        <p data-i18n="dashboard.messages_text">Tes conversations.</p>
-      </div>
-      <div class="card" onclick="go('reconnect')" style="cursor:pointer">
-        <h3>🤝 <span data-i18n="dashboard.friends">Amis</span></h3>
-        <p data-i18n="dashboard.friends_text">Tes contacts et demandes.</p>
-      </div>
-      <div class="card" onclick="go('profile')" style="cursor:pointer">
-        <h3>👤 <span data-i18n="dashboard.profile">Profil</span></h3>
-        <p data-i18n="dashboard.profile_text">Modifier tes infos.</p>
-      </div>
+    <!-- Grille de boutons clairs et harmonisés -->
+    <div class="home-buttons-grid">
+
+      <!-- Agenda privé -->
+      <button type="button" class="home-btn" onclick="go('agenda')">
+        <span class="home-btn-icon">📅</span>
+        <span class="home-btn-label" data-i18n="dashboard.agenda">Agenda privé</span>
+      </button>
+
+      <!-- Messagerie (avec cadenas Premium) -->
+      <button type="button" class="home-btn" id="homeBtnMessages" onclick="go('messages')">
+        <span class="home-btn-icon">💬</span>
+        <span class="home-btn-label" data-i18n="dashboard.messages">Messagerie</span>
+        <span class="home-btn-lock" id="homeMessagesLock" style="display:none">
+          🔒 Premium Only
+        </span>
+      </button>
+
+      <!-- Carte -->
+      <button type="button" class="home-btn" onclick="go('map')">
+        <span class="home-btn-icon">🗺️</span>
+        <span class="home-btn-label" data-i18n="dashboard.discover">Carte</span>
+      </button>
+
+      <!-- Amis -->
+      <button type="button" class="home-btn" onclick="go('reconnect')">
+        <span class="home-btn-icon">🤝</span>
+        <span class="home-btn-label" data-i18n="dashboard.friends">Amis</span>
+      </button>
+
+      <!-- Sorties / Événements -->
+      <button type="button" class="home-btn" onclick="go('events')">
+        <span class="home-btn-icon">🎉</span>
+        <span class="home-btn-label" data-i18n="dashboard.events">Sorties / Événements</span>
+      </button>
+
+      <!-- Profil -->
+      <button type="button" class="home-btn" onclick="go('profile')">
+        <span class="home-btn-icon">👤</span>
+        <span class="home-btn-label" data-i18n="dashboard.profile">Profil</span>
+      </button>
+
     </div>
 
-    <div class="card">
-      <h3 data-i18n="dashboard.recent">Activité récente</h3>
-      <div id="dashRecent">
-        <p class="footer-muted" data-i18n="dashboard.recent_empty">Rien de neuf pour le moment.</p>
-      </div>
-    </div>
   </div>
-
 </section>
 
 
