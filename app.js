@@ -212,6 +212,10 @@ let profiles = []; // profils avec approx_lat / approx_lng (global)
 /* =========================
    AUTHENTIFICATION
 ========================= */
+function goToLogin() {
+  go('plans');
+  switchAuthTab('login');
+}
 
 function switchAuthTab(tab) {
 
