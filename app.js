@@ -828,14 +828,16 @@ if (headerPlan) {
   const messagesBox = document.getElementById('messagesBox');
   const messagesNotice = document.getElementById('messagesNotice');
 
-  if(currentPlan !== 'PREMIUM') {
-    messagesBox.style.opacity = '0.5';
-    messagesBox.style.pointerEvents = 'none';
-    messagesNotice.innerHTML = t('messages.notice_locked');
-  } else {
-    messagesBox.style.opacity = '1';
-    messagesBox.style.pointerEvents = 'auto';
-    messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
+  if (messagesBox && messagesNotice) {
+    if (currentPlan !== 'PREMIUM') {
+      messagesBox.style.opacity = '0.5';
+      messagesBox.style.pointerEvents = 'none';
+      messagesNotice.innerHTML = t('messages.notice_locked');
+    } else {
+      messagesBox.style.opacity = '1';
+      messagesBox.style.pointerEvents = 'auto';
+      messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
+    }
   }
    
  const isFree = currentPlan === 'FREE';
