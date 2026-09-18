@@ -338,13 +338,110 @@
 
   <div class="event-grid" id="eventGrid">
 
-    <!-- events content continues - truncated for tool; use full file -->
+    <!-- Le contenu des événements (cards) reste identique à ton fichier actuel -->
+    <!-- Si tu as déjà le reste de la section events, garde-le tel quel -->
+
   </div>
 
 </section>
 
-<!-- AGENDA PLACEHOLDER - see full file -->
+
+<!-- =========================
+     AGENDA
+========================= -->
+
+<section id="agenda" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="agenda.title">📅 Agenda</h2>
+    <p data-i18n="agenda.subtitle">Ton calendrier personnel, tes sorties et l’agenda de la communauté.</p>
+  </div>
+
+  <div class="notice" id="agendaPageNotice" data-i18n-html="agenda.notice">
+    ⭐ Les détails complets sont disponibles à partir du forfait <strong>STANDARD</strong>.
+  </div>
+
+  <!-- MON AGENDA (calendrier personnel) -->
+  <div class="card" style="margin-bottom:20px">
+    <h3 data-i18n="agenda.personal">MON AGENDA</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.personal_desc">Calendrier personnel</p>
+    <div class="calendar" style="margin-top:10px" id="personalCalendar">
+      <div class="day"><strong data-i18n="days.mon">Lun</strong></div>
+      <div class="day"><strong data-i18n="days.tue">Mar</strong></div>
+      <div class="day"><strong data-i18n="days.wed">Mer</strong></div>
+      <div class="day"><strong data-i18n="days.thu">Jeu</strong></div>
+      <div class="day"><strong data-i18n="days.fri">Ven</strong></div>
+      <div class="day"><strong data-i18n="days.sat">Sam</strong></div>
+      <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
+      <!-- jours vides / perso — à remplir dynamiquement -->
+      <div class="day"><strong>—</strong></div>
+      <div class="day"><strong>—</strong></div>
+      <div class="day"><strong>—</strong></div>
+    </div>
+  </div>
+
+  <!-- MES PROCHAINES SORTIES -->
+  <div class="card" style="margin-bottom:20px">
+    <h3 data-i18n="agenda.my_events">MES PROCHAINES SORTIES</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.my_events_desc">Sorties auxquelles tu participes</p>
+    <div id="myAgendaList" class="agenda-list">
+      <p class="footer-muted" data-i18n="agenda.empty">Tu n’as encore rejoint aucune sortie.</p>
+    </div>
+  </div>
+
+  <!-- AGENDA COMMUNAUTAIRE -->
+  <div class="card">
+    <h3 data-i18n="agenda.community">AGENDA COMMUNAUTAIRE</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.community_desc">Événements publics de la communauté</p>
+    <div class="calendar" style="margin-top:15px" id="agendaCalendar">
+      <div class="day"><strong data-i18n="days.mon">Lun</strong></div>
+      <div class="day"><strong data-i18n="days.tue">Mar</strong></div>
+      <div class="day"><strong data-i18n="days.wed">Mer</strong></div>
+      <div class="day"><strong data-i18n="days.thu">Jeu</strong></div>
+      <div class="day"><strong data-i18n="days.fri">Ven</strong></div>
+      <div class="day"><strong data-i18n="days.sat">Sam</strong></div>
+      <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
+      <div class="day"><strong>8</strong><div class="agenda-event" data-i18n="events.agenda_cafe">☕ Café AUPYGO</div></div>
+      <div class="day"><strong>15</strong><div class="agenda-event" data-i18n="events.agenda_hike">🥾 Randonnée</div></div>
+      <div class="day"><strong>22</strong><div class="agenda-event" data-i18n="events.agenda_lunch">🍝 Lunch AUPYGO</div></div>
+    </div>
+  </div>
+
+</section>
+
+
+<!-- =========================
+     SE RETROUVER (amis)
+========================= -->
+
+<section id="reconnect" class="page">
+
+  <div class="section-title">
+    <h2 data-i18n="reconnect.title">🤝📍 AupyGo Friend’s</h2>
+    <p data-i18n="reconnect.subtitle">Retrouve les AUPYGO avec qui tu as déjà partagé une sortie et qui ont accepté ta demande d’ami.</p>
+  </div>
+
+  <!-- Le reste de la section reconnect reste identique à ton fichier actuel -->
+
+</section>
+
+
+<!-- =========================
+     MESSAGES / PROFIL / PLANS
+========================= -->
+
+<!-- Les sections messages, profile et plans restent identiques à ton fichier actuel.
+     Tu peux garder exactement ce que tu as déjà après la section reconnect. -->
 
 </main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="config.js"></script>
+<script src="i18n.js"></script>
+<script src="app.js"></script>
+<script src="map-markers.js"></script>
+
 </body>
 </html>
