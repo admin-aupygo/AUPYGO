@@ -285,7 +285,8 @@ const I18N = {
     "map.privacy_notice":"🔒 <strong>Privacy:</strong> approximate location only (~1 km).<br>Your exact location is never shown or shared with others.",
     "map.region_locked":"Available with STANDARD",
     "map.world_locked":"Available with PREMIUM",
-
+    "guest.banner_text":"👀 You're exploring AUPYGO as a guest.",
+    "guest.banner_cta":"✨ Sign up / Log in",
     "idle.title":"Still there?",
     "idle.message":"Without activity, you will be logged out automatically in 5 minutes to protect your session.",
     "idle.stay":"✅ I'm still here",
