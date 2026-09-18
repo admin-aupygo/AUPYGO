@@ -743,22 +743,11 @@ function updateHomeView() {
 
 function updateNavVisibility() {
   document.querySelectorAll('nav button').forEach(b => {
-    const page = b.dataset.nav;
-
-    if (RESTRICTED_NAV_PAGES.includes(page)) {
-      // "Profil" reste visible dès la connexion, même profil incomplet.
-      // Les autres pages réservées n'apparaissent qu'une fois le profil complété.
-      b.style.display = (currentUser && (page === 'profile' || profileSaved)) ? 'flex' : 'none';
-    } else {
-      // home, map, plans : toujours visibles (même non connecté)
-      b.style.display = 'flex';
-    }
+    // Tous les onglets sont désormais visibles, connecté ou non :
+    // les visiteurs peuvent découvrir tout le site en mode aperçu.
+    b.style.display = 'flex';
   });
-
-  // Si on est sur une page réservée et qu'on n'est plus connecté → accueil
-  if (!currentUser && RESTRICTED_NAV_PAGES.includes(getActivePage())) {
-    go('home');
-  }
+  // On ne renvoie plus automatiquement les visiteurs vers l'accueil.
 }
 
 /* =========================
