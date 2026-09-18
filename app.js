@@ -697,7 +697,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       loadUnreadCounts();
     }
 
-    } else {
+     } else {
     // Pas connecté
     loggedOut.style.display = 'block';
     loggedIn.style.display = 'none';
@@ -707,6 +707,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
   }
 
   updateGuestBanner();
+  updateProfileLogoutButton();
 }
 
 
