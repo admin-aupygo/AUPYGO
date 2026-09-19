@@ -829,14 +829,25 @@ if (headerPlan) {
   const messagesNotice = document.getElementById('messagesNotice');
 
   if (messagesBox && messagesNotice) {
-    if (currentPlan !== 'PREMIUM') {
+    if (!currentUser) {
       messagesBox.style.opacity = '0.5';
       messagesBox.style.pointerEvents = 'none';
       messagesNotice.innerHTML = t('messages.notice_locked');
+      const qEl = document.getElementById('messagesQuota');
+      if (qEl) { qEl.style.display = 'none'; }
     } else {
       messagesBox.style.opacity = '1';
       messagesBox.style.pointerEvents = 'auto';
-      messagesNotice.innerHTML = t('messages.notice_unlocked') + ' (PREMIUM)';
+      const plan = String(currentPlan || 'FREE').toUpperCase();
+      if (plan === 'PREMIUM') {
+        messagesNotice.innerHTML = t('messages.notice_paid') || (t('messages.notice_unlocked') + ' (PREMIUM)');
+      } else if (plan === 'STANDARD') {
+        messagesNotice.innerHTML = t('messages.notice_standard') || t('messages.notice_paid') || '✅ STANDARD : 10 messages/jour avec tes amis + groupes';
+      } else {
+        messagesNotice.innerHTML = t('messages.notice_free') || '💬 FREE : 10 messages max avec tes amis validés (pas de renouvellement)';
+      }
+      refreshMessagesQuotaUI();
+      if (typeof setupMessagesRealtime === 'function') setupMessagesRealtime();
     }
   }
    
@@ -880,14 +891,9 @@ if (headerPlan) {
   const homeMsgLock = document.getElementById('homeMessagesLock');
 
   if (homeMsgBtn && homeMsgLock) {
-    if (currentPlan === 'PREMIUM') {
-      homeMsgLock.style.display = 'none';
-      homeMsgBtn.classList.remove('locked');
-    } else {
-      // Free ou Standard → on affiche le cadenas
-      homeMsgLock.style.display = 'inline-block';
-      homeMsgBtn.classList.add('locked');
-    }
+    // Messagerie accessible dès FREE (quota 10/j) — plus de cadenas Premium Only
+    homeMsgLock.style.display = 'none';
+    homeMsgBtn.classList.remove('locked');
   }
 
 
@@ -2297,6 +2303,98 @@ function escapeAttr(str) {
   return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
 
+/* =========================
+   QUOTA MESSAGES
+   FREE     : 10 messages max pour toute la vie du compte (pas de renouvellement)
+   STANDARD : 10 messages / jour
+   PREMIUM  : illimité
+========================= */
+const MSG_QUOTA_FREE = 10;       // total compte (lifetime)
+const MSG_QUOTA_STANDARD = 10;   // par jour
+
+function getMessageQuotaMax() {
+  const p = String(currentPlan || 'FREE').trim().toUpperCase();
+  if (p === 'PREMIUM') return Infinity;
+  if (p === 'STANDARD') return MSG_QUOTA_STANDARD;
+  return MSG_QUOTA_FREE;
+}
+
+function isLifetimeLifetimeQuota() {
+  return String(currentPlan || 'FREE').trim().toUpperCase() === 'FREE';
+}
+
+function localQuotaKey() {
+  const uid = (currentUser && currentUser.id) ? currentUser.id : 'anon';
+  if (isLifetimeLifetimeQuota()) {
+    return 'aupygo_msg_quota_lifetime_' + uid;
+  }
+  const d = new Date();
+  const day = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+  return 'aupygo_msg_quota_' + uid + '_' + day;
+}
+
+function getLocalQuotaCount() {
+  try { return parseInt(localStorage.getItem(localQuotaKey()) || '0', 10) || 0; }
+  catch (e) { return 0; }
+}
+
+function bumpLocalQuota() {
+  try {
+    const n = getLocalQuotaCount() + 1;
+    localStorage.setItem(localQuotaKey(), String(n));
+    return n;
+  } catch (e) { return getLocalQuotaCount(); }
+}
+
+/** Nombre de messages déjà envoyés (lifetime si FREE, aujourd'hui si STANDARD). */
+async function countMessagesUsed() {
+  if (!currentUser || !supabaseClient) return getLocalQuotaCount();
+  try {
+    let q = supabaseClient
+      .from('messages')
+      .select('id', { count: 'exact', head: true })
+      .eq('sender_id', currentUser.id);
+    if (!isFreeLifetimeQuota()) {
+      const start = new Date();
+      start.setHours(0, 0, 0, 0);
+      q = q.gte('created_at', start.toISOString());
+    }
+    const { count, error } = await q;
+    if (error) {
+      console.warn('[AUPYGO] quota count fallback local:', error.message || error);
+      return getLocalQuotaCount();
+    }
+    const n = count || 0;
+    try { localStorage.setItem(localQuotaKey(), String(n)); } catch (e) {}
+    return n;
+  } catch (e) {
+    return getLocalQuotaCount();
+  }
+}
+
+async function refreshMessagesQuotaUI() {
+  const el = document.getElementById('messagesQuota');
+  const max = getMessageQuotaMax();
+  if (max === Infinity) {
+    if (el) { el.style.display = 'none'; el.textContent = ''; }
+    return { sent: 0, max: Infinity, left: Infinity, allowed: true };
+  }
+  const sent = await countMessagesUsed();
+  const left = Math.max(0, max - sent);
+  if (el) {
+    el.style.display = 'block';
+    const key = isFreeLifetimeQuota() ? 'messages.quota_left_lifetime' : 'messages.quota_left';
+    const fallback = isFreeLifetimeQuota()
+      ? '{n}/{max} messages restants (compte FREE)'
+      : '{n}/{max} messages restants aujourd\'hui';
+    const tpl = t(key) || fallback;
+    el.textContent = tpl.replace('{n}', String(left)).replace('{max}', String(max));
+    el.className = 'notice' + (left <= 0 ? ' warning' : '');
+  }
+  return { sent: sent, max: max, left: left, allowed: left > 0 };
+}
+
+
 // Normalise une valeur d'abonnement (espaces, casse) avant comparaison —
 // évite les faux négatifs si la valeur en base est "Premium" ou " PREMIUM ".
 function isPremiumValue(sub) {
@@ -2619,14 +2717,9 @@ async function renderFriendsUI() {
         card.className = 'card friend-card';
         const nameSafe = String(f.name).replace(/'/g, "\\'");
         let msgBtn;
-        if (currentPlan !== 'PREMIUM') {
-          msgBtn = '<button class="btn btn-locked" style="width:100%" onclick="go(\'plans\')">🔒 Messages PREMIUM</button>';
-        } else if (!f.premium) {
-          // Moi PREMIUM, mais ce contact n'est pas PREMIUM : messagerie indisponible.
-          msgBtn = '<button class="btn btn-locked" style="width:100%" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒 ' + t('messages.contact_not_premium_short') + '</button>';
-        } else {
-          msgBtn = '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">💬 Message</button>';
-        }
+                // FREE / STANDARD / PREMIUM : message entre amis (quota à l'envoi)
+        msgBtn = '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">💬 Message</button>';
+
         const unread = unreadByFriend[f.id] || 0;
         const isUnread = unread > 0;
         const restrictedDot = (currentPlan === 'PREMIUM' && !f.premium)
@@ -2779,21 +2872,23 @@ async function sendFriendRequestToMember(memberId) {
 
 
 async function openConversation(type, id, name) {
-  if (currentPlan !== 'PREMIUM') {
-    showToast(t('messages.send_locked'), 'error');
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required') || 'Connecte-toi pour écrire', 'error');
     go('plans');
     return;
   }
 
-  // PREMIUM → STANDARD/FREE : messagerie indisponible, avertissement immédiat.
-  // Vérifié en direct sur Supabase (le cache local "profiles" peut être
-  // périmé jusqu'à 60 s après un changement d'abonnement du contact).
-  if (type === 'dm') {
-    if (!(await isContactPremium(id))) {
-      showToast(t('messages.contact_not_premium_full'), 'error');
+  // Groupes : STANDARD et PREMIUM uniquement
+  if (type === 'group') {
+    const planG = String(currentPlan || 'FREE').toUpperCase();
+    if (planG === 'FREE') {
+      showToast(t('messages.groups_locked') || 'Groupes réservés à STANDARD et PREMIUM', 'error');
+      go('plans');
       return;
     }
   }
+
+  // DM entre amis dès FREE (quota 10/j). Plus d'exigence PREMIUM mutuel.
 
   // Bascule sur l'onglet Messagerie : sans ça, un clic depuis "Se retrouver"
   // (ou toute autre page) chargeait bien la conversation, mais dans des
@@ -2834,8 +2929,8 @@ async function openConversation(type, id, name) {
 }
 
 async function sendMessage() {
-  if (currentPlan !== 'PREMIUM') {
-    showToast(t('messages.send_locked'), 'error');
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required') || 'Connecte-toi pour écrire', 'error');
     return;
   }
   if (!activeConversation) {
@@ -2851,25 +2946,31 @@ async function sendMessage() {
     return;
   }
 
-  // Double vérification défensive (l'accès à la conversation est déjà filtré
-  // par openConversation, mais on ne prend aucun risque avant l'écriture en base) :
-  // aucun message ne doit être enregistré si le contact n'est plus PREMIUM.
-  // Vérifié en direct sur Supabase (jamais depuis le cache local périmé).
-  if (!(await isContactPremium(activeConversation.id))) {
-    showToast(t('messages.contact_not_premium_full'), 'error');
+  // Quota FREE / STANDARD : 10 messages / jour (PREMIUM illimité)
+  const quota = await refreshMessagesQuotaUI();
+  if (!quota.allowed) {
+    const plan = String(currentPlan || 'FREE').toUpperCase();
+    if (plan === 'FREE') {
+      showToast(t('messages.quota_reached') || 'Tu as utilisé tes 10 messages FREE.', 'error');
+      const up = t('messages.quota_upgrade') || 'Passe en STANDARD pour continuer (10 messages/jour).';
+      setTimeout(function(){ showToast(up, 'error'); }, 500);
+      setTimeout(function(){ if (typeof go === 'function') go('plans'); }, 1200);
+    } else {
+      showToast(t('messages.quota_reached_daily') || 'Limite de messages atteinte pour aujourd’hui.', 'error');
+    }
     return;
   }
 
   const input = document.getElementById('messageInput');
   if (!input || !input.value.trim()) return;
-  const text = input.value.trim();
+  const body = input.value.trim();
 
   const { error } = await supabaseClient
     .from('messages')
     .insert({
       conversation_id: activeConversation.conversationId,
       sender_id: currentUser.id,
-      content: text
+      content: body
     });
 
   if (error) {
@@ -2878,13 +2979,15 @@ async function sendMessage() {
     return;
   }
 
-  appendBubble(text, true, new Date());
+  bumpLocalQuota();
+  appendBubble(body, true, new Date());
   showToast(t('messages.sent'), 'success');
   input.value = '';
+  refreshMessagesQuotaUI();
 }
 
 function setupMessagesRealtime() {
-  if (!currentUser || currentPlan !== 'PREMIUM' || messagesChannel) return;
+  if (!currentUser || messagesChannel) return;
   refreshMyConversationIds().then(() => {
     messagesChannel = supabaseClient
       .channel('messages-' + currentUser.id)
@@ -2986,8 +3089,9 @@ function renderConversationSidebar() {
 }
 
 function openCreateGroupModal() {
-  if (currentPlan !== 'PREMIUM') {
-    showToast(t('messages.send_locked'), 'error');
+  const planG = String(currentPlan || 'FREE').toUpperCase();
+  if (planG === 'FREE') {
+    showToast(t('messages.groups_locked') || 'Groupes réservés à STANDARD et PREMIUM', 'error');
     go('plans');
     return;
   }
