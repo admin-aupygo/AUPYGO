@@ -1,1 +1,37 @@
-@/home/workdir/artifacts/styles.css
+:root {
+  --primary:#7c3aed;
+  --primary-dark:#5b21b6;
+  --secondary:#ec4899;
+  --dark:#171522;
+  --text:#292638;
+  --muted:#777386;
+  --light:#f7f5fb;
+  --white:#ffffff;
+  --border:#e8e4ef;
+  --shadow:0 10px 35px rgba(42,24,70,.10);
+  --radius:20px;
+}
+* { box-sizing:border-box; margin:0; padding:0; }
+body {
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--light);
+  color:var(--text);
+  line-height:1.5;
+}
+.locked { position:relative; }
+.locked::after {
+  content: attr(data-lock-label);
+  position:absolute;
+  inset:0;
+  background:rgba(255,255,255,.88);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-weight:700;
+  color:var(--primary);
+  border-radius:var(--radius);
+  text-align:center;
+  padding:16px;
+  font-size:14px;
+}
+/* NOTE: full styles.css will be restored next */
