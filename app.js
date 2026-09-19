@@ -263,6 +263,22 @@ async function handleSignup() {
     return;
   }
 
+  // --- Limite 3 inscriptions / e-mail (RPC serveur, avant Auth) ---
+  try {
+    const { data: emailCheck, error: emailCheckErr } = await supabaseClient.rpc(
+      'aupygo_check_email_allowed',
+      { p_email: email }
+    );
+    if (!emailCheckErr && emailCheck && emailCheck.allowed === false) {
+      alert(emailCheck.message || 'Adresse mail invalide ou bloquée');
+      showToast(emailCheck.message || 'Adresse mail invalide ou bloquée', 'error');
+      return;
+    }
+  } catch (e) {
+    console.warn('[AUPYGO] check email allowed:', e);
+    // Si la RPC n'existe pas encore, on laisse le trigger Auth trancher
+  }
+
   // Captcha si disponible (ne bloque plus si Turnstile n'a pas chargé)
   authIntent = 'signup';
 
@@ -288,7 +304,13 @@ async function handleSignup() {
 
   if (error) {
     authIntent = null;
-    showToast('Erreur : ' + error.message, 'error');
+    const errTxt = String(error.message || '') + ' ' + String(error.details || '');
+    if (/EMAIL_BLOCKED|MAX_SIGNUPS|Adresse mail invalide ou bloquée|email.*block/i.test(errTxt)) {
+      alert('Adresse mail invalide ou bloquée');
+      showToast('Adresse mail invalide ou bloquée', 'error');
+    } else {
+      showToast('Erreur : ' + error.message, 'error');
+    }
     return;
   }
 
@@ -1911,6 +1933,11 @@ Continuer ?`
     if (error) {
       throw error;
     }
+
+    showToast(
+      t('profile.delete_done') || 'Compte supprimé définitivement. À bientôt.',
+      'success'
+    );
 
     stopIdleWatch();
 
