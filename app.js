@@ -1378,8 +1378,8 @@ function openMemberProfile(memberId) {
   const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
   const showMessage = (plan === 'PREMIUM');
 
-  // Demande d'ami : réservée aux visiteurs STANDARD / PREMIUM (pas FREE)
-  const canSendFriendRequest = (currentPlan === 'STANDARD' || currentPlan === 'PREMIUM');
+  // Demande d'ami : accessible dès FREE (plafond 5 en attente)
+  const canSendFriendRequest = !!currentUser; // FREE inclus (plafond 5 demandes en attente)
 
   let onlineHtml = '';
   if (showOnline) {
@@ -1422,7 +1422,7 @@ function openMemberProfile(memberId) {
 
   const friendBtn = canSendFriendRequest
     ? '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>'
-    : '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Consultation uniquement · passe en STANDARD pour envoyer une demande d\u2019ami</p>';
+    : '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Connecte-toi pour envoyer une demande d\u2019ami</p>';
 
   // Visiteur PREMIUM face à un profil non-PREMIUM : pastille rouge explicative
   // sur l'avatar (messagerie privée indisponible pour ce contact).
@@ -1584,11 +1584,6 @@ function openCity(city) {
 function sendFriendRequest(city) {
   if (!currentUser) {
     showToast(t('toast.friend_login_required'), 'error');
-    go('plans');
-    return;
-  }
-  if (currentPlan === 'FREE') {
-    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
     go('plans');
     return;
   }
@@ -2946,11 +2941,22 @@ async function sendFriendRequestToMember(memberId) {
     go('plans');
     return;
   }
-  if (currentPlan === 'FREE') {
-    showToast("🔒 Les demandes d’ami sont disponibles à partir de STANDARD", "error");
-    closeMemberProfile();
-    go('plans');
-    return;
+  // FREE : max 5 demandes en attente envoyées. STANDARD / PREMIUM : illimité.
+  if (String(currentPlan || 'FREE').toUpperCase() === 'FREE') {
+    try {
+      const { count, error: cntErr } = await supabaseClient
+        .from('friendships')
+        .select('id', { count: 'exact', head: true })
+        .eq('from_id', currentUser.id)
+        .eq('status', 'pending');
+      if (cntErr) console.warn('[AUPYGO] friend free cap:', cntErr);
+      if ((count || 0) >= 5) {
+        showToast(t('friends.free_cap') || 'Maximum 5 demandes en attente en FREE. Passe en STANDARD pour en envoyer plus.', 'error');
+        closeMemberProfile();
+        go('plans');
+        return;
+      }
+    } catch (e) { console.warn(e); }
   }
   if (memberId === currentUser.id) {
     showToast('Tu ne peux pas t’ajouter toi-même', 'error');
