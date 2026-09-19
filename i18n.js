@@ -679,34 +679,40 @@ function t(key) {
   return (I18N[lang] && I18N[lang][key]) || (I18N.fr && I18N.fr[key]) || key;
 }
 
+function hasKey(key) {
+  const l = (typeof currentLang !== 'undefined' ? currentLang : 'fr') || 'fr';
+  return !!((I18N[l] && I18N[l][key]) || (I18N.fr && I18N.fr[key]));
+}
+
 function applyI18n(lang) {
   if (!lang) lang = (typeof currentLang !== 'undefined' ? currentLang : 'fr') || 'fr';
   currentLang = lang;
   document.documentElement.lang = lang;
 
+  // Ignore les clés inconnues pour laisser le texte français du HTML en place
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (key) el.textContent = t(key);
+    if (key && hasKey(key)) el.textContent = t(key);
   });
 
   document.querySelectorAll('[data-i18n-html]').forEach(el => {
     const key = el.getAttribute('data-i18n-html');
-    if (key) el.innerHTML = t(key);
+    if (key && hasKey(key)) el.innerHTML = t(key);
   });
 
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
-    if (key) el.title = t(key);
+    if (key && hasKey(key)) el.title = t(key);
   });
 
   document.querySelectorAll('[data-i18n-aria]').forEach(el => {
     const key = el.getAttribute('data-i18n-aria');
-    if (key) el.setAttribute('aria-label', t(key));
+    if (key && hasKey(key)) el.setAttribute('aria-label', t(key));
   });
 
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
-    if (key) el.placeholder = t(key);
+    if (key && hasKey(key)) el.placeholder = t(key);
   });
 
   // Re-génère les portions dynamiques qui dépendent du forfait / de l'état,
