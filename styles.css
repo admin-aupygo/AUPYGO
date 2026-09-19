@@ -1270,7 +1270,7 @@ select[multiple] {
 }
 
 .locked::after {
-  content:"🔒 Premium uniquement";
+  content: attr(data-lock-label);
   position:absolute;
   inset:0;
   background:rgba(255,255,255,.88);
