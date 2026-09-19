@@ -64,16 +64,86 @@
     <span class="icon">👤</span>
   </button>
 
-</nav> 
+</nav>
 
-    <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
-      <option value="fr">🇫🇷 Français</option>
-      <option value="en">🇬🇧 English</option>
-      <option value="es">🇪🇸 Español</option>
-    </select>
+    <div class="header-actions">
+      <!-- Avatar forfait (visible mobile + desktop) -->
+      <button type="button" class="header-plan-btn" id="headerPlanBtn" onclick="toggleMoreMenu()" title="Compte & abonnement" aria-label="Compte et abonnement">
+        <span class="header-plan-avatar" id="headerPlanAvatar">👤</span>
+        <span class="header-plan-badge" id="headerPlanBadge">FREE</span>
+      </button>
+
+      <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
+        <option value="fr">🇫🇷 Français</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="es">🇪🇸 Español</option>
+      </select>
+    </div>
 
   </div>
 </header>
+
+<!-- ========== NAVIGATION BASSE MOBILE ========== -->
+<nav class="bottom-nav" id="bottomNav" aria-label="Navigation principale">
+  <button type="button" class="bottom-nav-btn active" data-nav="home" onclick="go('home')" title="Accueil" aria-label="Accueil">
+    <span class="bn-icon">🏠</span>
+    <span class="bn-label" data-i18n="nav.home">Accueil</span>
+  </button>
+  <button type="button" class="bottom-nav-btn" data-nav="map" onclick="go('map')" title="Carte" aria-label="Carte">
+    <span class="bn-icon">🗺️</span>
+    <span class="bn-label" data-i18n="nav.discover">Carte</span>
+  </button>
+  <button type="button" class="bottom-nav-btn" data-nav="events" onclick="go('events')" title="Sorties" aria-label="Sorties">
+    <span class="bn-icon">🎉</span>
+    <span class="bn-label" data-i18n="nav.events">Sorties</span>
+  </button>
+  <button type="button" class="bottom-nav-btn" data-nav="messages" id="bottomNavMessages" onclick="go('messages')" title="Messages" aria-label="Messages">
+    <span class="bn-icon">💬</span>
+    <span class="bn-label" data-i18n="nav.messages">Messages</span>
+    <span class="messages-badge bottom-badge" id="messagesBadgeBottom">0</span>
+  </button>
+  <button type="button" class="bottom-nav-btn" data-nav="more" id="bottomNavMore" onclick="toggleMoreMenu()" title="Plus" aria-label="Plus">
+    <span class="bn-icon header-plan-avatar-sm" id="bottomNavAvatar">👤</span>
+    <span class="bn-label" data-i18n="nav.more">Compte</span>
+    <span class="header-plan-badge-sm" id="bottomNavPlanBadge">FREE</span>
+  </button>
+</nav>
+
+<!-- Menu secondaire (profil, amis, agenda, abonnement) -->
+<div class="more-sheet-overlay" id="moreSheetOverlay" onclick="if(event.target===this)closeMoreMenu()">
+  <div class="more-sheet" role="dialog" aria-modal="true" aria-label="Menu compte">
+    <div class="more-sheet-handle"></div>
+    <div class="more-sheet-head">
+      <div class="more-sheet-avatar" id="moreSheetAvatar">👤</div>
+      <div class="more-sheet-meta">
+        <div class="more-sheet-name" id="moreSheetName">AUPYGO</div>
+        <div class="more-sheet-plan" id="moreSheetPlan">FREE</div>
+      </div>
+      <button type="button" class="more-sheet-close" onclick="closeMoreMenu()" aria-label="Fermer">×</button>
+    </div>
+    <div class="more-sheet-list">
+      <button type="button" class="more-sheet-item" onclick="closeMoreMenu();go('profile')">
+        <span class="msi-icon">👤</span>
+        <span data-i18n="nav.profile">Profil</span>
+      </button>
+      <button type="button" class="more-sheet-item" onclick="closeMoreMenu();go('reconnect')">
+        <span class="msi-icon">🤝</span>
+        <span data-i18n="nav.friends">Amis</span>
+        <span class="friends-badge more-badge" id="friendsBadgeMore">0</span>
+      </button>
+      <button type="button" class="more-sheet-item" onclick="closeMoreMenu();go('agenda')">
+        <span class="msi-icon">📅</span>
+        <span data-i18n="nav.agenda">Agenda</span>
+      </button>
+      <button type="button" class="more-sheet-item more-sheet-item-plan" onclick="closeMoreMenu();go('plans')">
+        <span class="msi-icon">💎</span>
+        <span data-i18n="nav.plans">Abonnement</span>
+        <span class="msi-plan-pill" id="moreSheetPlanPill">FREE</span>
+      </button>
+    </div>
+  </div>
+</div>
+
 
 <main>
 
