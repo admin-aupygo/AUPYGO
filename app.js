@@ -774,6 +774,7 @@ function updateNavVisibility() {
 ========================= */
 
 function updatePlanUI() {
+  if (typeof updatePlanAvatarUI === 'function') updatePlanAvatarUI();
 
   const headerPlan = document.getElementById('headerPlan');
 
@@ -1155,12 +1156,19 @@ function go(page) {
   const el = document.getElementById(page);
   if (el) el.classList.add('active');
 
-  document.querySelectorAll('nav button').forEach(b => {
+  // Top nav + bottom nav
+  document.querySelectorAll('nav button, .bottom-nav-btn').forEach(b => {
     b.classList.remove('active');
     if (b.dataset.nav === page) {
       b.classList.add('active');
     }
   });
+  // Pages secondaires (profil, amis, agenda, plans) → highlight "Compte"
+  if (['profile', 'reconnect', 'agenda', 'plans'].includes(page)) {
+    const moreBtn = document.getElementById('bottomNavMore');
+    if (moreBtn) moreBtn.classList.add('active');
+  }
+  if (typeof closeMoreMenu === 'function') closeMoreMenu();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -2394,6 +2402,89 @@ async function refreshMessagesQuotaUI() {
   return { sent: sent, max: max, left: left, allowed: left > 0 };
 }
 
+/* =========================
+   MENU COMPTE + AVATAR FORFAIT
+========================= */
+function toggleMoreMenu() {
+  const overlay = document.getElementById('moreSheetOverlay');
+  if (!overlay) return;
+  if (overlay.classList.contains('open')) closeMoreMenu();
+  else openMoreMenu();
+}
+function openMoreMenu() {
+  const overlay = document.getElementById('moreSheetOverlay');
+  if (!overlay) return;
+  updatePlanAvatarUI();
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+function closeMoreMenu() {
+  const overlay = document.getElementById('moreSheetOverlay');
+  if (!overlay) return;
+  overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function planBadgeClass(plan) {
+  const p = String(plan || 'FREE').toUpperCase();
+  if (p === 'PREMIUM') return 'plan-premium';
+  if (p === 'STANDARD') return 'plan-standard';
+  return 'plan-free';
+}
+
+function planAvatarEmoji(plan) {
+  const p = String(plan || 'FREE').toUpperCase();
+  if (p === 'PREMIUM') return '💎';
+  if (p === 'STANDARD') return '⭐';
+  return '👤';
+}
+
+function updatePlanAvatarUI() {
+  const plan = String(currentPlan || 'FREE').toUpperCase();
+  const short = plan === 'PREMIUM' ? 'PREM' : (plan === 'STANDARD' ? 'STD' : 'FREE');
+  const emoji = planAvatarEmoji(plan);
+  const cls = planBadgeClass(plan);
+
+  const setBadge = (el, text) => {
+    if (!el) return;
+    el.textContent = text;
+    el.classList.remove('plan-free', 'plan-standard', 'plan-premium');
+    el.classList.add(cls);
+  };
+
+  const avatar = document.getElementById('headerPlanAvatar');
+  if (avatar) avatar.textContent = emoji;
+  setBadge(document.getElementById('headerPlanBadge'), short);
+
+  const bnAvatar = document.getElementById('bottomNavAvatar');
+  if (bnAvatar) bnAvatar.textContent = emoji;
+  setBadge(document.getElementById('bottomNavPlanBadge'), short);
+
+  const sheetAv = document.getElementById('moreSheetAvatar');
+  if (sheetAv) sheetAv.textContent = emoji;
+  const sheetPlan = document.getElementById('moreSheetPlan');
+  if (sheetPlan) sheetPlan.textContent = plan;
+  setBadge(document.getElementById('moreSheetPlanPill'), plan);
+
+  const nameEl = document.getElementById('moreSheetName');
+  if (nameEl) {
+    let name = 'AUPYGO';
+    try {
+      if (currentUser && typeof getProfileById === 'function') {
+        const p = getProfileById(currentUser.id);
+        if (p && p.display_name) name = p.display_name;
+      }
+    } catch (e) {}
+    if (name === 'AUPYGO' && currentUser && currentUser.email) {
+      name = currentUser.email.split('@')[0];
+    }
+    if (!currentUser) name = (typeof t === 'function' ? (t('guest.banner_cta') || 'Invité') : 'Invité');
+    nameEl.textContent = name;
+  }
+}
+
+
+
 
 // Normalise une valeur d'abonnement (espaces, casse) avant comparaison —
 // évite les faux négatifs si la valeur en base est "Premium" ou " PREMIUM ".
@@ -2436,16 +2527,29 @@ function getTotalUnreadCount() {
 
 function updateMessagesBadge() {
   const badge = document.getElementById('messagesBadge');
+  const badgeBottom = document.getElementById('messagesBadgeBottom');
   const navBtn = document.getElementById('navMessages');
-  if (!badge || !navBtn) return;
   const total = getTotalUnreadCount();
-  if (total > 0) {
-    badge.textContent = total > 99 ? '99+' : String(total);
-    badge.classList.add('show');
-    navBtn.classList.add('has-unread-messages', 'nav-blink');
-  } else {
-    badge.classList.remove('show');
-    navBtn.classList.remove('has-unread-messages', 'nav-blink');
+  const label = total > 99 ? '99+' : String(total);
+  const show = total > 0;
+  if (badge) {
+    badge.textContent = label;
+    if (show) badge.classList.add('show');
+    else badge.classList.remove('show');
+  }
+  if (badgeBottom) {
+    badgeBottom.textContent = label;
+    if (show) badgeBottom.classList.add('show');
+    else badgeBottom.classList.remove('show');
+  }
+  if (navBtn) {
+    if (show) navBtn.classList.add('has-unread-messages', 'nav-blink');
+    else navBtn.classList.remove('has-unread-messages', 'nav-blink');
+  }
+  const bottomMsg = document.getElementById('bottomNavMessages');
+  if (bottomMsg) {
+    if (show) bottomMsg.classList.add('has-unread-messages');
+    else bottomMsg.classList.remove('has-unread-messages');
   }
 }
 
@@ -2615,16 +2719,21 @@ function clearUnreadMessages() {
 function updateFriendsBadge() {
   if (!currentUser) return;
   const store = friendshipsCache;
-  // Demandes reçues en attente
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
   const n = pending.length;
   const badge = document.getElementById('friendsBadge');
+  const badgeMore = document.getElementById('friendsBadgeMore');
   const navBtn = document.getElementById('navFriends');
   const label = document.getElementById('requestsCountLabel');
   if (badge) {
     badge.textContent = String(n);
     if (n > 0) badge.classList.add('show');
     else badge.classList.remove('show');
+  }
+  if (badgeMore) {
+    badgeMore.textContent = String(n);
+    if (n > 0) badgeMore.classList.add('show');
+    else badgeMore.classList.remove('show');
   }
   if (navBtn) {
     if (n > 0) navBtn.classList.add('has-requests');
