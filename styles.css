@@ -2294,3 +2294,44 @@ nav button.has-unread-messages::after {
   .bottom-nav { display: none !important; }
   /* Sur desktop, le menu "more" reste dispo via l'avatar header */
 }
+
+
+/* =========================
+   PASS SÉJOUR (tarifs)
+========================= */
+.plan-price-note {
+  margin: -6px 0 12px;
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+}
+.plan-pass {
+  margin-top: 14px;
+  padding: 12px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #faf5ff, #fdf2f8);
+  border: 1px solid #e9d5ff;
+  text-align: center;
+}
+.plan-pass-title {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--primary);
+  margin-bottom: 6px;
+}
+.plan-pass-price {
+  font-size: 20px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.plan-pass-price small {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--muted);
+}
+.plan-pass-equiv {
+  font-size: 12px;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
