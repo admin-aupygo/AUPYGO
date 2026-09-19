@@ -1995,3 +1995,302 @@ nav button.has-unread-messages::after {
 .home-btn.locked:hover {
   border-color: #f59e0b;
 }
+
+
+/* =========================
+   HEADER ACTIONS + PLAN AVATAR
+========================= */
+.header-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.header-plan-btn {
+  position: relative;
+  border: 0;
+  background: #f4f0ff;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  box-shadow: inset 0 0 0 1.5px #d8c7ff;
+  transition: .2s;
+}
+.header-plan-btn:hover {
+  background: #ebe4ff;
+  transform: translateY(-1px);
+}
+.header-plan-avatar {
+  font-size: 20px;
+  line-height: 1;
+}
+.header-plan-badge {
+  position: absolute;
+  right: -6px;
+  bottom: -4px;
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  font-size: 8px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 3px 5px;
+  border-radius: 8px;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  max-width: 52px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.header-plan-badge.plan-free { background: #94a3b8; }
+.header-plan-badge.plan-standard { background: linear-gradient(135deg, #2563eb, #7c3aed); }
+.header-plan-badge.plan-premium { background: linear-gradient(135deg, #7c3aed, #ec4899); }
+
+/* =========================
+   BOTTOM NAV (mobile)
+========================= */
+.bottom-nav {
+  display: none; /* desktop: masqué — activé en media query */
+}
+
+.bottom-nav-btn {
+  position: relative;
+  flex: 1;
+  border: 0;
+  background: transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  padding: 6px 4px 4px;
+  color: var(--muted);
+  cursor: pointer;
+  min-width: 0;
+  transition: color .15s;
+}
+.bottom-nav-btn .bn-icon {
+  font-size: 22px;
+  line-height: 1;
+}
+.bottom-nav-btn .bn-label {
+  font-size: 10px;
+  font-weight: 600;
+  line-height: 1.1;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bottom-nav-btn.active {
+  color: var(--primary);
+}
+.bottom-nav-btn.active .bn-icon {
+  transform: translateY(-1px);
+}
+.bottom-badge {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 22px);
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  font-size: 10px;
+  line-height: 16px;
+}
+.header-plan-avatar-sm {
+  font-size: 20px;
+}
+.header-plan-badge-sm {
+  position: absolute;
+  top: 2px;
+  right: calc(50% - 24px);
+  background: #94a3b8;
+  color: #fff;
+  font-size: 7px;
+  font-weight: 800;
+  padding: 2px 4px;
+  border-radius: 6px;
+  line-height: 1;
+  text-transform: uppercase;
+}
+.header-plan-badge-sm.plan-standard { background: linear-gradient(135deg, #2563eb, #7c3aed); }
+.header-plan-badge-sm.plan-premium { background: linear-gradient(135deg, #7c3aed, #ec4899); }
+
+/* =========================
+   MORE SHEET (menu compte)
+========================= */
+.more-sheet-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 4000;
+  background: rgba(15, 10, 30, 0.45);
+  align-items: flex-end;
+  justify-content: center;
+}
+.more-sheet-overlay.open {
+  display: flex;
+}
+.more-sheet {
+  width: 100%;
+  max-width: 480px;
+  background: #fff;
+  border-radius: 20px 20px 0 0;
+  padding: 8px 16px 24px;
+  padding-bottom: calc(24px + env(safe-area-inset-bottom, 0px));
+  box-shadow: 0 -8px 32px rgba(0,0,0,.12);
+  animation: moreSheetUp .22s ease-out;
+}
+@keyframes moreSheetUp {
+  from { transform: translateY(24px); opacity: 0; }
+  to   { transform: translateY(0); opacity: 1; }
+}
+.more-sheet-handle {
+  width: 40px;
+  height: 4px;
+  border-radius: 2px;
+  background: #e2e8f0;
+  margin: 4px auto 14px;
+}
+.more-sheet-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--border);
+}
+.more-sheet-avatar {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  background: #f4f0ff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 26px;
+  box-shadow: inset 0 0 0 1.5px #d8c7ff;
+}
+.more-sheet-meta { flex: 1; min-width: 0; }
+.more-sheet-name {
+  font-weight: 700;
+  font-size: 16px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.more-sheet-plan {
+  font-size: 12px;
+  color: var(--muted);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.more-sheet-close {
+  border: 0;
+  background: #f1f5f9;
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  font-size: 22px;
+  line-height: 1;
+  cursor: pointer;
+  color: var(--muted);
+}
+.more-sheet-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.more-sheet-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  border: 0;
+  background: transparent;
+  padding: 14px 12px;
+  border-radius: 12px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.more-sheet-item:hover,
+.more-sheet-item:active {
+  background: #f4f0ff;
+  color: var(--primary);
+}
+.msi-icon { font-size: 20px; width: 28px; text-align: center; }
+.more-sheet-item-plan {
+  background: linear-gradient(135deg, #faf5ff, #fdf2f8);
+  margin-top: 4px;
+}
+.msi-plan-pill {
+  margin-left: auto;
+  font-size: 10px;
+  font-weight: 800;
+  padding: 4px 8px;
+  border-radius: 10px;
+  background: #94a3b8;
+  color: #fff;
+  text-transform: uppercase;
+}
+.msi-plan-pill.plan-standard { background: linear-gradient(135deg, #2563eb, #7c3aed); }
+.msi-plan-pill.plan-premium { background: linear-gradient(135deg, #7c3aed, #ec4899); }
+.more-badge {
+  margin-left: auto;
+  position: static;
+}
+
+/* =========================
+   RESPONSIVE — mobile first nav
+========================= */
+@media (max-width: 768px) {
+  /* Top nav icons: trop denses → on les cache */
+  header nav {
+    display: none !important;
+  }
+  .header-inner {
+    min-height: 56px;
+    padding: 6px 14px;
+    gap: 10px;
+  }
+  .logo-aupygo { font-size: 22px; }
+
+  /* Bottom bar */
+  .bottom-nav {
+    display: flex;
+    position: fixed;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 3000;
+    background: rgba(255,255,255,.98);
+    backdrop-filter: blur(14px);
+    border-top: 1px solid var(--border);
+    padding: 4px 2px calc(4px + env(safe-area-inset-bottom, 0px));
+    box-shadow: 0 -4px 20px rgba(0,0,0,.06);
+  }
+
+  /* Place pour la barre basse */
+  main {
+    padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  }
+  body {
+    padding-bottom: 0;
+  }
+}
+
+@media (min-width: 769px) {
+  .bottom-nav { display: none !important; }
+  /* Sur desktop, le menu "more" reste dispo via l'avatar header */
+}
