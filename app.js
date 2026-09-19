@@ -1422,9 +1422,7 @@ function openMemberProfile(memberId) {
 
   // Visiteur PREMIUM face à un profil non-PREMIUM : pastille rouge explicative
   // sur l'avatar (messagerie privée indisponible pour ce contact).
-  const restrictedBadge = (currentPlan === 'PREMIUM' && plan !== 'PREMIUM')
-    ? '<span class="member-restricted-badge" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒</span>'
-    : '';
+  const restrictedBadge = ''; // plus de pastille premium-only
 
   box.innerHTML =
     '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
@@ -2838,9 +2836,7 @@ async function renderFriendsUI() {
 
         const unread = unreadByFriend[f.id] || 0;
         const isUnread = unread > 0;
-        const restrictedDot = (currentPlan === 'PREMIUM' && !f.premium)
-          ? '<span class="member-restricted-badge" style="position:absolute;top:0;right:calc(50% - 46px)" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="event.stopPropagation(); showToast(t(\'messages.contact_not_premium_full\'), \'error\')">🔒</span>'
-          : '';
+        const restrictedDot = ''; // plus de pastille premium-only
         card.innerHTML =
           '<div style="text-align:center;margin-bottom:12px;position:relative">' +
             '<div class="avatar' + (isUnread ? ' conv-blink' : '') + '" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px;position:relative;display:inline-flex;align-items:center;justify-content:center">' + emoji + '</div>' +
@@ -2998,7 +2994,28 @@ async function sendFriendRequestToMember(memberId) {
 }
 
 
+function closeMobileChat() {
+  const msgBox = document.getElementById('messagesBox');
+  if (msgBox) msgBox.classList.remove('chat-open');
+  activeConversation = null;
+  const header = document.getElementById('chatHeader');
+  if (header) {
+    header.textContent = t('messages.select_conversation') || 'Sélectionne une conversation';
+  }
+  const input = document.getElementById('messageInput');
+  const btn = document.getElementById('sendMsgBtn');
+  if (input) { input.disabled = true; input.value = ''; }
+  if (btn) btn.disabled = true;
+  const box = document.getElementById('chatMessages');
+  if (box) {
+    box.innerHTML = '<div class="chat-placeholder"><div style="font-size:40px;margin-bottom:8px">💬</div><p>' +
+      (t('messages.pick_to_start') || 'Choisis un ami pour commencer à discuter.') + '</p></div>';
+  }
+  if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+}
+
 async function openConversation(type, id, name) {
+
   if (!currentUser) {
     showToast(t('toast.friend_login_required') || 'Connecte-toi pour écrire', 'error');
     go('plans');
@@ -3017,13 +3034,19 @@ async function openConversation(type, id, name) {
 
   // DM entre amis dès FREE (quota 10/j). Plus d'exigence PREMIUM mutuel.
 
-  // Bascule sur l'onglet Messagerie : sans ça, un clic depuis "Se retrouver"
-  // (ou toute autre page) chargeait bien la conversation, mais dans des
-  // éléments DOM restés cachés — d'où l'impression que "rien ne se passe".
+  // Bascule sur l'onglet Messagerie
   if (getActivePage() !== 'messages') go('messages');
 
+  // Mobile : passer de la liste des amis → au chat
+  const msgBox = document.getElementById('messagesBox');
+  if (msgBox) msgBox.classList.add('chat-open');
+
   const header = document.getElementById('chatHeader');
-  if (header) header.textContent = (type === 'group' ? '👥 ' : '💬 ') + name;
+  if (header) {
+    header.innerHTML =
+      '<button type="button" class="chat-back-btn" onclick="closeMobileChat()" aria-label="Retour">←</button>' +
+      '<span class="chat-header-title">' + escapeHtml((type === 'group' ? '👥 ' : '💬 ') + name) + '</span>';
+  }
 
   const input = document.getElementById('messageInput');
   const btn = document.getElementById('sendMsgBtn');
@@ -3191,9 +3214,7 @@ function renderConversationSidebar() {
       const isRestricted = f.premium === true
         ? false
         : (f.subscription !== undefined ? !isPremiumValue(f.subscription) : true);
-      const restrictedDot = isRestricted
-        ? '<span class="conv-restricted-dot" title="' + escapeAttr(t('messages.contact_not_premium_short')) + '" onclick="event.stopPropagation(); showToast(t(\'messages.contact_not_premium_full\'), \'error\');">!</span>'
-        : '';
+      const restrictedDot = '';
       return (
         '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">' +
           '<div class="conv-avatar' + (isUnread ? ' conv-blink' : '') + '">' + emoji +
