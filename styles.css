@@ -1749,11 +1749,24 @@ footer {
 
   .message-box {
     grid-template-columns:1fr;
-    height:auto;
+    height: min(70vh, 560px);
   }
 
-  .conversations {
-    display:none;
+  /* Liste visible par défaut — chat masqué jusqu'à sélection */
+  .message-box .conversations {
+    display: flex;
+  }
+  .message-box .chat {
+    display: none;
+  }
+  .message-box.chat-open .conversations {
+    display: none;
+  }
+  .message-box.chat-open .chat {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    height: 100%;
   }
 
   .calendar {
@@ -2334,4 +2347,61 @@ nav button.has-unread-messages::after {
   font-size: 12px;
   color: var(--muted);
   margin: 0 0 10px;
+}
+
+
+/* =========================
+   MESSAGERIE MOBILE + back
+========================= */
+.chat-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.chat-back-btn {
+  display: none;
+  border: 0;
+  background: #f4f0ff;
+  color: var(--primary);
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 20px;
+  font-weight: 700;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.chat-header-title {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@media (max-width: 768px) {
+  .chat-back-btn { display: inline-flex; align-items: center; justify-content: center; }
+
+  .conversation {
+    padding: 14px 16px;
+    min-height: 64px;
+  }
+  .conversation .conv-avatar {
+    width: 48px;
+    height: 48px;
+    font-size: 24px;
+  }
+  .conversation .conv-name {
+    font-size: 15px;
+  }
+  .conversation .conv-preview {
+    font-size: 13px;
+  }
+
+  /* Masquer les pastilles premium-only si encore en cache ancien */
+  .conv-restricted-dot,
+  .member-restricted-badge {
+    display: none !important;
+  }
 }
