@@ -1107,7 +1107,8 @@
 
       <h2 style="margin:10px 0 0" data-i18n="plans.standard_name">Standard</h2>
 
-      <div class="price">9,90 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+      <div class="price">4,90 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+      <p class="plan-price-note" data-i18n="plans.no_commitment">Sans engagement</p>
 
       <ul>
         <li data-i18n="plans.standard_f1">Tout FREE</li>
@@ -1115,9 +1116,17 @@
         <li data-i18n="plans.standard_f3">Agenda AUPYGO</li>
         <li data-i18n="plans.standard_f4">Lieux & participation aux sorties</li>
         <li data-i18n="plans.standard_f5">Notifications</li>
+        <li data-i18n="plans.standard_f6">10 messages/jour & groupes</li>
       </ul>
 
-      <button class="btn btn-primary" onclick="selectPlan('STANDARD')" data-i18n="plans.standard_btn">Choisir STANDARD</button>
+      <button class="btn btn-primary" onclick="selectPlan('STANDARD','monthly')" data-i18n="plans.standard_btn">Choisir STANDARD — 4,90 €/mois</button>
+
+      <div class="plan-pass">
+        <div class="plan-pass-title" data-i18n="plans.pass_title">🧳 Pass Séjour — paiement unique</div>
+        <div class="plan-pass-price">24,90 € <small data-i18n="plans.pass_6m">/ 6 mois</small></div>
+        <p class="plan-pass-equiv" data-i18n="plans.standard_pass_equiv">Soit ~4,15 €/mois</p>
+        <button class="btn btn-secondary" style="width:100%" onclick="selectPlan('STANDARD','pass6')" data-i18n="plans.standard_pass_btn">Prendre le Pass 6 mois</button>
+      </div>
 
     </div>
 
@@ -1132,17 +1141,25 @@
 
       <h2 style="margin:10px 0 0" data-i18n="plans.premium_name">Premium</h2>
 
-      <div class="price">12,85 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+      <div class="price">9,90 € <small style="font-size:14px" data-i18n="plans.per_month">/mois</small></div>
+      <p class="plan-price-note" data-i18n="plans.no_commitment">Sans engagement</p>
 
       <ul>
         <li data-i18n="plans.premium_f1">Tout STANDARD</li>
         <li data-i18n="plans.premium_f2">Carte mondiale</li>
-        <li data-i18n="plans.premium_f3">Messages privés</li>
+        <li data-i18n="plans.premium_f3">Messages illimités</li>
         <li data-i18n="plans.premium_f4">Communication mondiale</li>
         <li data-i18n="plans.premium_f5">Fonctions exclusives</li>
       </ul>
 
-      <button class="btn btn-primary" onclick="selectPlan('PREMIUM')" data-i18n="plans.premium_btn">Choisir PREMIUM</button>
+      <button class="btn btn-primary" onclick="selectPlan('PREMIUM','monthly')" data-i18n="plans.premium_btn">Choisir PREMIUM — 9,90 €/mois</button>
+
+      <div class="plan-pass">
+        <div class="plan-pass-title" data-i18n="plans.pass_title">🧳 Pass Séjour — paiement unique</div>
+        <div class="plan-pass-price">51,60 € <small data-i18n="plans.pass_6m">/ 6 mois</small></div>
+        <p class="plan-pass-equiv" data-i18n="plans.premium_pass_equiv">Soit ~8,60 €/mois</p>
+        <button class="btn btn-secondary" style="width:100%" onclick="selectPlan('PREMIUM','pass6')" data-i18n="plans.premium_pass_btn">Prendre le Pass 6 mois</button>
+      </div>
 
     </div>
 
