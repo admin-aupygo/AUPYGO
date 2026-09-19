@@ -1376,7 +1376,7 @@ function openMemberProfile(memberId) {
   // STANDARD → fiche + voyant en ligne
   // PREMIUM  → fiche + voyant + bouton Message
   const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
-  const showMessage = (plan === 'PREMIUM');
+  const showMessage = !!currentUser; // messagerie dès FREE (quota à l'envoi)
 
   // Demande d'ami : accessible dès FREE (plafond 5 en attente)
   const canSendFriendRequest = !!currentUser; // FREE inclus (plafond 5 demandes en attente)
@@ -1413,11 +1413,7 @@ function openMemberProfile(memberId) {
 
   let msgBtn = '';
   if (showMessage) {
-    if (currentPlan === 'PREMIUM') {
-      msgBtn = '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>';
-    } else {
-      msgBtn = '<button type="button" class="member-msg-btn member-msg-btn-disabled" onclick="showToast(t(\'messages.send_locked\'), \'error\'); closeMemberProfile(); go(\'plans\');">💬 Message</button>';
-    }
+    msgBtn = '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>';
   }
 
   const friendBtn = canSendFriendRequest
@@ -1457,36 +1453,20 @@ function closeMemberProfile() {
 
 
 async function messageMember(memberId) {
-  const raw = profiles.find(m => m.id === memberId);
-  if (!raw) return;
-
-  const name = raw.display_name || 'AUPYGO';
-
-  if (currentPlan !== 'PREMIUM') {
-    showToast(t('messages.send_locked'), 'error');
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required') || 'Connecte-toi pour écrire', 'error');
     closeMemberProfile();
     go('plans');
     return;
   }
-
-  // PREMIUM → STANDARD (ou FREE) : la messagerie privée exige que les DEUX
-  // comptes soient PREMIUM. Avertissement immédiat, rien n'est envoyé.
-  // Vérifié en direct sur Supabase (le cache local peut être périmé jusqu'à 60 s).
-  if (!(await isContactPremium(memberId))) {
-    showToast(t('messages.contact_not_premium_full'), 'error');
-    closeMemberProfile();
-    return;
-  }
-
+  const raw = profiles.find(m => m.id === memberId);
+  if (!raw) return;
+  const name = raw.display_name || 'AUPYGO';
+  // FREE / STANDARD / PREMIUM : messagerie (quota à l'envoi). Plus d'exigence PREMIUM mutuel.
   closeMemberProfile();
-  go('messages');
-
-  // Ouvre directement la conversation avec cette personne
-  // (petit délai pour laisser le temps à l’onglet de s’afficher)
-  setTimeout(() => {
-    openConversation('dm', memberId, name);
-  }, 150);
+  openConversation('dm', memberId, name);
 }
+
 
 function zoomIn() {
   if(map) map.zoomIn();
@@ -3122,7 +3102,16 @@ async function sendMessage() {
 
   if (error) {
     console.error('sendMessage:', error);
-    showToast('Erreur : ' + error.message, 'error');
+    const errTxt = String(error.message || '') + ' ' + String(error.details || '') + ' ' + String(error.hint || '');
+    if (/QUOTA_FREE_EXCEEDED|quota.*FREE|10 messages/i.test(errTxt)) {
+      showToast(t('messages.quota_reached') || 'Tu as utilisé tes 10 messages gratuits.', 'error');
+      setTimeout(function(){ showToast(t('messages.quota_upgrade') || 'Passe en STANDARD pour continuer.', 'error'); }, 500);
+      setTimeout(function(){ if (typeof go === 'function') go('plans'); }, 1200);
+    } else if (/QUOTA_DAILY_EXCEEDED|quota.*STANDARD|journalier/i.test(errTxt)) {
+      showToast(t('messages.quota_reached_daily') || 'Limite de messages atteinte pour aujourd’hui.', 'error');
+    } else {
+      showToast('Erreur : ' + error.message, 'error');
+    }
     return;
   }
 
