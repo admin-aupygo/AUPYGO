@@ -1080,8 +1080,8 @@ function applyMapRestrictions() {
    PLANS
 ========================= */
 
-async function selectPlan(plan) {
-
+async function selectPlan(plan, billing) {
+  // billing: 'monthly' | 'pass6' | undefined (FREE)
   if (!currentUser) {
     showToast(t('plans.need_login'), 'error');
     document.getElementById('authCard').scrollIntoView({ behavior:'smooth', block:'center' });
@@ -1090,6 +1090,9 @@ async function selectPlan(plan) {
 
   currentPlan = plan;
   localStorage.setItem('aupygo_plan', plan);
+  const bill = billing || (plan === 'FREE' ? null : 'monthly');
+  if (bill) localStorage.setItem('aupygo_billing', bill);
+  else localStorage.removeItem('aupygo_billing');
   updatePlanUI();
 
   const { error } = await supabaseClient
@@ -1102,16 +1105,18 @@ async function selectPlan(plan) {
     return;
   }
 
-  if(plan === 'FREE') {
+  // Paiement Stripe à brancher plus tard — pour l’instant activation + message tarif
+  if (plan === 'FREE') {
     showToast(t('plans.free_active'), 'success');
+  } else if (plan === 'STANDARD' && bill === 'pass6') {
+    showToast(t('plans.standard_pass_active') || 'STANDARD Pass 6 mois — 24,90 € (paiement bientôt)', 'success');
+  } else if (plan === 'STANDARD') {
+    showToast(t('plans.standard_active') || 'STANDARD — 4,90 €/mois (paiement bientôt)', 'success');
+  } else if (plan === 'PREMIUM' && bill === 'pass6') {
+    showToast(t('plans.premium_pass_active') || 'PREMIUM Pass 6 mois — 51,60 € (paiement bientôt)', 'success');
+  } else {
+    showToast(t('plans.premium_active') || 'PREMIUM — 9,90 €/mois (paiement bientôt)', 'success');
   }
-  else if(plan === 'STANDARD') {
-    showToast(t('plans.standard_active'), 'success');
-  }
-  else {
-    showToast(t('plans.premium_active'), 'success');
-  }
-
 }
 
 
