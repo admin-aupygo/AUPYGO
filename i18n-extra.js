@@ -1,6 +1,6 @@
 /* =========================
    I18N EXTRA — clés utilisées par le JS + freemium (étape 1)
-   Chargé juste après i18n.js. ES retombe sur FR pour l’instant.
+   Chargé juste après i18n.js. FR + EN + ES.
 ========================= */
 
 Object.assign(I18N.fr, {
@@ -98,4 +98,52 @@ Object.assign(I18N.en, {
   "plans.free_f5":"Messages between friends (10 max)",
   "plans.standard_f6":"10 messages/day & groups",
   "plans.premium_f3":"Voice notes & event organisation (soon)"
+});
+
+Object.assign(I18N.es || (I18N.es = {}), {
+  "toast.geoloc_unavailable":"Geolocalización no disponible en este dispositivo",
+  "toast.geoloc_requesting":"Solicitud de ubicación en curso…",
+  "toast.geoloc_saved":"Posición aproximada guardada (~1 km)",
+  "toast.geoloc_denied":"Ubicación denegada. Puedes reintentar con « Cerca de mí ».",
+  "toast.geoloc_unavailable_now":"Ubicación no disponible por ahora",
+  "toast.geoloc_timeout":"Tiempo agotado, inténtalo de nuevo",
+  "toast.email_password_required":"Email y contraseña obligatorios",
+  "toast.password_too_short":"Contraseña: mínimo 6 caracteres",
+  "toast.account_created":"Cuenta creada ✅",
+  "toast.account_created_pending":"Cuenta creada — revisa tu email para confirmar",
+  "toast.login_email_password_required":"Introduce tu email y contraseña",
+  "toast.captcha_required":"Valida el captcha e inténtalo de nuevo",
+  "toast.login_success":"Sesión iniciada 👋",
+  "toast.complete_profile":"Completa tu perfil para acceder a la comunidad",
+  "toast.welcome_back":"Me alegra verte de nuevo 👋",
+  "toast.logged_out":"Has cerrado sesión",
+  "toast.map_region_locked":"🔒 Mapa regional disponible con STANDARD",
+  "toast.map_world_locked":"🔒 Mapa mundial disponible con PREMIUM",
+  "toast.city_profiles":"Perfiles en",
+  "toast.friend_login_required":"Inicia sesión para enviar una solicitud de amistad",
+  "toast.friend_request_sent":"Solicitud de amistad enviada a",
+  "messages.new_message_toast":"Nuevo mensaje",
+  "cleanup.title":"Limpiar mensajes antiguos","cleanup.refuse":"Conservar","cleanup.accept":"Eliminar",
+  "cleanup.body":"Tienes {n} mensaje(s) ya leído(s) desde hace más de una semana. ¿Eliminarlos para liberar espacio? Acción definitiva.",
+  "cleanup.done":"{n} mensaje(s) eliminado(s).","cleanup.refused":"Mensajes conservados.",
+  "geo.title":"¿Activar la geolocalización?","geo.accept":"✅ Sí, activar (~1 km)","geo.decline":"No, gracias","geo.continue":"Continuar sin ubicación",
+
+  "messages.friends_only":"Solo puedes escribir a tus amigos confirmados",
+  "messages.groups_locked":"👥 Los grupos están reservados a los planes STANDARD y PREMIUM",
+  "messages.quota_left":"{n}/{max} mensajes restantes hoy",
+  "messages.quota_left_lifetime":"{n}/{max} mensajes restantes (cuenta FREE)",
+  "messages.quota_reached":"Has usado tus 10 mensajes gratuitos. Pasa a STANDARD para continuar.",
+  "messages.quota_reached_daily":"Límite de mensajes del día alcanzado.",
+  "messages.quota_upgrade":"Pasa a STANDARD: 10 mensajes/día + grupos",
+  "messages.notice_free":"💬 <strong>FREE</strong>: 10 mensajes máx. con tus amigos confirmados (sin renovación). Desde <strong>STANDARD</strong>: 10 mensajes/día + grupos.",
+  "messages.notice_paid":"✅ Mensajería ilimitada (PREMIUM) con tus amigos + grupos",
+  "messages.notice_standard":"✅ <strong>STANDARD</strong>: 10 mensajes/día con tus amigos + grupos. Ilimitado desde <strong>PREMIUM</strong>.",
+  "friends.free_cap":"Máximo 5 solicitudes pendientes en FREE. Pasa a STANDARD para enviar más.",
+  "reconnect.free_notice":"💬 <strong>FREE</strong>: chatea con tus amigos (10 mensajes máx.). <strong>STANDARD</strong>: quedadas en común, grupos, 10 mensajes/día.",
+  "events.free_notice":"✅ <strong>Incluido en FREE</strong>: ver todas las quedadas (ciudad, día, tipo) y chatear con tus amigos.<br>🔒 <strong>Desde STANDARD (9,90 €/mes)</strong>: lugar exacto, lista de participantes, inscripción, agenda.",
+  "events.locked_text":"🔒 Lugar exacto, participantes e inscripción: desde STANDARD",
+  "events.btn_upgrade":"🔒 Inscribirse — desde STANDARD",
+  "plans.free_f5":"Mensajes entre amigos (10 máx.)",
+  "plans.standard_f6":"10 mensajes/día y grupos",
+  "plans.premium_f3":"Notas de voz y organización de eventos (próximamente)"
 });
