@@ -2334,13 +2334,13 @@ function getMessageQuotaMax() {
   return MSG_QUOTA_FREE;
 }
 
-function isLifetimeLifetimeQuota() {
+function isFreeLifetimeQuota() {
   return String(currentPlan || 'FREE').trim().toUpperCase() === 'FREE';
 }
 
 function localQuotaKey() {
   const uid = (currentUser && currentUser.id) ? currentUser.id : 'anon';
-  if (isLifetimeLifetimeQuota()) {
+  if (isFreeLifetimeQuota()) {
     return 'aupygo_msg_quota_lifetime_' + uid;
   }
   const d = new Date();
