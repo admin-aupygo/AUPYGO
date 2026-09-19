@@ -93,3 +93,4 @@ Object.assign(I18N.en, {
   "plans.standard_f6":"Unlimited messages & groups",
   "plans.premium_f3":"Voice notes & event organisation (soon)"
 });
+
