@@ -4,6 +4,8 @@
 ========================= */
 
 Object.assign(I18N.fr, {
+  "nav.more":"Compte",
+  "nav.plans":"Abonnement",
   "toast.geoloc_unavailable":"Géolocalisation indisponible sur cet appareil",
   "toast.geoloc_requesting":"Demande de position en cours…",
   "toast.geoloc_saved":"Position approximative enregistrée (~1 km)",
@@ -53,6 +55,8 @@ Object.assign(I18N.fr, {
 });
 
 Object.assign(I18N.en, {
+  "nav.more":"Account",
+  "nav.plans":"Plans",
   "toast.geoloc_unavailable":"Geolocation unavailable on this device",
   "toast.geoloc_requesting":"Requesting position…",
   "toast.geoloc_saved":"Approximate position saved (~1 km)",
@@ -101,6 +105,8 @@ Object.assign(I18N.en, {
 });
 
 Object.assign(I18N.es || (I18N.es = {}), {
+  "nav.more":"Cuenta",
+  "nav.plans":"Suscripción",
   "toast.geoloc_unavailable":"Geolocalización no disponible en este dispositivo",
   "toast.geoloc_requesting":"Solicitud de ubicación en curso…",
   "toast.geoloc_saved":"Posición aproximada guardada (~1 km)",
