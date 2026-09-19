@@ -1202,11 +1202,23 @@ function go(page) {
 
 async function loadProfiles() {
   try {
-    // select('*') = compatible même si certaines colonnes (is_online, birth_year…)
-    // n'existent pas encore dans Supabase. Évite l'erreur 400.
-    const { data, error } = await supabaseClient
-      .from('profiles')
-      .select('*');
+    // Préfère la vue map_profiles (colonnes exposées + RLS adaptée carte).
+    // Fallback sur profiles avec colonnes nécessaires à la fiche membre.
+    const cols = 'id, display_name, age, gender, city, country, host_country, stay_end, languages, interests, bio, subscription, last_seen, approx_lat, approx_lng';
+    let data = null;
+    let error = null;
+
+    const viewRes = await supabaseClient.from('map_profiles').select(cols);
+    if (!viewRes.error && viewRes.data) {
+      data = viewRes.data;
+    } else {
+      if (viewRes.error) {
+        console.warn('[AUPYGO] map_profiles indisponible, fallback profiles:', viewRes.error.message || viewRes.error);
+      }
+      const tableRes = await supabaseClient.from('profiles').select(cols);
+      data = tableRes.data;
+      error = tableRes.error;
+    }
 
     if (error) {
       console.error('Erreur chargement profils:', error);
@@ -1297,16 +1309,16 @@ function openMemberProfile(memberId) {
   // Normalise les champs DB → structure attendue par la modale
   const member = {
     id: raw.id,
-    name: raw.display_name || 'AUPYGO',
+    name: escapeHtml(raw.display_name || 'AUPYGO'),
     age: raw.age,
     gender: raw.gender,
     plan: (raw.subscription || 'FREE').toString().trim().toUpperCase(),
-    city: raw.city || '',
-    origin: raw.country || '',
-    host: raw.host_country || '',
-    stayEnd: raw.stay_end || '',
-    bio: raw.bio || '',
-    languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean),
+    city: escapeHtml(raw.city || ''),
+    origin: escapeHtml(raw.country || ''),
+    host: escapeHtml(raw.host_country || ''),
+    stayEnd: escapeHtml(raw.stay_end || ''),
+    bio: escapeHtml(raw.bio || ''),
+    languages: (raw.languages || '').split(',').map(s => s.trim()).filter(Boolean).map(escapeHtml),
     hobbies: (raw.interests || '').split(',').map(s => s.trim()).filter(Boolean),
     online: isRecentlyOnline(raw)
   };
@@ -1355,7 +1367,7 @@ function openMemberProfile(memberId) {
 
   const hobbyEmojis = (member.hobbies || []).map(h => {
     const e = (typeof HOBBY_EMOJI !== 'undefined' && HOBBY_EMOJI[h]) ? HOBBY_EMOJI[h] : '✨';
-    return '<span class="hobby-emoji" title="' + h + '">' + e + '</span>';
+    return '<span class="hobby-emoji" title="' + escapeAttr(h) + '">' + e + '</span>';
   }).join('');
 
   let msgBtn = '';
@@ -2276,6 +2288,11 @@ let friendIdByConversation = {}; // conversationId -> friendId (DM uniquement)
 let unreadByFriend = {};         // friendId -> nombre de messages non lus (raccourci pour l'UI)
 let unreadCountsUnavailable = false; // true si conversation_members.last_read_at n'existe pas en base
 
+function escapeHtml(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, c =>
+    ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;' }[c]));
+}
+
 function escapeAttr(str) {
   return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 }
@@ -2548,8 +2565,8 @@ async function renderFriendsUI() {
         card.innerHTML =
           '<div style="text-align:center;margin-bottom:12px">' +
             '<div class="avatar" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px">' + emoji + '</div>' +
-            '<h3 style="margin:0">' + (p.display_name || 'AUPYGO') + '</h3>' +
-            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
+            '<h3 style="margin:0">' + escapeHtml(p.display_name || 'AUPYGO') + '</h3>' +
+            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + escapeHtml(meta) + '</p>' : '') +
             (isPremium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
           '</div>' +
           '<div class="request-actions" style="display:flex;gap:8px">' +
@@ -2619,8 +2636,8 @@ async function renderFriendsUI() {
           '<div style="text-align:center;margin-bottom:12px;position:relative">' +
             '<div class="avatar' + (isUnread ? ' conv-blink' : '') + '" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px;position:relative;display:inline-flex;align-items:center;justify-content:center">' + emoji + '</div>' +
             restrictedDot +
-            '<h3 style="margin:0" class="' + (isUnread ? 'conv-name-unread' : '') + '">' + f.name + (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</h3>' +
-            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + meta + '</p>' : '') +
+            '<h3 style="margin:0" class="' + (isUnread ? 'conv-name-unread' : '') + '">' + escapeHtml(f.name) + (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</h3>' +
+            (meta ? '<p style="color:var(--muted);font-size:13px;margin:4px 0 0">' + escapeHtml(meta) + '</p>' : '') +
             (f.premium ? '<span class="badge-premium" style="margin-top:6px">PREMIUM</span>' : '') +
           '</div>' +
           '<p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">💚 Ami confirmé</p>' +
@@ -2944,7 +2961,7 @@ function renderConversationSidebar() {
             '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span>' +
             restrictedDot +
           '</div>' +
-          '<div class="conv-meta"><div class="conv-name' + (isUnread ? ' conv-name-unread' : '') + '">' + (f.display_name || 'Ami') +
+          '<div class="conv-meta"><div class="conv-name' + (isUnread ? ' conv-name-unread' : '') + '">' + escapeHtml(f.display_name || 'Ami') +
             (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</div>' +
           '<div class="conv-preview">' + (online ? (t('messages.online') || 'En ligne') : (t('messages.offline') || 'Hors ligne')) + '</div></div>' +
         '</div>'
@@ -2960,7 +2977,7 @@ function renderConversationSidebar() {
       return (
         '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
           '<div class="conv-avatar group">👥</div>' +
-          '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div>' +
+          '<div class="conv-meta"><div class="conv-name">' + escapeHtml(g.title || 'Groupe') + '</div>' +
           '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
         '</div>'
       );
