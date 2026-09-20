@@ -3053,10 +3053,22 @@ async function openConversation(type, id, name) {
   if (input) { input.disabled = false; input.focus(); }
   if (btn) btn.disabled = false;
 
+  if (type === 'group') {
+    activeConversation = { type: 'group', id, name, conversationId: id };
+    renderConversationSidebar();
+
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Chargement…</p></div>';
+
+    await loadConversationHistory(id);
+    markConversationRead(id, null);
+    return;
+  }
+
   if (type !== 'dm') {
     activeConversation = { type, id, name, conversationId: null };
     const box = document.getElementById('chatMessages');
-    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Les groupes ne sont pas encore synchronisés en ligne (à venir).</p></div>';
+    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Type de conversation inconnu.</p></div>';
     renderConversationSidebar();
     return;
   }
@@ -3085,10 +3097,6 @@ async function sendMessage() {
   }
   if (!activeConversation) {
     showToast(t('messages.select_first') || 'Sélectionne une conversation d’abord', 'error');
-    return;
-  }
-  if (activeConversation.type !== 'dm') {
-    showToast('Les messages de groupe arrivent bientôt', 'error');
     return;
   }
   if (!activeConversation.conversationId) {
@@ -3158,7 +3166,7 @@ function setupMessagesRealtime() {
           if (!myConversationIds.has(msg.conversation_id)) return; // pas une conversation à moi
 
           const isConversationOpen = activeConversation
-            && activeConversation.type === 'dm'
+            && (activeConversation.type === 'dm' || activeConversation.type === 'group')
             && activeConversation.conversationId === msg.conversation_id
             && getActivePage() === 'messages';
 
@@ -3234,11 +3242,12 @@ function renderConversationSidebar() {
   } else {
     groupsList.innerHTML = myGroups.map(g => {
       const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
+      const count = g.memberCount != null ? g.memberCount : (g.memberIds ? g.memberIds.length : 0);
       return (
         '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
           '<div class="conv-avatar group">👥</div>' +
           '<div class="conv-meta"><div class="conv-name">' + escapeHtml(g.title || 'Groupe') + '</div>' +
-          '<div class="conv-preview">' + (g.memberIds ? g.memberIds.length : 0) + ' membres</div></div>' +
+          '<div class="conv-preview">' + count + ' membres</div></div>' +
         '</div>'
       );
     }).join('');
@@ -3306,7 +3315,7 @@ function toggleGroupPick(id, checked) {
   renderGroupFriendsPick();
 }
 
-function createGroupChat() {
+async function createGroupChat() {
   const titleEl = document.getElementById('groupTitleInput');
   const title = (titleEl && titleEl.value.trim()) || '';
   if (!title) {
@@ -3321,18 +3330,77 @@ function createGroupChat() {
     showToast('Maximum 5 personnes (toi inclus)', 'error');
     return;
   }
-  const memberIds = currentUser ? [currentUser.id, ...groupPickIds] : groupPickIds.slice();
-  const group = {
-    id: 'g_' + Date.now(),
-    title: title.slice(0, 40),
-    memberIds: memberIds
-  };
-  myGroups.push(group);
-  // TODO Supabase : table groups + group_members
-  closeCreateGroupModal();
-  renderConversationSidebar();
-  openConversation('group', group.id, group.title);
-  showToast('Groupe « ' + group.title + ' » créé (' + memberIds.length + ' personnes)', 'success');
+
+  const planG = String(currentPlan || 'FREE').toUpperCase();
+  if (planG === 'FREE') {
+    showToast(t('messages.groups_locked') || 'Groupes réservés à STANDARD et PREMIUM', 'error');
+    go('plans');
+    return;
+  }
+
+  if (!currentUser) {
+    showToast(t('toast.friend_login_required') || 'Connecte-toi pour créer un groupe', 'error');
+    go('plans');
+    return;
+  }
+
+  try {
+    const { data: convId, error } = await supabaseClient.rpc('create_group_conversation', {
+      p_title: title,
+      p_member_ids: groupPickIds
+    });
+
+    if (error) throw error;
+
+    await loadMyGroups();
+    closeCreateGroupModal();
+    renderConversationSidebar();
+    openConversation('group', convId, title.slice(0, 40));
+    showToast('Groupe « ' + title.slice(0, 40) + ' » créé', 'success');
+  } catch (e) {
+    console.error('createGroupChat:', e);
+    showToast('Erreur création groupe : ' + (e.message || e), 'error');
+  }
+}
+
+async function loadMyGroups() {
+  myGroups = [];
+  if (!currentUser) return;
+
+  try {
+    const { data: memberRows, error } = await supabaseClient
+      .from('conversation_members')
+      .select('conversation_id')
+      .eq('user_id', currentUser.id);
+    if (error) throw error;
+
+    const convIds = (memberRows || []).map(r => r.conversation_id);
+    if (!convIds.length) return;
+
+    const { data: groups, error: gErr } = await supabaseClient
+      .from('conversations')
+      .select('id, title, created_by, created_at')
+      .eq('type', 'group')
+      .in('id', convIds)
+      .order('created_at', { ascending: false });
+    if (gErr) throw gErr;
+
+    for (const g of (groups || [])) {
+      const { count } = await supabaseClient
+        .from('conversation_members')
+        .select('*', { count: 'exact', head: true })
+        .eq('conversation_id', g.id);
+
+      myGroups.push({
+        id: g.id,
+        title: g.title || 'Groupe',
+        memberCount: count || 0,
+        created_by: g.created_by
+      });
+    }
+  } catch (e) {
+    console.error('loadMyGroups:', e);
+  }
 }
 
 async function loadFriendsForMessaging() {
@@ -3340,6 +3408,7 @@ async function loadFriendsForMessaging() {
   try {
     if (currentUser) {
       await renderFriendsUI(); // met aussi à jour myFriends
+      await loadMyGroups();
     }
   } catch (e) {
     console.error('loadFriendsForMessaging:', e);
