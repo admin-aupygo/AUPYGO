@@ -2418,3 +2418,55 @@ nav button.has-unread-messages::after {
   line-height: 1;
 }
 .chat-delete-group-btn:hover { background: #fecaca; }
+
+
+/* Agenda — jour avec activité */
+.calendar .day.day-has-activity {
+  background: linear-gradient(145deg, #f5f3ff 0%, #fce7f3 100%);
+  border: 2px solid #c4b5fd;
+  box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.15), 0 4px 12px rgba(236, 72, 153, 0.12);
+}
+.calendar .day.day-has-activity strong {
+  color: #7c3aed;
+  font-weight: 800;
+}
+.calendar .day.day-has-activity .agenda-event {
+  background: linear-gradient(135deg, #7c3aed, #ec4899);
+  color: #fff;
+  font-weight: 600;
+}
+
+/* Home buttons badges */
+.home-btn-badge {
+  display: none;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 6px;
+  border-radius: 10px;
+  background: linear-gradient(135deg, #3b82f6, #7c3aed);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 20px;
+  text-align: center;
+  box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+  z-index: 2;
+}
+.home-btn-badge.show { display: block; }
+.home-btn-online {
+  display: none;
+  font-size: 11px;
+  font-weight: 600;
+  color: #16a34a;
+  margin-top: 2px;
+}
+.home-btn.nav-blink {
+  animation: homeBtnPulse 1.1s ease-in-out infinite;
+}
+@keyframes homeBtnPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(124, 58, 237, 0.45); }
+  50% { box-shadow: 0 0 0 8px rgba(124, 58, 237, 0); }
+}
