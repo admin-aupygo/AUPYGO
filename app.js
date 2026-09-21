@@ -2946,30 +2946,34 @@ async function removeFriend(friendId) {
   if (!currentUser || !friendId) return;
   const p = getProfileById(friendId);
   const name = (p && p.display_name) || 'cet AUPYGO';
-  const ok = confirm('Supprimer ' + name + ' de tes amis ?\n\nVous ne pourrez plus vous envoyer de messages privés (sauf si vous vous rajoutez plus tard).');
+  const ok = confirm('Supprimer ' + name + ' de tes amis ?\n\nTous les messages privés avec cette personne seront définitivement supprimés.');
   if (!ok) return;
 
   try {
-    // Supprime les deux sens de la relation (from/to)
-    const { error } = await supabaseClient
-      .from('friendships')
-      .delete()
-      .or('and(from_id.eq.' + currentUser.id + ',to_id.eq.' + friendId + '),and(from_id.eq.' + friendId + ',to_id.eq.' + currentUser.id + ')');
+    const { data, error } = await supabaseClient.rpc('remove_friend_and_dm', {
+      p_friend_id: friendId
+    });
     if (error) throw error;
 
     // Nettoyage local
     myFriends = myFriends.filter(f => f.id !== friendId);
     delete dmConversationCache[friendId];
     delete unreadByFriend[friendId];
-    // On ne touche pas à la conversation_members pour garder l\'historique éventuel
+    // Nettoie aussi le cache conversation <-> ami
+    Object.keys(friendIdByConversation || {}).forEach(cid => {
+      if (friendIdByConversation[cid] === friendId) {
+        delete friendIdByConversation[cid];
+        myConversationIds.delete(cid);
+        delete unreadByConversation[cid];
+      }
+    });
 
-    showToast('Ami supprimé', 'success');
+    showToast('Ami et messages privés supprimés', 'success');
     await renderFriendsUI();
     if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
     updateMessagesBadge();
     updateFriendsBadge();
 
-    // Si on était en DM avec cet ami, on ferme le chat
     if (activeConversation && activeConversation.type === 'dm' && activeConversation.id === friendId) {
       closeMobileChat();
       activeConversation = null;
@@ -2983,6 +2987,7 @@ async function removeFriend(friendId) {
     showToast('Erreur suppression ami : ' + (e.message || e), 'error');
   }
 }
+
 
 
 async function sendFriendRequestToMember(memberId) {
@@ -3801,30 +3806,13 @@ async function leaveGroup(convId) {
   if (!currentUser || !convId) return;
   const g = myGroups.find(x => x.id === convId);
   const title = (g && g.title) || 'ce groupe';
-  const ok = confirm('Quitter le groupe « ' + title + ' » ?\n\nTu ne recevras plus les messages de ce groupe.');
+  const ok = confirm('Quitter le groupe « ' + title + ' » ?\n\nSi tu es le dernier membre, tous les messages seront définitivement supprimés.');
   if (!ok) return;
 
   try {
-    // 1. Récupère le nom affiché pour le message système
-    let displayName = 'Un membre';
-    try {
-      const { data: me } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
-      if (me && me.display_name) displayName = me.display_name;
-    } catch (e) {}
-
-    // 2. Message système avant de quitter
-    await supabaseClient.from('messages').insert({
-      conversation_id: convId,
-      sender_id: currentUser.id,
-      content: '👋 ' + displayName + ' a quitté le groupe'
+    const { data, error } = await supabaseClient.rpc('leave_group_conversation', {
+      p_conv_id: convId
     });
-
-    // 3. Retire le membership
-    const { error } = await supabaseClient
-      .from('conversation_members')
-      .delete()
-      .eq('conversation_id', convId)
-      .eq('user_id', currentUser.id);
     if (error) throw error;
 
     myConversationIds.delete(convId);
@@ -3841,12 +3829,18 @@ async function leaveGroup(convId) {
       if (box) box.innerHTML = '<div class="chat-placeholder"><p>Sélectionne une conversation</p></div>';
     }
     renderConversationSidebar();
-    showToast('Tu as quitté le groupe', 'success');
+
+    if (data && data.group_deleted) {
+      showToast('Groupe et messages supprimés (plus de membres)', 'success');
+    } else {
+      showToast('Tu as quitté le groupe', 'success');
+    }
   } catch (e) {
     console.error('leaveGroup:', e);
     showToast('Erreur en quittant le groupe : ' + (e.message || e), 'error');
   }
 }
+
 
 
 /* =========================
