@@ -4116,6 +4116,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     await loadFriendshipsFromDB();
   }
   if (typeof loadFriendsForMessaging === 'function') await loadFriendsForMessaging();
+  if (currentUser) loadGroupInvitations();
   if (typeof updateFriendsBadge === 'function') updateFriendsBadge();
 
   // Si déjà connecté au chargement → statut en ligne + heartbeat + watch inactivité
