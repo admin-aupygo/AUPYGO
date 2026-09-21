@@ -722,7 +722,8 @@ async function refreshAuthUI(redirectPage = 'profile') {
       setOnlineStatus(true);
       startIdleWatch();
       loadFriendshipsFromDB().then(updateFriendsBadge);
-      loadUnreadCounts();
+         loadUnreadCounts();
+      loadGroupInvitations();
     }
   } else {
     // Pas connecté
