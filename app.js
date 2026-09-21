@@ -3250,6 +3250,9 @@ function teardownMessagesRealtime() {
   unreadByConversation = {};
   friendIdByConversation = {};
   unreadByFriend = {};
+  groupInvitesQueue = [];
+  groupInviteCurrent = null;
+  if (typeof closeGroupInviteModal === 'function') closeGroupInviteModal();
   updateMessagesBadge();
 }
 
