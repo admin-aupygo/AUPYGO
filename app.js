@@ -2603,9 +2603,6 @@ async function loadUnreadCounts() {
     return;
   }
 
-  // La colonne last_read_at n'a pas encore été ajoutée côté Supabase
-  // (migration requise, cf. conversation_members.last_read_at) :
-  // on arrête d'interroger pour ne pas spammer la console à chaque poll.
   if (unreadCountsUnavailable) return;
 
   try {
@@ -2615,11 +2612,8 @@ async function loadUnreadCounts() {
       .eq('user_id', currentUser.id);
 
     if (mErr) {
-      // Colonne last_read_at absente (code Postgres 42703) ou autre erreur :
-      // on n'écrase pas l'état en mémoire déjà construit par le temps réel,
-      // et on coupe les futurs appels si la colonne manque vraiment.
-      console.error('loadUnreadCounts (members) — as-tu ajouté la colonne conversation_members.last_read_at (timestamptz) dans Supabase ?', mErr);
-      if (mErr.code === '42703') unreadCountsUnavailable = true;
+      console.error('loadUnreadCounts (members):', mErr);
+      if (mErr.code === '42703') unreadCountsUnavailable = true; // colonne last_read_at absente
       return;
     }
 
@@ -2635,7 +2629,14 @@ async function loadUnreadCounts() {
       return;
     }
 
-    // Résout l'autre membre de chaque conversation privée (DM à 2 membres)
+    // Distingue groupes et DM via conversations.type
+    const { data: convRows, error: convErr } = await supabaseClient
+      .from('conversations')
+      .select('id, type')
+      .in('id', convIds);
+    if (convErr) console.error('loadUnreadCounts (conversations):', convErr);
+    const groupIds = new Set((convRows || []).filter(c => c.type === 'group').map(c => c.id));
+
     const { data: allMembers, error: allErr } = await supabaseClient
       .from('conversation_members')
       .select('conversation_id, user_id')
@@ -2650,6 +2651,7 @@ async function loadUnreadCounts() {
 
     const newFriendIdByConv = {};
     Object.keys(membersByConv).forEach(convId => {
+      if (groupIds.has(convId)) return; // un groupe n'est jamais un DM
       const members = membersByConv[convId];
       if (members.length === 2) {
         const other = members.find(id => id !== currentUser.id);
@@ -2676,7 +2678,7 @@ async function loadUnreadCounts() {
       if (cErr) { console.error('loadUnreadCounts (count):', cErr); continue; }
       if (count && count > 0) {
         newUnreadByConv[convId] = count;
-        const fid = friendIdByConversation[convId];
+        const fid = groupIds.has(convId) ? null : friendIdByConversation[convId];
         if (fid) newUnreadByFriend[fid] = count;
       }
     }
@@ -2690,7 +2692,6 @@ async function loadUnreadCounts() {
     console.error('loadUnreadCounts:', e);
   }
 }
-
 // Marque une conversation comme lue : nettoie l'état local (badge + clignotement)
 // et persiste last_read_at côté Supabase pour la synchro multi-appareils.
 // Filet de sécurité local : garantit que l'état "lu" survient même si
