@@ -2405,3 +2405,16 @@ nav button.has-unread-messages::after {
     display: none !important;
   }
 }
+.chat-delete-group-btn {
+  border: 0;
+  background: #fee2e2;
+  color: #991b1b;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  font-size: 18px;
+  cursor: pointer;
+  flex-shrink: 0;
+  line-height: 1;
+}
+.chat-delete-group-btn:hover { background: #fecaca; }
