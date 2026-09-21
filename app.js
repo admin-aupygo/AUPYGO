@@ -3659,6 +3659,127 @@ function onCleanupRefuse() {
   showToast(t('cleanup.refused') || 'Messages conservés.', 'success');
 }
 
+/* =========================
+   SUPPRESSION D'UN GROUPE (créateur uniquement)
+========================= */
+async function deleteGroup(convId) {
+  const g = myGroups.find(x => x.id === convId);
+  const ok = confirm(
+    'Supprimer le groupe « ' + (g ? g.title : '') + ' » ?\n\n' +
+    'Tous les messages seront supprimés pour tous les membres. Cette action est définitive.'
+  );
+  if (!ok) return;
+
+  const { error } = await supabaseClient.rpc('delete_group_conversation', { p_conv_id: convId });
+  if (error) {
+    console.error('deleteGroup:', error);
+    showToast('Erreur suppression groupe : ' + (error.message || error), 'error');
+    return;
+  }
+
+  myConversationIds.delete(convId);
+  delete unreadByConversation[convId];
+  myGroups = myGroups.filter(x => x.id !== convId);
+  updateMessagesBadge();
+  closeMobileChat();
+  renderConversationSidebar();
+  showToast('Groupe supprimé', 'success');
+}
+
+/* =========================
+   INVITATIONS DE GROUPE (popup Accepter / Refuser)
+========================= */
+let groupInvitesQueue = [];
+let groupInviteCurrent = null;
+
+function injectGroupInviteModal() {
+  if (document.getElementById('groupInviteOverlay')) return;
+  const overlay = document.createElement('div');
+  overlay.id = 'groupInviteOverlay';
+  overlay.className = 'aupygo-cleanup-overlay';
+  overlay.innerHTML =
+    '<div class="aupygo-cleanup-box">' +
+      '<h3>👥 Invitation à un groupe</h3>' +
+      '<p id="groupInviteBody"></p>' +
+      '<div class="aupygo-cleanup-actions">' +
+        '<button type="button" class="btn btn-secondary" onclick="respondGroupInvite(false)">Refuser</button>' +
+        '<button type="button" class="btn btn-primary" onclick="respondGroupInvite(true)">Accepter</button>' +
+      '</div>' +
+    '</div>';
+  document.body.appendChild(overlay);
+}
+
+function closeGroupInviteModal() {
+  const overlay = document.getElementById('groupInviteOverlay');
+  if (overlay) overlay.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+async function loadGroupInvitations() {
+  if (!currentUser) return;
+  const { data, error } = await supabaseClient.rpc('get_my_group_invitations');
+  if (error) { console.error('loadGroupInvitations:', error); return; }
+  groupInvitesQueue = data || [];
+  showNextGroupInvite();
+}
+
+function showNextGroupInvite() {
+  if (groupInviteCurrent) return; // un popup est déjà affiché
+  const inv = groupInvitesQueue[0];
+  if (!inv) return;
+  groupInviteCurrent = inv;
+  injectGroupInviteModal();
+  const body = document.getElementById('groupInviteBody');
+  if (body) {
+    body.innerHTML =
+      '<strong>' + escapeHtml(inv.inviter_name || 'Un ami') + '</strong> t’invite à rejoindre le groupe ' +
+      '<strong>« ' + escapeHtml(inv.title || 'Groupe') + ' »</strong>.';
+  }
+  document.getElementById('groupInviteOverlay').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+async function respondGroupInvite(accept) {
+  const inv = groupInviteCurrent;
+  if (!inv) return;
+
+  const { error } = await supabaseClient.rpc('respond_group_invitation', {
+    p_invitation_id: inv.invitation_id,
+    p_accept: accept
+  });
+
+  groupInviteCurrent = null;
+  closeGroupInviteModal();
+
+  const removeInv = () => {
+    groupInvitesQueue = groupInvitesQueue.filter(i => i.invitation_id !== inv.invitation_id);
+  };
+
+  if (error) {
+    console.error('respondGroupInvite:', error);
+    const txt = String(error.message || '');
+    if (/GROUP_FULL/.test(txt)) {
+      showToast('Ce groupe est complet (5 personnes max).', 'error');
+      removeInv();
+    } else if (/INVITATION_NOT_FOUND/.test(txt)) {
+      removeInv();
+    } else {
+      showToast('Erreur : ' + txt, 'error');
+      removeInv();
+    }
+  } else {
+    removeInv();
+    if (accept) {
+      showToast('Tu as rejoint « ' + (inv.title || 'le groupe') + ' »', 'success');
+      await refreshMyConversationIds();
+      await loadMyGroups();
+      renderConversationSidebar();
+    } else {
+      showToast('Invitation refusée', 'success');
+    }
+  }
+  showNextGroupInvite(); // enchaîne sur l'invitation suivante
+}
 
 /* =========================
    LANGUES
