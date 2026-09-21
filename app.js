@@ -3271,18 +3271,10 @@ function renderConversationSidebar() {
       const unread = unreadByFriend[f.id] || 0;
       const isUnread = unread > 0;
       const nameSafe = (f.display_name || 'Ami').replace(/'/g, "\\'");
-      // Destinataire non-PREMIUM : messagerie privée indisponible pour lui.
-      // Accepte soit f.premium (booléen), soit f.subscription (string) —
-      // selon la structure fournie par l'appelant.
-      const isRestricted = f.premium === true
-        ? false
-        : (f.subscription !== undefined ? !isPremiumValue(f.subscription) : true);
-      const restrictedDot = '';
       return (
         '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">' +
           '<div class="conv-avatar' + (isUnread ? ' conv-blink' : '') + '">' + emoji +
             '<span class="conv-status-dot ' + (online ? 'online' : 'offline') + '"></span>' +
-            restrictedDot +
           '</div>' +
           '<div class="conv-meta"><div class="conv-name' + (isUnread ? ' conv-name-unread' : '') + '">' + escapeHtml(f.display_name || 'Ami') +
             (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</div>' +
@@ -3297,11 +3289,15 @@ function renderConversationSidebar() {
   } else {
     groupsList.innerHTML = myGroups.map(g => {
       const active = activeConversation && activeConversation.type === 'group' && activeConversation.id === g.id ? ' active' : '';
-      const count = g.memberCount != null ? g.memberCount : (g.memberIds ? g.memberIds.length : 0);
+      const unread = unreadByConversation[g.id] || 0;
+      const isUnread = unread > 0;
+      const count = g.memberCount != null ? g.memberCount : 0;
+      const titleSafe = (g.title || 'Groupe').replace(/'/g, "\\'");
       return (
-        '<div class="conversation' + active + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + (g.title || 'Groupe').replace(/'/g, "\\'") + '\')">' +
-          '<div class="conv-avatar group">👥</div>' +
-          '<div class="conv-meta"><div class="conv-name">' + escapeHtml(g.title || 'Groupe') + '</div>' +
+        '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + titleSafe + '\')">' +
+          '<div class="conv-avatar group' + (isUnread ? ' conv-blink' : '') + '">👥</div>' +
+          '<div class="conv-meta"><div class="conv-name' + (isUnread ? ' conv-name-unread' : '') + '">' + escapeHtml(g.title || 'Groupe') +
+            (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</div>' +
           '<div class="conv-preview">' + count + ' membres</div></div>' +
         '</div>'
       );
