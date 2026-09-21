@@ -4127,19 +4127,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
   // Rafraîchit les profils (couleurs vert/rouge), les amitiés et les messages
   // non lus toutes les 60 s (synchro multi-appareils via last_read_at)
-  setInterval(() => {
+   setInterval(() => {
     loadProfiles();
     if (currentUser) {
       setOnlineStatus(true);
       loadFriendshipsFromDB().then(updateFriendsBadge);
       loadUnreadCounts();
+      loadGroupInvitations();
+      loadMyGroups().then(renderConversationSidebar); // retire un groupe supprimé par son créateur
     }
   }, 60000);
-
   // Un retour sur l'onglet / la fenêtre revérifie tout de suite les non-lus,
   // sans attendre le prochain tick des 60 s (utile en multi-onglets).
   window.addEventListener('focus', () => {
-    if (currentUser) loadUnreadCounts();
+    if (currentUser) {
+      loadUnreadCounts();
+      loadGroupInvitations();
+    }
   });
 
   // Synchronisation multi-onglets / multi-appareils
