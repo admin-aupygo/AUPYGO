@@ -3403,17 +3403,17 @@ async function createGroupChat() {
 
     if (error) throw error;
 
+    await refreshMyConversationIds();
     await loadMyGroups();
     closeCreateGroupModal();
     renderConversationSidebar();
     openConversation('group', convId, title.slice(0, 40));
-    showToast('Groupe « ' + title.slice(0, 40) + ' » créé', 'success');
+    showToast('Groupe « ' + title.slice(0, 40) + ' » créé — invitations envoyées', 'success');
   } catch (e) {
     console.error('createGroupChat:', e);
     showToast('Erreur création groupe : ' + (e.message || e), 'error');
   }
 }
-
 async function loadMyGroups() {
   myGroups = [];
   if (!currentUser) return;
