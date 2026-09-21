@@ -2187,15 +2187,47 @@ async function getOrCreateDmConversation(friendId) {
         .from('conversation_members')
         .select('conversation_id')
         .in('conversation_id', sharedIds);
+      const { data: typeRows } = await supabaseClient
+        .from('conversations')
+        .select('id, type')
+        .in('id', sharedIds);
+      // Un groupe (même à 2 membres) n'est jamais un DM
+      const groupSet = new Set((typeRows || []).filter(c => c.type === 'group').map(c => c.id));
+
       if (!e3 && allMembers) {
         const tally = {};
         allMembers.forEach(r => { tally[r.conversation_id] = (tally[r.conversation_id] || 0) + 1; });
-        const dmId = Object.keys(tally).find(id => tally[id] === 2);
+        const dmId = Object.keys(tally).find(id => tally[id] === 2 && !groupSet.has(id));
         if (dmId) {
           dmConversationCache[friendId] = dmId;
           friendIdByConversation[dmId] = friendId;
           return dmId;
         }
+      }
+    }
+  }
+
+  // Aucune conversation existante avec cet ami → on en crée une
+  const { data: conv, error: e4 } = await supabaseClient
+    .from('conversations')
+    .insert({ created_by: currentUser.id })
+    .select()
+    .single();
+  if (e4) { console.error(e4); showToast('Erreur création conversation : ' + e4.message, 'error'); return null; }
+
+  const { error: e5 } = await supabaseClient
+    .from('conversation_members')
+    .insert([
+      { conversation_id: conv.id, user_id: currentUser.id },
+      { conversation_id: conv.id, user_id: friendId }
+    ]);
+  if (e5) { console.error(e5); showToast('Erreur création conversation : ' + e5.message, 'error'); return null; }
+
+  dmConversationCache[friendId] = conv.id;
+  friendIdByConversation[conv.id] = friendId;
+  myConversationIds.add(conv.id);
+  return conv.id;
+}
       }
     }
   }
