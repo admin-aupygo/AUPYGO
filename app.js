@@ -497,10 +497,26 @@ async function setOnlineStatus(online) {
 
 function updateOnlineCount() {
   const el = document.getElementById('onlineCount');
-  if (!el) return;
   const n = (profiles || []).filter(isRecentlyOnline).length;
-  el.textContent = String(n);
+  if (el) el.textContent = String(n);
+
+  // Gros bouton Découvrir / Carte (accueil)
+  const homeMap = document.getElementById('homeBtnMap');
+  if (homeMap) {
+    const badge = homeMap.querySelector('.home-btn-badge');
+    if (badge) {
+      badge.textContent = n > 99 ? '99+' : String(n);
+      if (n > 0) badge.classList.add('show');
+      else badge.classList.remove('show');
+    }
+    const onlineEl = homeMap.querySelector('.home-btn-online');
+    if (onlineEl) {
+      onlineEl.textContent = n > 0 ? (n + ' connecté' + (n > 1 ? 's' : '')) : '';
+      onlineEl.style.display = n > 0 ? 'block' : 'none';
+    }
+  }
 }
+
 
 let isLocalLogout = false;
 
@@ -1197,6 +1213,18 @@ function go(page) {
     if (moreBtn) moreBtn.classList.add('active');
   }
   if (typeof closeMoreMenu === 'function') closeMoreMenu();
+
+  // Badges & alertes des gros boutons d'accueil
+  if (page === 'events') {
+    if (typeof markEventsSeen === 'function') markEventsSeen();
+  }
+  if (page === 'agenda' || page === 'events') {
+    if (typeof highlightAgendaDays === 'function') highlightAgendaDays();
+  }
+  if (typeof updateEventsBadge === 'function') updateEventsBadge();
+  if (typeof updateOnlineCount === 'function') updateOnlineCount();
+  if (typeof updateFriendsBadge === 'function') updateFriendsBadge();
+  if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
 
   window.scrollTo({ top: 0, behavior: 'smooth' });
 
@@ -2580,10 +2608,16 @@ function updateMessagesBadge() {
     if (show) bottomMsg.classList.add('has-unread-messages');
     else bottomMsg.classList.remove('has-unread-messages');
   }
-  // Gros bouton Messages de la page d'accueil : clignote comme les avatars
+  // Gros bouton Messages : badge numérique + clignotement
   if (homeMsgBtn) {
     if (show) homeMsgBtn.classList.add('nav-blink', 'has-unread-messages');
     else homeMsgBtn.classList.remove('nav-blink', 'has-unread-messages');
+    const hb = homeMsgBtn.querySelector('.home-btn-badge');
+    if (hb) {
+      hb.textContent = label;
+      if (show) hb.classList.add('show');
+      else hb.classList.remove('show');
+    }
   }
 }
 
@@ -2752,14 +2786,27 @@ function clearUnreadMessages() {
 
 // Met à jour le badge des demandes d'ami en attente (icône navigation "Amis")
 function updateFriendsBadge() {
-  if (!currentUser) return;
-  const store = friendshipsCache;
+  if (!currentUser) {
+    // reset home badge if logged out
+    const homeFriends = document.getElementById('homeBtnFriends');
+    if (homeFriends) {
+      homeFriends.classList.remove('nav-blink', 'has-requests');
+      const b = homeFriends.querySelector('.home-btn-badge');
+      if (b) { b.textContent = '0'; b.classList.remove('show'); }
+      const o = homeFriends.querySelector('.home-btn-online');
+      if (o) o.textContent = '';
+    }
+    return;
+  }
+  const store = friendshipsCache || [];
   const pending = store.filter(r => r.to_id === currentUser.id && r.status === 'pending');
   const n = pending.length;
+
   const badge = document.getElementById('friendsBadge');
   const badgeMore = document.getElementById('friendsBadgeMore');
   const navBtn = document.getElementById('navFriends');
   const label = document.getElementById('requestsCountLabel');
+
   if (badge) {
     badge.textContent = String(n);
     if (n > 0) badge.classList.add('show');
@@ -2771,11 +2818,33 @@ function updateFriendsBadge() {
     else badgeMore.classList.remove('show');
   }
   if (navBtn) {
-    if (n > 0) navBtn.classList.add('has-requests');
-    else navBtn.classList.remove('has-requests');
+    if (n > 0) navBtn.classList.add('has-requests', 'nav-blink');
+    else navBtn.classList.remove('has-requests', 'nav-blink');
   }
-  if (label) label.textContent = n ? '(' + n + ')' : '';
+  if (label) label.textContent = String(n);
+
+  // Gros bouton Amis (accueil) : badge demandes + clignotement + amis en ligne
+  const homeFriends = document.getElementById('homeBtnFriends');
+  if (homeFriends) {
+    const hb = homeFriends.querySelector('.home-btn-badge');
+    if (hb) {
+      hb.textContent = n > 99 ? '99+' : String(n);
+      if (n > 0) hb.classList.add('show');
+      else hb.classList.remove('show');
+    }
+    if (n > 0) homeFriends.classList.add('nav-blink', 'has-requests');
+    else homeFriends.classList.remove('nav-blink', 'has-requests');
+
+    // Nombre d'amis en ligne
+    const onlineFriends = (myFriends || []).filter(f => f.is_online === true || f.online === true).length;
+    const onlineEl = homeFriends.querySelector('.home-btn-online');
+    if (onlineEl) {
+      onlineEl.textContent = onlineFriends > 0 ? (onlineFriends + ' en ligne') : '';
+      onlineEl.style.display = onlineFriends > 0 ? 'block' : 'none';
+    }
+  }
 }
+
 
 async function renderFriendsUI() {
   if (!currentUser) {
@@ -4119,6 +4188,64 @@ function toggleFooter(id) {
    (injectés en JS pour ne pas dépendre d'une modification du CSS externe ;
    à terme, ces règles peuvent être déplacées dans la feuille de style du projet)
 ========================= */
+
+/* =========================
+   BADGES ACCUEIL — SORTIES / AGENDA
+========================= */
+
+function getEventsFingerprint() {
+  // Compte les sorties visibles dans le DOM (agenda + cartes events)
+  const nodes = document.querySelectorAll('#events .agenda-event, #events .event-card, #agendaBox .agenda-event');
+  const texts = Array.from(nodes).map(n => (n.textContent || '').trim()).filter(Boolean);
+  return texts.join('|') + '::' + texts.length;
+}
+
+function updateEventsBadge() {
+  const homeEvents = document.getElementById('homeBtnEvents');
+  const navEvents = document.querySelector('button[data-nav="events"], #bottomNav [data-nav="events"]');
+  const fp = getEventsFingerprint();
+  let lastSeen = '';
+  try { lastSeen = localStorage.getItem('aupygo_events_seen') || ''; } catch (e) {}
+
+  const isNew = fp && fp !== lastSeen && fp.length > 2;
+  // Si on est déjà sur la page events, on marque comme vu
+  if (typeof getActivePage === 'function' && getActivePage() === 'events') {
+    try { localStorage.setItem('aupygo_events_seen', fp); } catch (e) {}
+    if (homeEvents) homeEvents.classList.remove('nav-blink', 'has-new-events');
+    if (navEvents) navEvents.classList.remove('nav-blink', 'has-new-events');
+    return;
+  }
+
+  if (homeEvents) {
+    if (isNew) homeEvents.classList.add('nav-blink', 'has-new-events');
+    else homeEvents.classList.remove('nav-blink', 'has-new-events');
+    const badge = homeEvents.querySelector('.home-btn-badge');
+    if (badge) {
+      if (isNew) { badge.textContent = '!'; badge.classList.add('show'); }
+      else { badge.classList.remove('show'); }
+    }
+  }
+  if (navEvents) {
+    if (isNew) navEvents.classList.add('nav-blink', 'has-new-events');
+    else navEvents.classList.remove('nav-blink', 'has-new-events');
+  }
+}
+
+function markEventsSeen() {
+  try { localStorage.setItem('aupygo_events_seen', getEventsFingerprint()); } catch (e) {}
+  updateEventsBadge();
+}
+
+/** Surligne les jours de l'agenda qui ont une activité (couleur violette/rose sympa) */
+function highlightAgendaDays() {
+  document.querySelectorAll('.calendar .day').forEach(day => {
+    const hasEvent = day.querySelector('.agenda-event');
+    if (hasEvent) day.classList.add('day-has-activity');
+    else day.classList.remove('day-has-activity');
+  });
+}
+
+
 function injectMessagingNotificationStyles() {
   if (document.getElementById('aupygo-messaging-styles')) return;
   const style = document.createElement('style');
@@ -4131,6 +4258,63 @@ function injectMessagingNotificationStyles() {
     #navMessages.nav-blink,
     .conv-avatar.conv-blink,
     .avatar.conv-blink,
+    
+    .home-btn-badge {
+      display: none;
+      position: absolute;
+      top: 8px;
+      right: 8px;
+      min-width: 20px;
+      height: 20px;
+      padding: 0 6px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #3b82f6, #7c3aed);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 800;
+      line-height: 20px;
+      text-align: center;
+      box-shadow: 0 2px 8px rgba(124, 58, 237, 0.4);
+    }
+    .home-btn-badge.show { display: block; }
+    .home-btn-online {
+      display: none;
+      font-size: 11px;
+      font-weight: 600;
+      color: #16a34a;
+      margin-top: 2px;
+    }
+    #homeBtnMap.nav-blink,
+    #homeBtnFriends.nav-blink,
+    #homeBtnEvents.nav-blink,
+    #homeBtnMessages.nav-blink,
+    #navFriends.nav-blink,
+    button[data-nav="events"].nav-blink {
+      animation: aupygoBlinkBlue 1.1s ease-in-out infinite;
+    }
+    #navFriends.has-requests.nav-blink {
+      animation: aupygoBlinkPink 1.1s ease-in-out infinite;
+    }
+    @keyframes aupygoBlinkPink {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(236, 72, 153, 0.65); }
+      50% { box-shadow: 0 0 0 6px rgba(236, 72, 153, 0); }
+    }
+    /* Agenda : jour avec activité */
+    .calendar .day.day-has-activity {
+      background: linear-gradient(145deg, #f5f3ff 0%, #fce7f3 100%);
+      border: 2px solid #c4b5fd;
+      box-shadow: 0 0 0 1px rgba(124, 58, 237, 0.15), 0 4px 12px rgba(236, 72, 153, 0.12);
+    }
+    .calendar .day.day-has-activity strong {
+      color: #7c3aed;
+      font-weight: 800;
+    }
+    .calendar .day.day-has-activity .agenda-event {
+      background: linear-gradient(135deg, #7c3aed, #ec4899);
+      color: #fff;
+      font-weight: 600;
+    }
+
     #homeBtnMessages.nav-blink {
       animation: aupygoBlinkBlue 1.1s ease-in-out infinite;
     }
@@ -4298,6 +4482,8 @@ function injectMessagingNotificationStyles() {
 
 document.addEventListener('DOMContentLoaded', async () => {
   injectMessagingNotificationStyles();
+  if (typeof highlightAgendaDays === 'function') highlightAgendaDays();
+  if (typeof updateEventsBadge === 'function') updateEventsBadge();
 
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
