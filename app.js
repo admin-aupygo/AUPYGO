@@ -3195,8 +3195,18 @@ function setupMessagesRealtime() {
         { event: 'INSERT', schema: 'public', table: 'messages' },
         (payload) => {
           const msg = payload.new;
-          if (msg.sender_id === currentUser.id) return; // déjà affiché localement
-          if (!myConversationIds.has(msg.conversation_id)) return; // pas une conversation à moi
+          if (msg.sender_id === currentUser.id) return;
+
+          // Conversation inconnue (ex. X vient de créer un DM avec moi) : on rafraîchit
+          if (!myConversationIds.has(msg.conversation_id)) {
+            refreshMyConversationIds().then(() => {
+              if (myConversationIds.has(msg.conversation_id)) {
+                loadUnreadCounts();
+                loadMyGroups().then(renderConversationSidebar);
+              }
+            });
+            return;
+          }
 
           const isConversationOpen = activeConversation
             && (activeConversation.type === 'dm' || activeConversation.type === 'group')
@@ -3205,20 +3215,29 @@ function setupMessagesRealtime() {
 
           if (isConversationOpen) {
             appendBubble(msg.content, false, msg.created_at);
-            // Conversation déjà à l'écran → jamais comptée comme non lue.
-            markConversationRead(msg.conversation_id, activeConversation.id);
-          } else {
-            const friendId = friendIdByConversation[msg.conversation_id];
-            unreadByConversation[msg.conversation_id] = (unreadByConversation[msg.conversation_id] || 0) + 1;
-            if (friendId) unreadByFriend[friendId] = (unreadByFriend[friendId] || 0) + 1;
-            updateMessagesBadge();
-            if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
-            showToast('💬 ' + t('messages.new_message_toast'), 'success');
+            markConversationRead(msg.conversation_id, activeConversation.type === 'dm' ? activeConversation.id : null);
+            return;
           }
+
+          const isGroup = myGroups.some(g => g.id === msg.conversation_id);
+          const friendId = isGroup ? null : friendIdByConversation[msg.conversation_id];
+
+          unreadByConversation[msg.conversation_id] = (unreadByConversation[msg.conversation_id] || 0) + 1;
+          if (friendId) unreadByFriend[friendId] = (unreadByFriend[friendId] || 0) + 1;
+          else if (!isGroup) loadUnreadCounts(); // DM dont on ne connaît pas encore l'ami
+
+          updateMessagesBadge();
+          renderConversationSidebar();
+          showToast('💬 ' + t('messages.new_message_toast'), 'success');
         }
+      )
+      .on('postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'group_invitations', filter: 'invited_user_id=eq.' + currentUser.id },
+        () => loadGroupInvitations()
       )
       .subscribe();
   });
+}
 }
 
 function teardownMessagesRealtime() {
