@@ -2128,6 +2128,20 @@ function getDateKey(d) {
 }
 
 function appendBubble(text, isMe, createdAt) {
+  // Message système (ex. "X a quitté le groupe")
+  if (typeof text === 'string' && /a quitté le groupe/i.test(text)) {
+    const box = document.getElementById('chatMessages');
+    if (!box) return;
+    const placeholder = box.querySelector('.chat-placeholder');
+    if (placeholder) box.innerHTML = '';
+    const div = document.createElement('div');
+    div.className = 'chat-system-msg';
+    div.textContent = text;
+    box.appendChild(div);
+    box.scrollTop = box.scrollHeight;
+    return;
+  }
+
   const box = document.getElementById('chatMessages');
   if (!box) return;
   const placeholder = box.querySelector('.chat-placeholder');
@@ -2543,6 +2557,7 @@ function updateMessagesBadge() {
   const badge = document.getElementById('messagesBadge');
   const badgeBottom = document.getElementById('messagesBadgeBottom');
   const navBtn = document.getElementById('navMessages');
+  const homeMsgBtn = document.getElementById('homeBtnMessages');
   const total = getTotalUnreadCount();
   const label = total > 99 ? '99+' : String(total);
   const show = total > 0;
@@ -2564,6 +2579,11 @@ function updateMessagesBadge() {
   if (bottomMsg) {
     if (show) bottomMsg.classList.add('has-unread-messages');
     else bottomMsg.classList.remove('has-unread-messages');
+  }
+  // Gros bouton Messages de la page d'accueil : clignote comme les avatars
+  if (homeMsgBtn) {
+    if (show) homeMsgBtn.classList.add('nav-blink', 'has-unread-messages');
+    else homeMsgBtn.classList.remove('nav-blink', 'has-unread-messages');
   }
 }
 
@@ -2849,6 +2869,7 @@ async function renderFriendsUI() {
         const restrictedDot = ''; // plus de pastille premium-only
         card.innerHTML =
           '<div style="text-align:center;margin-bottom:12px;position:relative">' +
+            '<button type="button" class="friend-remove-btn" title="Supprimer cet ami" onclick="event.stopPropagation();removeFriend(\'' + f.id + '\')" aria-label="Supprimer ami">×</button>' +
             '<div class="avatar' + (isUnread ? ' conv-blink' : '') + '" style="width:80px;height:80px;font-size:40px;margin:0 auto 8px;position:relative;display:inline-flex;align-items:center;justify-content:center">' + emoji + '</div>' +
             restrictedDot +
             '<h3 style="margin:0" class="' + (isUnread ? 'conv-name-unread' : '') + '">' + escapeHtml(f.name) + (isUnread ? ' <span class="conv-unread-count">' + unread + '</span>' : '') + '</h3>' +
@@ -2919,6 +2940,50 @@ async function refuseFriendRequest(reqId) {
   showToast('Demande refusée', 'success');
   await renderFriendsUI();
 }
+
+
+async function removeFriend(friendId) {
+  if (!currentUser || !friendId) return;
+  const p = getProfileById(friendId);
+  const name = (p && p.display_name) || 'cet AUPYGO';
+  const ok = confirm('Supprimer ' + name + ' de tes amis ?\n\nVous ne pourrez plus vous envoyer de messages privés (sauf si vous vous rajoutez plus tard).');
+  if (!ok) return;
+
+  try {
+    // Supprime les deux sens de la relation (from/to)
+    const { error } = await supabaseClient
+      .from('friendships')
+      .delete()
+      .or('and(from_id.eq.' + currentUser.id + ',to_id.eq.' + friendId + '),and(from_id.eq.' + friendId + ',to_id.eq.' + currentUser.id + ')');
+    if (error) throw error;
+
+    // Nettoyage local
+    myFriends = myFriends.filter(f => f.id !== friendId);
+    delete dmConversationCache[friendId];
+    delete unreadByFriend[friendId];
+    // On ne touche pas à la conversation_members pour garder l\'historique éventuel
+
+    showToast('Ami supprimé', 'success');
+    await renderFriendsUI();
+    if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+    updateMessagesBadge();
+    updateFriendsBadge();
+
+    // Si on était en DM avec cet ami, on ferme le chat
+    if (activeConversation && activeConversation.type === 'dm' && activeConversation.id === friendId) {
+      closeMobileChat();
+      activeConversation = null;
+      const header = document.getElementById('chatHeader');
+      if (header) header.innerHTML = 'Sélectionne une conversation à gauche';
+      const box = document.getElementById('chatMessages');
+      if (box) box.innerHTML = '<div class="chat-placeholder"><p>Sélectionne une conversation</p></div>';
+    }
+  } catch (e) {
+    console.error('removeFriend:', e);
+    showToast('Erreur suppression ami : ' + (e.message || e), 'error');
+  }
+}
+
 
 async function sendFriendRequestToMember(memberId) {
   if (!currentUser) {
@@ -3053,9 +3118,25 @@ async function openConversation(type, id, name) {
 
   const header = document.getElementById('chatHeader');
   if (header) {
+    let actions = '';
+    if (type === 'group') {
+      const g = myGroups.find(x => x.id === id);
+      const isCreator = g && g.created_by === currentUser.id;
+      actions =
+        '<div class="chat-header-actions">' +
+          '<button type="button" class="btn-icon" onclick="leaveGroup(\'' + id + '\')" title="Quitter le groupe">🚪 Quitter</button>' +
+          (isCreator ? '<button type="button" class="btn-icon danger" onclick="showDeleteGroupConfirm(\'' + id + '\')" title="Supprimer le groupe">🗑️ Supprimer</button>' : '') +
+        '</div>';
+    } else if (type === 'dm') {
+      actions =
+        '<div class="chat-header-actions">' +
+          '<button type="button" class="btn-icon danger" onclick="removeFriend(\'' + id + '\')" title="Supprimer cet ami">× Ami</button>' +
+        '</div>';
+    }
     header.innerHTML =
       '<button type="button" class="chat-back-btn" onclick="closeMobileChat()" aria-label="Retour">←</button>' +
-      '<span class="chat-header-title">' + escapeHtml((type === 'group' ? '👥 ' : '💬 ') + name) + '</span>';
+      '<span class="chat-header-title">' + escapeHtml((type === 'group' ? '👥 ' : '💬 ') + name) + '</span>' +
+      actions;
   }
 
   const input = document.getElementById('messageInput');
@@ -3638,14 +3719,56 @@ function onCleanupRefuse() {
 /* =========================
    SUPPRESSION D'UN GROUPE (créateur uniquement)
 ========================= */
-async function deleteGroup(convId) {
-  const g = myGroups.find(x => x.id === convId);
-  const ok = confirm(
-    'Supprimer le groupe « ' + (g ? g.title : '') + ' » ?\n\n' +
-    'Tous les messages seront supprimés pour tous les membres. Cette action est définitive.'
-  );
-  if (!ok) return;
 
+/* =========================
+   QUITTER / SUPPRIMER UN GROUPE
+========================= */
+
+function showDeleteGroupConfirm(convId) {
+  const g = myGroups.find(x => x.id === convId);
+  const title = (g && g.title) || 'ce groupe';
+  // Crée le modal s\'il n\'existe pas
+  let overlay = document.getElementById('deleteGroupOverlay');
+  if (!overlay) {
+    overlay = document.createElement('div');
+    overlay.id = 'deleteGroupOverlay';
+    overlay.className = 'aupygo-cleanup-overlay';
+    overlay.innerHTML =
+      '<div class="aupygo-cleanup-box">' +
+        '<h3>⚠️ Attention</h3>' +
+        '<p id="deleteGroupBody"></p>' +
+        '<div class="aupygo-cleanup-actions">' +
+          '<button type="button" class="btn btn-secondary" id="deleteGroupNoBtn">Non</button>' +
+          '<button type="button" class="btn btn-primary" style="background:#dc2626;border-color:#dc2626" id="deleteGroupYesBtn">Oui, supprimer</button>' +
+        '</div>' +
+      '</div>';
+    document.body.appendChild(overlay);
+  }
+  const body = document.getElementById('deleteGroupBody');
+  if (body) {
+    body.innerHTML = 'Vous êtes sur le point de <strong>supprimer le groupe « ' + escapeHtml(title) + ' »</strong>.<br><br>' +
+      'Tous les messages seront définitivement supprimés pour tous les membres. Cette action est irréversible.';
+  }
+  const yesBtn = document.getElementById('deleteGroupYesBtn');
+  const noBtn = document.getElementById('deleteGroupNoBtn');
+  if (yesBtn) {
+    yesBtn.onclick = async function() {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+      await doDeleteGroup(convId);
+    };
+  }
+  if (noBtn) {
+    noBtn.onclick = function() {
+      overlay.classList.remove('open');
+      document.body.style.overflow = '';
+    };
+  }
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+async function doDeleteGroup(convId) {
   const { error } = await supabaseClient.rpc('delete_group_conversation', { p_conv_id: convId });
   if (error) {
     console.error('deleteGroup:', error);
@@ -3657,10 +3780,74 @@ async function deleteGroup(convId) {
   delete unreadByConversation[convId];
   myGroups = myGroups.filter(x => x.id !== convId);
   updateMessagesBadge();
-  closeMobileChat();
+  if (activeConversation && activeConversation.type === 'group' && activeConversation.id === convId) {
+    closeMobileChat();
+    activeConversation = null;
+    const header = document.getElementById('chatHeader');
+    if (header) header.innerHTML = 'Sélectionne une conversation à gauche';
+    const box = document.getElementById('chatMessages');
+    if (box) box.innerHTML = '<div class="chat-placeholder"><p>Sélectionne une conversation</p></div>';
+  }
   renderConversationSidebar();
   showToast('Groupe supprimé', 'success');
 }
+
+// Alias pour compatibilité
+async function deleteGroup(convId) {
+  showDeleteGroupConfirm(convId);
+}
+
+async function leaveGroup(convId) {
+  if (!currentUser || !convId) return;
+  const g = myGroups.find(x => x.id === convId);
+  const title = (g && g.title) || 'ce groupe';
+  const ok = confirm('Quitter le groupe « ' + title + ' » ?\n\nTu ne recevras plus les messages de ce groupe.');
+  if (!ok) return;
+
+  try {
+    // 1. Récupère le nom affiché pour le message système
+    let displayName = 'Un membre';
+    try {
+      const { data: me } = await supabaseClient.from('profiles').select('display_name').eq('id', currentUser.id).single();
+      if (me && me.display_name) displayName = me.display_name;
+    } catch (e) {}
+
+    // 2. Message système avant de quitter
+    await supabaseClient.from('messages').insert({
+      conversation_id: convId,
+      sender_id: currentUser.id,
+      content: '👋 ' + displayName + ' a quitté le groupe'
+    });
+
+    // 3. Retire le membership
+    const { error } = await supabaseClient
+      .from('conversation_members')
+      .delete()
+      .eq('conversation_id', convId)
+      .eq('user_id', currentUser.id);
+    if (error) throw error;
+
+    myConversationIds.delete(convId);
+    delete unreadByConversation[convId];
+    myGroups = myGroups.filter(x => x.id !== convId);
+    updateMessagesBadge();
+
+    if (activeConversation && activeConversation.type === 'group' && activeConversation.id === convId) {
+      closeMobileChat();
+      activeConversation = null;
+      const header = document.getElementById('chatHeader');
+      if (header) header.innerHTML = 'Sélectionne une conversation à gauche';
+      const box = document.getElementById('chatMessages');
+      if (box) box.innerHTML = '<div class="chat-placeholder"><p>Sélectionne une conversation</p></div>';
+    }
+    renderConversationSidebar();
+    showToast('Tu as quitté le groupe', 'success');
+  } catch (e) {
+    console.error('leaveGroup:', e);
+    showToast('Erreur en quittant le groupe : ' + (e.message || e), 'error');
+  }
+}
+
 
 /* =========================
    INVITATIONS DE GROUPE (popup Accepter / Refuser)
@@ -3949,9 +4136,17 @@ function injectMessagingNotificationStyles() {
     }
     #navMessages.nav-blink,
     .conv-avatar.conv-blink,
-    .avatar.conv-blink {
+    .avatar.conv-blink,
+    #homeBtnMessages.nav-blink {
       animation: aupygoBlinkBlue 1.1s ease-in-out infinite;
+    }
+    #navMessages.nav-blink,
+    .conv-avatar.conv-blink,
+    .avatar.conv-blink {
       border-radius: 50%;
+    }
+    #homeBtnMessages.nav-blink {
+      box-shadow: 0 0 0 0 rgba(37, 99, 235, 0.65);
     }
     #navMessages { position: relative; }
     #messagesBadge {
@@ -3971,6 +4166,56 @@ function injectMessagingNotificationStyles() {
       text-align: center;
     }
     #messagesBadge.show { display: block; }
+    .friend-remove-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 28px;
+      height: 28px;
+      border: none;
+      border-radius: 50%;
+      background: #fee2e2;
+      color: #dc2626;
+      font-size: 18px;
+      line-height: 28px;
+      cursor: pointer;
+      z-index: 2;
+      padding: 0;
+    }
+    .friend-remove-btn:hover {
+      background: #fecaca;
+    }
+    .chat-system-msg {
+      text-align: center;
+      color: var(--muted, #64748b);
+      font-size: 13px;
+      font-style: italic;
+      margin: 10px 0;
+      padding: 6px 12px;
+    }
+    .chat-header-actions {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+      align-items: center;
+    }
+    .chat-header-actions .btn-icon {
+      background: transparent;
+      border: 1px solid var(--border, #e2e8f0);
+      border-radius: 8px;
+      padding: 4px 10px;
+      font-size: 13px;
+      cursor: pointer;
+      color: var(--text, #0f172a);
+    }
+    .chat-header-actions .btn-icon.danger {
+      color: #dc2626;
+      border-color: #fecaca;
+    }
+    .chat-header-actions .btn-icon:hover {
+      background: #f1f5f9;
+    }
+
     .conv-name-unread {
       color: #2563eb;
       font-weight: 700;
