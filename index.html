@@ -252,13 +252,15 @@
     <div class="home-buttons-grid">
 
       <!-- Agenda privé -->
-      <button type="button" class="home-btn" onclick="go('agenda')">
+      <button type="button" class="home-btn" id="homeBtnAgenda" onclick="go('agenda')">
+        <span class="home-btn-badge" id="homeAgendaBadge">0</span>
         <span class="home-btn-icon">📅</span>
         <span class="home-btn-label" data-i18n="dashboard.agenda">Agenda privé</span>
       </button>
 
-      <!-- Messagerie (avec cadenas Premium) -->
+      <!-- Messagerie -->
       <button type="button" class="home-btn" id="homeBtnMessages" onclick="go('messages')">
+        <span class="home-btn-badge" id="homeMessagesBadge">0</span>
         <span class="home-btn-icon">💬</span>
         <span class="home-btn-label" data-i18n="dashboard.messages">Messagerie</span>
         <span class="home-btn-lock" id="homeMessagesLock" style="display:none">
@@ -266,35 +268,40 @@
         </span>
       </button>
 
-      <!-- Carte -->
-      <button type="button" class="home-btn" onclick="go('map')">
+      <!-- Carte / Découvrir -->
+      <button type="button" class="home-btn" id="homeBtnMap" onclick="go('map')">
+        <span class="home-btn-badge" id="homeMapBadge">0</span>
         <span class="home-btn-icon">🗺️</span>
         <span class="home-btn-label" data-i18n="dashboard.discover">Carte</span>
+        <span class="home-btn-online" id="homeMapOnline"></span>
       </button>
 
       <!-- Amis -->
-      <button type="button" class="home-btn" onclick="go('reconnect')">
+      <button type="button" class="home-btn" id="homeBtnFriends" onclick="go('reconnect')">
+        <span class="home-btn-badge" id="homeFriendsBadge">0</span>
         <span class="home-btn-icon">🤝</span>
         <span class="home-btn-label" data-i18n="dashboard.friends">Amis</span>
+        <span class="home-btn-online" id="homeFriendsOnline"></span>
       </button>
 
       <!-- Sorties / Événements -->
-      <button type="button" class="home-btn" onclick="go('events')">
+      <button type="button" class="home-btn" id="homeBtnEvents" onclick="go('events')">
+        <span class="home-btn-badge" id="homeEventsBadge">0</span>
         <span class="home-btn-icon">🎉</span>
         <span class="home-btn-label" data-i18n="dashboard.events">Sorties / Événements</span>
       </button>
 
       <!-- Profil -->
-      <button type="button" class="home-btn" onclick="go('profile')">
+      <button type="button" class="home-btn" id="homeBtnProfile" onclick="go('profile')">
         <span class="home-btn-icon">👤</span>
         <span class="home-btn-label" data-i18n="dashboard.profile">Profil</span>
-      </button> 
-         <!-- abonnement -->
-         <button type="button" class="home-btn" onclick="go('plans')">
-  <span class="home-btn-icon">💎</span>
-  <span class="home-btn-label">Mon abonnement</span>
-</button>
-         
+      </button>
+
+      <!-- Abonnement -->
+      <button type="button" class="home-btn" id="homeBtnPlans" onclick="go('plans')">
+        <span class="home-btn-icon">💎</span>
+        <span class="home-btn-label">Mon abonnement</span>
+      </button>
 
     </div>
 
