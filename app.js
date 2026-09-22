@@ -2607,7 +2607,7 @@ function renderSpecialEventsHero(list) {
       '<span class="fw" style="top:40%;right:8px;animation-delay:1.1s">🎆</span>' +
       '<div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:.04em;opacity:.9">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
       '<h3>' + (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</h3>' +
-      '<p>📍 ' + escapeHtml(ev.address || '') + '</p>' +
+      '<p class="event-address-link" style="position:relative;z-index:1" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
       '<p>🕐 ' + dateStr + '</p>' +
       (ev.description ? '<p style="opacity:.9">' + escapeHtml(ev.description) + '</p>' : '') +
       '<div class="special-actions">' + actions + '</div></div>';
@@ -2701,7 +2701,7 @@ function buildEventCardHtml(ev, locked) {
     '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
     '<span class="badge">' + typeLabel + (visBadge ? ' · ' + visBadge : '') + priceBadge + '</span>' +
     '<h3>' + escapeHtml(ev.title) + '</h3>' +
-    '<p class="event-details">📍 ' + escapeHtml(ev.address || '') + '</p>' +
+    '<p class="event-details event-address-link" role="link" tabindex="0" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
     '<p class="event-details">🕐 ' + dateStr + ' · 👥 ' + (ev.max_participants || '?') + '</p>' +
     (showPrice && isPaidEv ? '<p class="event-details">💶 ' + priceLabel + '</p>' : '') +
     (!isPast ? '<p class="event-seats">' + seatsText + '</p>' : '') +
@@ -2800,6 +2800,25 @@ function typeToLabel(type) {
     special: 'Événement AUPYGO', other: 'Autre'
   };
   return map[type] || type || 'Sortie';
+}
+
+
+/** Ouvre l'adresse d'une sortie dans Google Maps (nouvel onglet) */
+function googleMapsUrl(address) {
+  const q = (address || '').trim();
+  if (!q) return '#';
+  return 'https://www.google.com/maps/search/?api=1&query=' + encodeURIComponent(q);
+}
+function openEventLocation(address, ev) {
+  // Empêche le clic de déclencher d'autres actions parentes
+  if (ev && ev.preventDefault) ev.preventDefault();
+  if (ev && ev.stopPropagation) ev.stopPropagation();
+  const url = googleMapsUrl(address);
+  if (!url || url === '#') {
+    showToast('Adresse manquante', 'error');
+    return;
+  }
+  window.open(url, '_blank', 'noopener,noreferrer');
 }
 
 function formatEventDate(iso) {
@@ -3255,7 +3274,7 @@ function updateMyAgendaList() {
     return `<div class="agenda-item ${role} urgency-${urg}" data-event-id="${ev.id}" style="padding:10px 12px;border-radius:10px;margin-bottom:8px;border-bottom:1px solid var(--border,#eee)">
       <strong>${ev.emoji || '🎉'} ${escapeHtml(ev.title)}</strong>
       <span class="agenda-role-pill">${roleLabel}</span><br>
-      <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · ${escapeHtml(ev.address || '')}</span><br>
+      <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · <a href="#" class="event-address-link" onclick="openEventLocation('${String(ev.address||'').replace(/'/g, "\'")}', event); return false;">📍 ${escapeHtml(ev.address || '')}</a></span><br>
       <span class="event-seats">${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}</span>
     </div>`;
   }).join('');
@@ -5967,7 +5986,6 @@ function injectMessagingNotificationStyles() {
     }
     .event.urgency-past,
     .event.urgency-expired {
-      pointer-events: none;
       cursor: default;
     }
     .event.urgency-past .btn,
@@ -5975,6 +5993,11 @@ function injectMessagingNotificationStyles() {
     .event.urgency-past .btn-icon-delete,
     .event.urgency-expired .btn-icon-delete {
       display: none !important;
+      pointer-events: none;
+    }
+    .event.urgency-past .event-address-link,
+    .event.urgency-expired .event-address-link {
+      pointer-events: auto;
     }
 
     #eventDayFilterBar {
