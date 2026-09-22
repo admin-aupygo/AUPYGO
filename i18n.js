@@ -708,48 +708,79 @@ const I18N = {
 ========================= */
 
 function t(key) {
-  const lang = (typeof currentLang !== 'undefined' ? currentLang : 'fr') || 'fr';
-  return (I18N[lang] && I18N[lang][key]) || (I18N.fr && I18N.fr[key]) || key;
+  if (!key) return '';
+  const lang = (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'fr';
+  const dict = (typeof I18N !== 'undefined' && I18N[lang]) ? I18N[lang] : null;
+  if (dict && Object.prototype.hasOwnProperty.call(dict, key) && dict[key] != null) return dict[key];
+  if (I18N && I18N.fr && I18N.fr[key] != null) return I18N.fr[key];
+  return key;
 }
 
 function hasKey(key) {
-  const l = (typeof currentLang !== 'undefined' ? currentLang : 'fr') || 'fr';
-  return !!((I18N[l] && I18N[l][key]) || (I18N.fr && I18N.fr[key]));
+  if (!key || typeof I18N === 'undefined') return false;
+  const lang = (typeof currentLang !== 'undefined' && currentLang) ? currentLang : 'fr';
+  if (I18N[lang] && Object.prototype.hasOwnProperty.call(I18N[lang], key)) return true;
+  if (I18N.fr && Object.prototype.hasOwnProperty.call(I18N.fr, key)) return true;
+  return false;
 }
 
 function applyI18n(lang) {
-  if (!lang) lang = (typeof currentLang !== 'undefined' ? currentLang : 'fr') || 'fr';
+  if (typeof I18N === 'undefined') {
+    console.warn('[AUPYGO] I18N dictionary missing');
+    return;
+  }
+  if (!lang || !I18N[lang]) lang = (typeof currentLang !== 'undefined' && I18N[currentLang]) ? currentLang : 'fr';
+  // Assign on window so every script sees the same value
+  try { window.currentLang = lang; } catch (e) {}
   currentLang = lang;
   document.documentElement.lang = lang;
 
-  // Ignore les clés inconnues pour laisser le texte français du HTML en place
   document.querySelectorAll('[data-i18n]').forEach(el => {
     const key = el.getAttribute('data-i18n');
-    if (key && hasKey(key)) el.textContent = t(key);
+    if (!key) return;
+    const val = t(key);
+    if (val && val !== key) el.textContent = val;
   });
 
   document.querySelectorAll('[data-i18n-html]').forEach(el => {
     const key = el.getAttribute('data-i18n-html');
-    if (key && hasKey(key)) el.innerHTML = t(key);
+    if (!key) return;
+    const val = t(key);
+    if (val && val !== key) el.innerHTML = val;
   });
 
   document.querySelectorAll('[data-i18n-title]').forEach(el => {
     const key = el.getAttribute('data-i18n-title');
-    if (key && hasKey(key)) el.title = t(key);
+    if (!key) return;
+    const val = t(key);
+    if (val && val !== key) el.title = val;
   });
 
   document.querySelectorAll('[data-i18n-aria]').forEach(el => {
     const key = el.getAttribute('data-i18n-aria');
-    if (key && hasKey(key)) el.setAttribute('aria-label', t(key));
+    if (!key) return;
+    const val = t(key);
+    if (val && val !== key) el.setAttribute('aria-label', val);
   });
 
   document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
     const key = el.getAttribute('data-i18n-placeholder');
-    if (key && hasKey(key)) el.placeholder = t(key);
+    if (!key) return;
+    const val = t(key);
+    if (val && val !== key) el.placeholder = val;
   });
 
-  // Re-génère les portions dynamiques qui dépendent du forfait / de l'état,
-  // pour qu'elles restent traduites après un changement de langue à la volée.
-  if (typeof updatePlanUI === 'function') updatePlanUI();
-  if (typeof applyMapRestrictions === 'function') applyMapRestrictions();
+  // Sync the language <select>
+  const sel = document.getElementById('language');
+  if (sel && sel.value !== lang) sel.value = lang;
+
+  if (typeof updatePlanUI === 'function') {
+    try { updatePlanUI(); } catch (e) {}
+  }
+  if (typeof applyMapRestrictions === 'function') {
+    try { applyMapRestrictions(); } catch (e) {}
+  }
+  if (typeof updateOnlineCount === 'function') {
+    try { updateOnlineCount(); } catch (e) {}
+  }
 }
