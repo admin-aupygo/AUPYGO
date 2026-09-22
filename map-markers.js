@@ -31,6 +31,7 @@
 
   window.renderMarkers = function renderMarkers() {
     if (typeof markersLayer === 'undefined' || !markersLayer) return;
+    if (typeof L === 'undefined') return;
     markersLayer.clearLayers();
 
     var maxKm = (!currentUser) ? null : RADIUS[currentPlan];
@@ -82,7 +83,7 @@
         var member = item.member;
         var isMe = item.isMe;
         var pos = offsetInCell(item.lat, item.lng, member.id, index, stack.length);
-        var kind = getMarkerKind(member);
+        var kind = (typeof getMarkerKind === 'function') ? getMarkerKind(member) : 'offline';
         var m = L.marker([pos[0], pos[1]], {
           icon: createIcon(member.gender, kind),
           zIndexOffset: isMe ? 1000 : index
@@ -104,7 +105,12 @@
     });
   };
 
-  if (typeof map !== 'undefined' && map && typeof markersLayer !== 'undefined' && markersLayer) {
-    try { window.renderMarkers(); } catch (e) { console.warn('map-markers init', e); }
+  // Ne pas planter si la carte n’est pas encore initialisée
+  try {
+    if (typeof map !== 'undefined' && map && typeof markersLayer !== 'undefined' && markersLayer) {
+      window.renderMarkers();
+    }
+  } catch (e) {
+    console.warn('map-markers init', e);
   }
 })();
