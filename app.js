@@ -1435,6 +1435,19 @@ function openMemberProfile(memberId) {
   const isRefusedContact = friendStatus === 'refused' || friendStatus === 'rejected' || friendStatus === 'declined';
   const canSendFriendRequest = !!currentUser && !friendStatus; // pas encore de relation
 
+  // Amitié refusée (dans les deux sens) : popup minimale, aucune fiche visible
+  if (isRefusedContact) {
+    box.classList.add('member-refused-gray');
+    box.innerHTML =
+      '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
+      '<div class="member-avatar" style="filter:grayscale(1);opacity:0.55">' + emoji + '</div>' +
+      '<h3 style="margin-top:8px">🚫 Amitié refusée</h3>' +
+      '<p style="font-size:14px;color:#6b7280;margin:10px 0 0;line-height:1.45">Cette personne a refusé (ou tu as refusé) la demande d’ami.<br>Tu ne peux plus voir sa fiche ni échanger avec elle.</p>';
+    overlay.classList.add('open');
+    document.body.style.overflow = 'hidden';
+    return;
+  }
+
   let onlineHtml = '';
   if (showOnline) {
     if (member.online) {
@@ -4252,6 +4265,9 @@ async function acceptFriendRequest(reqId) {
   await loadFriendshipsFromDB();
   await renderFriendsUI();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+  if (typeof renderMarkers === 'function') {
+    try { renderMarkers(); } catch (e) {}
+  }
 }
 
 async function refuseFriendRequest(reqId) {
@@ -4287,6 +4303,9 @@ async function refuseFriendRequest(reqId) {
   showToast('Demande refusée', 'success');
   await loadFriendshipsFromDB();
   await renderFriendsUI();
+  if (typeof renderMarkers === 'function') {
+    try { renderMarkers(); } catch (e) {}
+  }
 }
 
 
