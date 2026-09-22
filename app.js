@@ -2124,9 +2124,31 @@ function selectEventEmoji(btn, skipAdvance) {
   btn.classList.add('selected');
   selectedEventEmoji = btn.getAttribute('data-emoji') || '🎉';
   selectedEventType = btn.getAttribute('data-type') || 'other';
+  // Restaurant : limite stricte 10 AupyGo + case réservation
+  applyRestaurantLimitsUI();
   if (!skipAdvance) {
-    // Dès qu'un type est choisi, on avance automatiquement à l'étape suivante
     setTimeout(() => eventWizardNext(), 180);
+  }
+}
+
+function applyRestaurantLimitsUI() {
+  const maxEl = document.getElementById('createEventMax');
+  const resWrap = document.getElementById('restaurantReservationWrap');
+  const isRest = selectedEventType === 'restaurant';
+  if (maxEl) {
+    if (isRest) {
+      maxEl.value = '10';
+      maxEl.max = '10';
+      maxEl.min = '2';
+    } else {
+      maxEl.max = '200';
+      if (parseInt(maxEl.value, 10) > 200) maxEl.value = '8';
+    }
+  }
+  if (resWrap) resWrap.style.display = isRest ? 'block' : 'none';
+  if (!isRest) {
+    const cb = document.getElementById('restaurantReservationDone');
+    if (cb) cb.checked = false;
   }
 }
 
@@ -2192,7 +2214,30 @@ function eventWizardValidate(stepName) {
   }
   if (stepName === 'max') {
     const maxP = parseInt(document.getElementById('createEventMax').value, 10) || 0;
-    if (maxP < 2 || maxP > 200) { showToast('Nombre de personnes entre 2 et 200.', 'error'); return false; }
+    const isRest = selectedEventType === 'restaurant';
+    const hardMax = isRest ? 10 : 200;
+    if (maxP < 2 || maxP > hardMax) {
+      showToast(isRest
+        ? 'Restaurant : maximum 10 AupyGo.'
+        : 'Nombre de personnes entre 2 et 200.', 'error');
+      return false;
+    }
+    if (isRest) {
+      const cb = document.getElementById('restaurantReservationDone');
+      if (!cb || !cb.checked) {
+        const ok = confirm(
+          '🍝 Sortie restaurant limitée à 10 AupyGo.\n\n' +
+          'As-tu bien fait la réservation au restaurant ?\n\n' +
+          'OK = oui, réservation faite — continuer\n' +
+          'Annuler = non, je confirme d’abord la réservation'
+        );
+        if (!ok) {
+          showToast('Merci de confirmer la réservation avant de continuer.', 'error');
+          return false;
+        }
+        if (cb) cb.checked = true;
+      }
+    }
     return true;
   }
   if (stepName === 'price') {
@@ -2281,6 +2326,7 @@ function openCreateEventModal(visibility) {
 
   // Réinitialise le wizard à la première étape
   eventWizardStep = 0;
+  if (typeof applyRestaurantLimitsUI === 'function') applyRestaurantLimitsUI();
   eventWizardRender();
 
   const ov = document.getElementById('createEventOverlay');
@@ -2306,9 +2352,25 @@ async function submitCreateEvent() {
     showToast('Remplis le nom, la date et l’adresse.', 'error');
     return;
   }
-  if (maxP < 2 || maxP > 200) {
-    showToast('Nombre de personnes entre 2 et 200.', 'error');
+  const isRest = selectedEventType === 'restaurant';
+  const hardMax = isRest ? 10 : 200;
+  if (maxP < 2 || maxP > hardMax) {
+    showToast(isRest ? 'Restaurant : maximum 10 AupyGo.' : 'Nombre de personnes entre 2 et 200.', 'error');
     return;
+  }
+  if (isRest) {
+    const cb = document.getElementById('restaurantReservationDone');
+    if (!cb || !cb.checked) {
+      const ok = confirm(
+        '🍝 Merci de confirmer la réservation au restaurant avant de continuer.\n\n' +
+        'OK = réservation faite — publier\nAnnuler = revenir en arrière'
+      );
+      if (!ok) {
+        showToast('Merci de confirmer la réservation avant de continuer.', 'error');
+        return;
+      }
+      if (cb) cb.checked = true;
+    }
   }
   const eventDate = new Date(dateVal);
   if (isNaN(eventDate.getTime()) || eventDate.getTime() < Date.now() - 3600000) {
@@ -2388,12 +2450,13 @@ async function loadAndRenderEvents() {
   try {
     // Load future events
     const nowIso = new Date().toISOString();
+    const fromIso = new Date(Date.now() - 24 * 3600 * 1000).toISOString();
     let { data: events, error } = await supabaseClient
       .from('events')
       .select('*, event_participants(user_id)')
-      .gte('event_date', nowIso)
+      .gte('event_date', fromIso)
       .order('event_date', { ascending: true })
-      .limit(50);
+      .limit(80);
 
     if (error) {
       console.warn('events load:', error);
@@ -2468,8 +2531,10 @@ async function loadAndRenderEvents() {
           actionHtml = '<button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>';
         }
 
+        const urgCard = getEventUrgency(ev);
+        const roleCard = eventRoleClass(ev);
         return `
-        <div class="event" data-event-id="${ev.id}">
+        <div class="event ${roleCard} urgency-${urgCard}" data-event-id="${ev.id}">
           <div class="event-cover">${ev.emoji || '🎉'}</div>
           <div class="event-body">
             <span class="badge">${typeLabel}${visBadge ? ' · ' + visBadge : ''}${priceBadge}</span>
@@ -2493,6 +2558,8 @@ async function loadAndRenderEvents() {
     renderCommunityAgenda(visible);
     updateMyAgendaList();
     if (typeof updateEventsBadge === 'function') updateEventsBadge();
+    if (typeof startEventUrgencyWatch === 'function') startEventUrgencyWatch();
+    if (typeof applyEventUrgencyUI === 'function') applyEventUrgencyUI();
   } catch (e) {
     console.error(e);
     grid.innerHTML = '<p class="footer-muted" style="grid-column:1/-1">Erreur de chargement.</p>';
@@ -2529,19 +2596,21 @@ function escapeHtml(s) {
 function renderEventsAgenda(events) {
   const cal = document.getElementById('eventsAgendaCalendar');
   if (!cal) return;
-  if (!events || !events.length) {
+  const list = (events || []).filter(ev => getEventUrgency(ev) !== 'expired');
+  if (!list.length) {
     cal.innerHTML = '<p class="footer-muted" id="eventsAgendaEmpty" style="grid-column:1/-1;padding:12px">Aucune sortie pour le moment. Sois le premier à en organiser une !</p>';
     return;
   }
-  // Group by day number for a simple week-style view of upcoming
   const headers = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d =>
     `<div class="day"><strong>${d}</strong></div>`).join('');
-  const items = events.slice(0, 14).map(ev => {
+  const items = list.slice(0, 14).map(ev => {
     const d = new Date(ev.event_date);
     const dayNum = d.getDate();
     const parts = ev.event_participants || [];
     const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
-    return `<div class="day"><strong>${dayNum}</strong>
+    const role = eventRoleClass(ev);
+    const urg = getEventUrgency(ev);
+    return `<div class="day ${role} urgency-${urg}" data-event-id="${ev.id}"><strong>${dayNum}</strong>
       <div class="agenda-event">${ev.emoji || '🎉'} ${escapeHtml(ev.title)}
         <span style="font-size:11px;opacity:.8">(${remaining} pl.)</span>
       </div></div>`;
@@ -2552,7 +2621,10 @@ function renderEventsAgenda(events) {
 function renderCommunityAgenda(events) {
   const cal = document.getElementById('agendaCalendar');
   if (!cal) return;
-  const publicOnes = (events || []).filter(e => e.visibility === 'public' || e.visibility === 'admin' || e.visibility === 'admin_only');
+  const publicOnes = (events || []).filter(e =>
+    (e.visibility === 'public' || e.visibility === 'admin' || e.visibility === 'admin_only') &&
+    getEventUrgency(e) !== 'expired'
+  );
   if (!publicOnes.length) {
     cal.innerHTML = '<p class="footer-muted" id="agendaCommunityEmpty" style="grid-column:1/-1;padding:12px">Aucune sortie communautaire pour le moment.</p>';
     return;
@@ -2563,7 +2635,9 @@ function renderCommunityAgenda(events) {
     const d = new Date(ev.event_date);
     const parts = ev.event_participants || [];
     const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
-    return `<div class="day"><strong>${d.getDate()}</strong>
+    const role = eventRoleClass(ev);
+    const urg = getEventUrgency(ev);
+    return `<div class="day ${role} urgency-${urg}" data-event-id="${ev.id}"><strong>${d.getDate()}</strong>
       <div class="agenda-event">${ev.emoji || '🎉'} ${escapeHtml(ev.title)} (${remaining} pl.)</div></div>`;
   }).join('');
   cal.innerHTML = headers + items;
@@ -2680,10 +2754,34 @@ async function deleteRealEvent(eventId) {
   }
 }
 
+function getEventUrgency(ev) {
+  if (!ev || !ev.event_date) return 'none';
+  const t = new Date(ev.event_date).getTime();
+  if (isNaN(t)) return 'none';
+  const now = Date.now();
+  const msLeft = t - now;
+  if (msLeft <= -24 * 3600 * 1000) return 'expired'; // +24h passé → à retirer
+  if (msLeft <= 0) return 'past'; // commencé / passé (<24h)
+  if (msLeft <= 5 * 60 * 1000) return 'red'; // ≤ 5 min
+  if (msLeft <= 45 * 60 * 1000) return 'orange'; // ≤ 45 min
+  return 'upcoming';
+}
+
+function eventRoleClass(ev) {
+  if (!currentUser || !ev) return '';
+  if (ev.creator_id === currentUser.id) return 'agenda-role-organizer'; // vert
+  if (myEventIds.has(ev.id)) return 'agenda-role-participant'; // bleu
+  return '';
+}
+
 function updateMyAgendaList() {
   const list = document.getElementById('myAgendaList');
   if (!list) return;
-  const mine = (cachedEvents || []).filter(ev => myEventIds.has(ev.id));
+  // Mes sorties : participations + celles que j'organise, visibles jusqu'à +24h après l'heure
+  const mine = (cachedEvents || []).filter(ev => {
+    if (!myEventIds.has(ev.id) && !(currentUser && ev.creator_id === currentUser.id)) return false;
+    return getEventUrgency(ev) !== 'expired';
+  });
   if (!mine.length) {
     list.innerHTML = '<p class="footer-muted" data-i18n="agenda.empty">Tu n’as encore rejoint aucune sortie.</p>';
     return;
@@ -2691,12 +2789,100 @@ function updateMyAgendaList() {
   list.innerHTML = mine.map(ev => {
     const parts = ev.event_participants || [];
     const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
-    return `<div class="agenda-item" style="padding:10px 0;border-bottom:1px solid var(--border,#eee)">
-      <strong>${ev.emoji || '🎉'} ${escapeHtml(ev.title)}</strong><br>
+    const urg = getEventUrgency(ev);
+    const role = eventRoleClass(ev);
+    const roleLabel = role === 'agenda-role-organizer' ? '👑 Organisateur' : '✅ Participant';
+    return `<div class="agenda-item ${role} urgency-${urg}" data-event-id="${ev.id}" style="padding:10px 12px;border-radius:10px;margin-bottom:8px;border-bottom:1px solid var(--border,#eee)">
+      <strong>${ev.emoji || '🎉'} ${escapeHtml(ev.title)}</strong>
+      <span class="agenda-role-pill">${roleLabel}</span><br>
       <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · ${escapeHtml(ev.address || '')}</span><br>
       <span class="event-seats">${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}</span>
     </div>`;
   }).join('');
+}
+
+/** Applique classes d'urgence (clignotement) sur cartes sorties + agenda */
+function applyEventUrgencyUI() {
+  const all = cachedEvents || [];
+  all.forEach(ev => {
+    const urg = getEventUrgency(ev);
+    document.querySelectorAll('[data-event-id="' + ev.id + '"]').forEach(el => {
+      el.classList.remove('urgency-upcoming', 'urgency-orange', 'urgency-red', 'urgency-past', 'urgency-expired');
+      el.classList.add('urgency-' + urg);
+    });
+  });
+  // Boutons navigation / home : clignotent selon la plus urgente de MES sorties
+  const mine = all.filter(ev => myEventIds.has(ev.id) || (currentUser && ev.creator_id === currentUser.id));
+  let worst = 'none';
+  mine.forEach(ev => {
+    const u = getEventUrgency(ev);
+    if (u === 'red') worst = 'red';
+    else if (u === 'orange' && worst !== 'red') worst = 'orange';
+  });
+  const btnSelectors = [
+    '[data-nav="events"]',
+    '[data-nav="agenda"]',
+    '#homeBtnEvents',
+    '#homeBtnAgenda',
+    '#navMessages' // no - only events/agenda
+  ];
+  document.querySelectorAll('[data-nav="events"], [data-nav="agenda"], #homeBtnEvents, #homeBtnAgenda').forEach(btn => {
+    btn.classList.remove('event-blink-orange', 'event-blink-red', 'event-btn-past');
+    if (worst === 'red') btn.classList.add('event-blink-red');
+    else if (worst === 'orange') btn.classList.add('event-blink-orange');
+  });
+}
+
+/** Rappels 2h avant (Notification API + toast), une seule fois par événement */
+function checkEventReminders() {
+  if (!currentUser) return;
+  const mine = (cachedEvents || []).filter(ev =>
+    myEventIds.has(ev.id) || (currentUser && ev.creator_id === currentUser.id)
+  );
+  let sent = {};
+  try { sent = JSON.parse(localStorage.getItem('aupygo_event_reminders') || '{}'); } catch (e) {}
+  const now = Date.now();
+  mine.forEach(ev => {
+    const t = new Date(ev.event_date).getTime();
+    if (isNaN(t)) return;
+    const msLeft = t - now;
+    // Fenêtre 2h → 1h55 pour éviter de rater le tick
+    if (msLeft > 0 && msLeft <= 2 * 3600 * 1000 && msLeft > 1.9 * 3600 * 1000) {
+      if (sent[ev.id]) return;
+      sent[ev.id] = now;
+      const title = (ev.emoji || '🎉') + ' Rappel AUPYGO';
+      const body = 'Dans 2 h : « ' + (ev.title || 'ta sortie') + ' » — ' + formatEventDate(ev.event_date);
+      showToast(title + ' — ' + body, 'success');
+      try {
+        if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
+          new Notification(title, { body: body, tag: 'aupygo-ev-' + ev.id });
+        }
+      } catch (e) {}
+    }
+  });
+  try { localStorage.setItem('aupygo_event_reminders', JSON.stringify(sent)); } catch (e) {}
+}
+
+function requestEventNotificationPermission() {
+  try {
+    if (typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      Notification.requestPermission();
+    }
+  } catch (e) {}
+}
+
+let eventUrgencyTimer = null;
+function startEventUrgencyWatch() {
+  if (eventUrgencyTimer) return;
+  requestEventNotificationPermission();
+  const tick = () => {
+    applyEventUrgencyUI();
+    checkEventReminders();
+    // Rafraîchir listes si un événement vient de dépasser +24h
+    if (typeof updateMyAgendaList === 'function') updateMyAgendaList();
+  };
+  tick();
+  eventUrgencyTimer = setInterval(tick, 30000); // 30 s
 }
 
 // Compatibility stubs (anciens boutons)
@@ -5073,7 +5259,58 @@ function injectMessagingNotificationStyles() {
       font-weight: 600;
       font-size: 14px;
     }
-  `;
+  
+    /* === Agenda rôles + urgence sorties === */
+    .agenda-role-organizer,
+    .event.agenda-role-organizer {
+      background: linear-gradient(135deg, rgba(34,197,94,0.12), rgba(34,197,94,0.04));
+      border-left: 4px solid #22c55e;
+    }
+    .agenda-role-participant,
+    .event.agenda-role-participant {
+      background: linear-gradient(135deg, rgba(59,130,246,0.12), rgba(59,130,246,0.04));
+      border-left: 4px solid #3b82f6;
+    }
+    .agenda-role-pill {
+      display: inline-block;
+      font-size: 11px;
+      margin-left: 6px;
+      padding: 2px 8px;
+      border-radius: 999px;
+      background: rgba(0,0,0,0.06);
+      font-weight: 600;
+    }
+    .agenda-role-organizer .agenda-role-pill { background: rgba(34,197,94,0.2); color: #15803d; }
+    .agenda-role-participant .agenda-role-pill { background: rgba(59,130,246,0.2); color: #1d4ed8; }
+
+    @keyframes aupygoBlinkOrange {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
+      50% { box-shadow: 0 0 0 8px rgba(249, 115, 22, 0); }
+    }
+    @keyframes aupygoBlinkRed {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.75); }
+      50% { box-shadow: 0 0 0 8px rgba(239, 68, 68, 0); }
+    }
+    .urgency-orange,
+    .event-blink-orange {
+      animation: aupygoBlinkOrange 1.1s ease-in-out infinite;
+      outline: 2px solid #f97316;
+    }
+    .urgency-red,
+    .event-blink-red {
+      animation: aupygoBlinkRed 0.7s ease-in-out infinite;
+      outline: 2px solid #ef4444;
+    }
+    .urgency-past,
+    .urgency-expired {
+      opacity: 0.45;
+      filter: grayscale(0.85);
+      animation: none !important;
+      outline: none !important;
+    }
+    .day.urgency-orange .agenda-event { color: #c2410c; font-weight: 700; }
+    .day.urgency-red .agenda-event { color: #b91c1c; font-weight: 700; }
+`;
   document.head.appendChild(style);
 }
 
