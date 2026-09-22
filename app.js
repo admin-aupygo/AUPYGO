@@ -2842,14 +2842,14 @@ async function openSpecialGuestList(eventId) {
     '<div class="special-guest-modal" role="dialog" aria-modal="true">' +
       '<button type="button" class="member-modal-close" onclick="closeSpecialGuestList()" aria-label="Fermer">×</button>' +
       '<div class="special-guest-head">' +
-        '<h3>📋 Liste d\\'invités</h3>' +
+        '<h3>📋 Liste des invités</h3>' +
         '<p class="special-guest-sub">' + escapeHtml(title) + '</p>' +
         '<p class="special-guest-count">' + lines.length + ' participant' + (lines.length > 1 ? 's' : '') + '</p>' +
       '</div>' +
       '<div class="special-guest-list">' +
         (lines.length
           ? lines.map(l => l.html).join('')
-          : '<p class="footer-muted" style="padding:16px;text-align:center">Personne n\\'est encore inscrit.</p>') +
+          : '<p class="footer-muted" style="padding:16px;text-align:center">Personne n’est encore inscrit.</p>') +
       '</div>' +
       (lines.length
         ? '<div class="special-guest-actions">' +
@@ -2874,7 +2874,7 @@ function closeSpecialGuestList() {
 function copySpecialGuestList() {
   const ov = document.getElementById('specialGuestListOverlay');
   if (!ov) return;
-  const title = ov.dataset.guestTitle || 'Liste d\\'invités';
+  const title = ov.dataset.guestTitle || 'Liste des invités';
   const body = ov.dataset.guestPlain || '';
   const full = title + '\\n\\n' + body;
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2966,7 +2966,7 @@ function buildEventCardHtml(ev, locked) {
   } else if (isCreator) {
     const canEdit = typeof canEditOwnEvent === 'function' && canEditOwnEvent(ev);
     const guestBtn = isSpecial
-      ? '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="openSpecialGuestList(\'' + ev.id + '\')">📋 Liste d\'invités (' + count + ')</button>'
+      ? '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="openSpecialGuestList(\'' + ev.id + '\')">📋 Liste des invités (' + count + ')</button>'
       : '';
     actionHtml = guestBtn + '<div class="event-actions-row">' +
       '<button class="btn btn-secondary" disabled>👑 Toi</button>' +
