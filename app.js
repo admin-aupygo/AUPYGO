@@ -2632,7 +2632,6 @@ function renderSpecialEventsHero(list) {
     const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
     if (!isSpecial) return false;
     if (getEventUrgency(ev) === 'expired' || getEventUrgency(ev) === 'past') return false;
-    // Pas encore de choix : ni inscrit ni créateur
     if (myEventIds.has(ev.id)) return false;
     if (currentUser && ev.creator_id === currentUser.id) return false;
     return true;
@@ -2642,28 +2641,100 @@ function renderSpecialEventsHero(list) {
     host.style.display = 'none';
     return;
   }
+  // Bandeau compact (rappel) sous le pop-up
   host.style.display = 'block';
   host.innerHTML = specials.map(ev => {
     const dateStr = formatEventDate(ev.event_date);
-    const locked = currentPlan === 'FREE';
-    const actions = locked
-      ? '<button class="btn btn-locked" onclick="go(\'plans\')">🔒 STANDARD pour participer</button>' +
-        '<button class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button>'
-      : '<button class="btn btn-primary" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>' +
-        '<button class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button>';
-    return '<div class="special-event-banner" data-event-id="' + ev.id + '">' +
+    return '<div class="special-event-banner" data-event-id="' + ev.id + '" style="cursor:pointer" onclick="openSpecialInviteModal(\'' + ev.id + '\')">' +
       '<span class="fw" style="top:8px;left:12px">🎆</span>' +
       '<span class="fw" style="top:12px;right:18px;animation-delay:.4s">🎇</span>' +
-      '<span class="fw" style="bottom:10px;left:40%;animation-delay:.8s">✨</span>' +
-      '<span class="fw" style="top:40%;right:8px;animation-delay:1.1s">🎆</span>' +
-      '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:.06em;color:#fbbf24;opacity:.85">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
+      '<div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:.04em;opacity:.9">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
       '<h3>' + (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</h3>' +
-      '<p class="event-address-link" style="position:relative;z-index:1" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
-      '<p>🕐 ' + dateStr + '</p>' +
-      (ev.description ? '<p style="opacity:.9">' + escapeHtml(ev.description) + '</p>' : '') +
-      '<div class="special-actions">' + actions + '</div></div>';
+      '<p style="position:relative;z-index:1;opacity:.9">🕐 ' + dateStr + ' · Touche pour ouvrir l’invitation</p></div>';
   }).join('');
+
+  // Ouvre automatiquement la carte d'invitation (une fois par event / session)
+  try {
+    const first = specials[0];
+    const key = 'aupygo_special_invite_shown_' + first.id;
+    if (!sessionStorage.getItem(key)) {
+      sessionStorage.setItem(key, '1');
+      setTimeout(function () { openSpecialInviteModal(first.id); }, 400);
+    }
+  } catch (e) {}
 }
+
+function ensureSpecialInviteOverlay() {
+  let ov = document.getElementById('specialInviteOverlay');
+  if (ov) return ov;
+  ov = document.createElement('div');
+  ov.id = 'specialInviteOverlay';
+  ov.className = 'special-invite-overlay';
+  ov.onclick = function (e) {
+    if (e.target === ov) closeSpecialInviteModal();
+  };
+  ov.innerHTML =
+    '<div class="special-invite-stage" id="specialInviteStage">' +
+      '<div class="special-invite-flaps" aria-hidden="true">' +
+        '<div class="special-invite-flap tl"></div>' +
+        '<div class="special-invite-flap tr"></div>' +
+        '<div class="special-invite-flap bl"></div>' +
+        '<div class="special-invite-flap br"></div>' +
+      '</div>' +
+      '<div class="special-invite-card" id="specialInviteCard"></div>' +
+    '</div>';
+  document.body.appendChild(ov);
+  return ov;
+}
+
+function openSpecialInviteModal(eventId) {
+  const ev = (cachedEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  const ov = ensureSpecialInviteOverlay();
+  const card = document.getElementById('specialInviteCard');
+  if (!card) return;
+
+  const dateStr = formatEventDate(ev.event_date);
+  const locked = currentPlan === 'FREE';
+  const emoji = ev.emoji || '🎉';
+  let actions = '';
+  if (locked) {
+    actions =
+      '<button type="button" class="btn btn-accept" onclick="closeSpecialInviteModal();go(\'plans\')">🔒 STANDARD pour participer</button>' +
+      '<button type="button" class="btn btn-refuse" onclick="refuseEvent(\'' + ev.id + '\');closeSpecialInviteModal()">✖️ Refuser</button>';
+  } else {
+    actions =
+      '<button type="button" class="btn btn-accept" onclick="joinRealEvent(\'' + ev.id + '\');closeSpecialInviteModal()">✨ Participer</button>' +
+      '<button type="button" class="btn btn-refuse" onclick="refuseEvent(\'' + ev.id + '\');closeSpecialInviteModal()">✖️ Refuser</button>';
+  }
+
+  card.innerHTML =
+    '<button type="button" class="special-invite-close" onclick="closeSpecialInviteModal()" aria-label="Fermer">×</button>' +
+    '<div class="special-invite-sparks" aria-hidden="true">' +
+      '<span></span><span></span><span></span><span></span>' +
+      '<span></span><span></span><span></span><span></span>' +
+    '</div>' +
+    '<div class="special-invite-avatar">' + emoji + '</div>' +
+    '<div class="si-badge">⭐ Invitation spéciale AUPYGO</div>' +
+    '<h3>' + escapeHtml(ev.title || 'Événement spécial') + '</h3>' +
+    '<p class="si-meta" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" style="cursor:pointer">📍 ' + escapeHtml(ev.address || '') + '</p>' +
+    '<p class="si-meta">🕐 ' + dateStr + '</p>' +
+    (ev.description ? '<p class="si-desc">' + escapeHtml(ev.description) + '</p>' : '') +
+    '<div class="special-invite-actions">' + actions + '</div>';
+
+  // Reset animations by reflow
+  ov.classList.remove('open');
+  void ov.offsetWidth;
+  ov.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSpecialInviteModal() {
+  const ov = document.getElementById('specialInviteOverlay');
+  if (ov) ov.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
 
 function getEventsForSelectedDay(list) {
   const src = list || cachedEvents || [];
@@ -6013,48 +6084,276 @@ function injectMessagingNotificationStyles() {
     .special-event-banner {
       position: relative;
       overflow: hidden;
-      border-radius: 18px;
-      padding: 22px 18px;
-      margin-bottom: 14px;
-      /* Feu d'artifice soft : fond sombre + lueurs or/ambre */
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 40%, rgba(251, 191, 36, 0.22), transparent 55%),
-        radial-gradient(ellipse 50% 40% at 20% 70%, rgba(245, 158, 11, 0.12), transparent 50%),
-        radial-gradient(ellipse 40% 35% at 80% 25%, rgba(253, 224, 71, 0.10), transparent 45%),
-        linear-gradient(160deg, #0f0e17 0%, #1a1525 50%, #12101a 100%);
-      color: #fef3c7;
-      border: 1px solid rgba(251, 191, 36, 0.25);
-      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
-      animation: none;
+      border-radius: 16px;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #4c1d95, #7c3aed 40%, #db2777);
+      color: #fff;
+      box-shadow: 0 8px 28px rgba(124, 58, 237, 0.35);
+      animation: specialPulse 2s ease-in-out infinite;
+    }
+    @keyframes specialPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.01); }
     }
     .special-event-banner .fw {
       position: absolute;
-      font-size: 16px;
-      animation: fwSoft 4s ease-in-out infinite;
-      opacity: 0.45;
+      font-size: 22px;
+      animation: fwFloat 2.5s ease-in-out infinite;
+      opacity: 0.9;
       pointer-events: none;
-      filter: grayscale(0.15) brightness(1.1);
     }
-    @keyframes fwSoft {
-      0%, 100% { transform: translateY(0); opacity: 0.35; }
-      50% { transform: translateY(-6px); opacity: 0.55; }
+    @keyframes fwFloat {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+      50% { transform: translateY(-12px) scale(1.2); opacity: 1; }
     }
     .special-event-banner h3 {
       margin: 8px 0 6px;
-      font-size: 20px;
+      font-size: 22px;
       position: relative;
       z-index: 1;
-      color: #fde68a;
-      letter-spacing: -0.02em;
     }
     .special-event-banner p {
       margin: 4px 0;
       font-size: 14px;
       position: relative;
       z-index: 1;
-      color: rgba(254, 243, 199, 0.88);
-      opacity: 1;
+      opacity: 0.95;
     }
+
+    /* ===== Invitation spéciale AUPYGO — carte dépliable 4 volets ===== */
+    .special-invite-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(15, 10, 30, 0.72);
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px);
+    }
+    .special-invite-overlay.open { display: flex; }
+
+    .special-invite-stage {
+      position: relative;
+      width: min(380px, 92vw);
+      perspective: 1200px;
+    }
+
+    /* 4 volets qui s'ouvrent depuis le centre */
+    .special-invite-flaps {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      z-index: 2;
+    }
+    .special-invite-flap {
+      position: absolute;
+      background: linear-gradient(135deg, #6d28d9, #a21caf);
+      box-shadow: 0 4px 20px rgba(0,0,0,0.25);
+    }
+    .special-invite-flap.tl {
+      top: 0; left: 0; width: 50%; height: 50%;
+      transform-origin: 100% 100%;
+      border-radius: 20px 0 0 0;
+    }
+    .special-invite-flap.tr {
+      top: 0; right: 0; width: 50%; height: 50%;
+      transform-origin: 0 100%;
+      border-radius: 0 20px 0 0;
+    }
+    .special-invite-flap.bl {
+      bottom: 0; left: 0; width: 50%; height: 50%;
+      transform-origin: 100% 0;
+      border-radius: 0 0 0 20px;
+    }
+    .special-invite-flap.br {
+      bottom: 0; right: 0; width: 50%; height: 50%;
+      transform-origin: 0 0;
+      border-radius: 0 0 20px 0;
+    }
+    .special-invite-overlay.open .special-invite-flap.tl {
+      animation: flapOpenTL 0.85s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+    }
+    .special-invite-overlay.open .special-invite-flap.tr {
+      animation: flapOpenTR 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.05s forwards;
+    }
+    .special-invite-overlay.open .special-invite-flap.bl {
+      animation: flapOpenBL 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.08s forwards;
+    }
+    .special-invite-overlay.open .special-invite-flap.br {
+      animation: flapOpenBR 0.85s cubic-bezier(0.22, 1, 0.36, 1) 0.12s forwards;
+    }
+    @keyframes flapOpenTL {
+      0% { transform: rotateX(0) rotateY(0); opacity: 1; }
+      100% { transform: rotateX(95deg) rotateY(-25deg); opacity: 0.15; }
+    }
+    @keyframes flapOpenTR {
+      0% { transform: rotateX(0) rotateY(0); opacity: 1; }
+      100% { transform: rotateX(95deg) rotateY(25deg); opacity: 0.15; }
+    }
+    @keyframes flapOpenBL {
+      0% { transform: rotateX(0) rotateY(0); opacity: 1; }
+      100% { transform: rotateX(-95deg) rotateY(-25deg); opacity: 0.15; }
+    }
+    @keyframes flapOpenBR {
+      0% { transform: rotateX(0) rotateY(0); opacity: 1; }
+      100% { transform: rotateX(-95deg) rotateY(25deg); opacity: 0.15; }
+    }
+
+    .special-invite-card {
+      position: relative;
+      z-index: 1;
+      background: linear-gradient(160deg, #4c1d95 0%, #7c3aed 45%, #db2777 100%);
+      color: #fff;
+      border-radius: 22px;
+      padding: 28px 24px 22px;
+      text-align: center;
+      box-shadow: 0 24px 60px rgba(76, 29, 149, 0.45), 0 0 0 1px rgba(255,255,255,0.12) inset;
+      opacity: 0;
+      transform: scale(0.82);
+      animation: inviteCardIn 0.7s cubic-bezier(0.22, 1, 0.36, 1) 0.35s forwards;
+      overflow: hidden;
+    }
+    @keyframes inviteCardIn {
+      0% { opacity: 0; transform: scale(0.82) translateY(12px); }
+      100% { opacity: 1; transform: scale(1) translateY(0); }
+    }
+
+    /* Artifices CSS (particules) */
+    .special-invite-sparks {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      overflow: hidden;
+      border-radius: 22px;
+    }
+    .special-invite-sparks span {
+      position: absolute;
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #fde68a;
+      box-shadow: 0 0 8px #fbbf24, 0 0 14px rgba(251, 191, 36, 0.5);
+      opacity: 0;
+      animation: sparkFly 2.4s ease-out infinite;
+    }
+    .special-invite-sparks span:nth-child(1) { left: 12%; top: 70%; animation-delay: 0.2s; background: #f9a8d4; }
+    .special-invite-sparks span:nth-child(2) { left: 28%; top: 75%; animation-delay: 0.5s; }
+    .special-invite-sparks span:nth-child(3) { left: 48%; top: 78%; animation-delay: 0.15s; background: #c4b5fd; }
+    .special-invite-sparks span:nth-child(4) { left: 68%; top: 72%; animation-delay: 0.7s; }
+    .special-invite-sparks span:nth-child(5) { left: 82%; top: 68%; animation-delay: 0.35s; background: #f9a8d4; }
+    .special-invite-sparks span:nth-child(6) { left: 18%; top: 20%; animation-delay: 0.9s; }
+    .special-invite-sparks span:nth-child(7) { left: 75%; top: 18%; animation-delay: 1.1s; background: #fde68a; }
+    .special-invite-sparks span:nth-child(8) { left: 50%; top: 12%; animation-delay: 0.4s; background: #e9d5ff; }
+    @keyframes sparkFly {
+      0% { opacity: 0; transform: translate(0, 0) scale(0.4); }
+      15% { opacity: 1; }
+      100% { opacity: 0; transform: translate(var(--dx, 0), var(--dy, -80px)) scale(0.2); }
+    }
+    .special-invite-sparks span:nth-child(odd) { --dx: -30px; --dy: -90px; }
+    .special-invite-sparks span:nth-child(even) { --dx: 35px; --dy: -70px; }
+
+    .special-invite-avatar {
+      width: 72px;
+      height: 72px;
+      margin: 0 auto 12px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #fde68a, #f472b6);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 36px;
+      border: 3px solid rgba(255,255,255,0.85);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.25);
+      position: relative;
+      z-index: 1;
+      animation: avatarPop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) 0.55s both;
+    }
+    @keyframes avatarPop {
+      0% { transform: scale(0); opacity: 0; }
+      100% { transform: scale(1); opacity: 1; }
+    }
+
+    .special-invite-card .si-badge {
+      font-size: 11px;
+      font-weight: 800;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      opacity: 0.9;
+      margin-bottom: 6px;
+      position: relative;
+      z-index: 1;
+    }
+    .special-invite-card h3 {
+      margin: 0 0 8px;
+      font-size: 22px;
+      letter-spacing: -0.02em;
+      position: relative;
+      z-index: 1;
+    }
+    .special-invite-card .si-meta {
+      font-size: 14px;
+      opacity: 0.92;
+      line-height: 1.45;
+      margin: 4px 0;
+      position: relative;
+      z-index: 1;
+    }
+    .special-invite-card .si-desc {
+      font-size: 13px;
+      opacity: 0.85;
+      margin: 10px 0 16px;
+      position: relative;
+      z-index: 1;
+    }
+    .special-invite-actions {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      position: relative;
+      z-index: 1;
+    }
+    .special-invite-actions .btn {
+      width: 100%;
+      border: 0;
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-weight: 700;
+      cursor: pointer;
+      font-size: 14px;
+    }
+    .special-invite-actions .btn-accept {
+      background: #fff;
+      color: #6d28d9;
+    }
+    .special-invite-actions .btn-accept:hover { background: #f5f3ff; }
+    .special-invite-actions .btn-refuse {
+      background: transparent;
+      color: rgba(255,255,255,0.85);
+      border: 1px solid rgba(255,255,255,0.35);
+    }
+    .special-invite-actions .btn-refuse:hover {
+      background: rgba(255,255,255,0.1);
+    }
+    .special-invite-close {
+      position: absolute;
+      top: 10px;
+      right: 12px;
+      z-index: 3;
+      width: 36px;
+      height: 36px;
+      border: 0;
+      border-radius: 50%;
+      background: rgba(255,255,255,0.18);
+      color: #fff;
+      font-size: 18px;
+      cursor: pointer;
+      font-weight: 700;
+    }
+    .special-invite-close:hover { background: rgba(255,255,255,0.3); }
     .special-event-banner .special-actions {
       display: flex;
       flex-wrap: wrap;
