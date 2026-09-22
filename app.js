@@ -1527,7 +1527,7 @@ function closeMemberProfile() {
 }
 
 
-async function getFriendshipStatusWith(memberId) {
+function getFriendshipStatusWith(memberId) {
   if (!currentUser || !memberId) return null;
   const list = typeof friendshipsCache !== 'undefined' ? friendshipsCache : [];
   const row = (list || []).find(f =>
