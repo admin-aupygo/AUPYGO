@@ -2,9 +2,44 @@
    SUPABASE
 ========================= */
 
-// SUPABASE_URL / SUPABASE_ANON_KEY viennent de js/config.js
-const { createClient } = supabase;
-const supabaseClient = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+// SUPABASE_URL / SUPABASE_ANON_KEY viennent de config.js (chargé AVANT ce fichier)
+// Init défensive : ne plante plus si config absent / double chargement
+var supabaseClient = null;
+(function initSupabase() {
+  try {
+    var url = (typeof SUPABASE_URL !== 'undefined') ? SUPABASE_URL : null;
+    var key = (typeof SUPABASE_ANON_KEY !== 'undefined') ? SUPABASE_ANON_KEY : null;
+    if (!url || !key) {
+      console.error('[AUPYGO] config.js manquant : SUPABASE_URL / SUPABASE_ANON_KEY non définis');
+      return;
+    }
+    if (typeof supabase === 'undefined' || !supabase.createClient) {
+      console.error('[AUPYGO] librairie supabase-js non chargée');
+      return;
+    }
+    supabaseClient = supabase.createClient(url, key);
+  } catch (e) {
+    console.error('[AUPYGO] init Supabase:', e);
+  }
+})();
+
+/* =========================
+   ÉTAT GLOBAL (déclaré tôt pour éviter TDZ sur onclick HTML)
+========================= */
+var currentUser = (typeof currentUser !== 'undefined') ? currentUser : null;
+var turnstileToken = (typeof turnstileToken !== 'undefined') ? turnstileToken : null;
+var currentPlan = (typeof currentPlan !== 'undefined') ? currentPlan : (localStorage.getItem('aupygo_plan') || 'FREE');
+var profileLocked = (typeof profileLocked !== 'undefined') ? profileLocked : false;
+var profileSaved = (typeof profileSaved !== 'undefined') ? profileSaved : false;
+var authIntent = (typeof authIntent !== 'undefined') ? authIntent : null;
+var map = (typeof map !== 'undefined') ? map : null;
+var markersLayer = (typeof markersLayer !== 'undefined') ? markersLayer : null;
+var profiles = (typeof profiles !== 'undefined') ? profiles : [];
+var friendshipsCache = (typeof friendshipsCache !== 'undefined') ? friendshipsCache : [];
+var selectedGender = (typeof selectedGender !== 'undefined') ? selectedGender : null;
+if (typeof currentLang === 'undefined') {
+  var currentLang = localStorage.getItem('aupygo_lang') || 'fr';
+}
 
 /* =========================
    DONNÉES & GÉOLOCALISATION
@@ -183,19 +218,19 @@ function onMapClickForGeo() {
 }
 
 
-let currentPlan = localStorage.getItem('aupygo_plan') || 'FREE';
-let currentUser = null;
-let profileLocked = false;
-let profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
+currentPlan = localStorage.getItem('aupygo_plan') || currentPlan || 'FREE';
+currentUser = null;
+profileLocked = false;
+profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
 
 // Indique l'action en cours (login/signup) pour que le listener
 // onAuthStateChange sache où rediriger, sans entrer en conflit avec
 // un appel direct à refreshAuthUI().
-let authIntent = null; // 'login' | 'signup' | null
+authIntent = null; // 'login' | 'signup' | null
 
 // Jeton anti-robot Cloudflare Turnstile, généré côté client au moment
 // où l'utilisateur valide le contrôle (souvent automatique et invisible).
-let turnstileToken = null;
+turnstileToken = null;
 
 function onTurnstileVerified(token) {
   turnstileToken = token;
@@ -205,8 +240,9 @@ function onTurnstileExpired() {
   turnstileToken = null;
 }
 
-let map, markersLayer;
-let profiles = []; // profils avec approx_lat / approx_lng (global)
+map = map || null;
+markersLayer = markersLayer || null;
+profiles = profiles || []; // profils avec approx_lat / approx_lng (global)
 
 
 /* =========================
@@ -1702,7 +1738,7 @@ function showSharedEvents(friendName) {
    PROFIL
 ========================= */
 
-let selectedGender = null;
+selectedGender = null;
 
 
 function selectGender(btn,gender) {
@@ -3580,7 +3616,7 @@ async function loadConversationHistory(conversationId) {
    Stocké dans Supabase (table "friendships") — partagé entre tous les appareils
 ========================= */
 
-let friendshipsCache = []; // lignes { id, from_id, to_id, status, created_at } depuis Supabase
+friendshipsCache = []; // lignes { id, from_id, to_id, status, created_at } depuis Supabase
 
 // Recharge les demandes/amitiés de l'utilisateur connecté depuis Supabase
 async function loadFriendshipsFromDB() {
@@ -5325,7 +5361,7 @@ async function respondGroupInvite(accept) {
 ========================= */
 
 // Langue courante (persistée). Déclarée ici pour éviter ReferenceError au chargement.
-let currentLang = localStorage.getItem('aupygo_lang') || 'fr';
+currentLang = localStorage.getItem('aupygo_lang') || 'fr';
 
 // Applique les traductions via i18n.js (applyI18n) + zones dynamiques
 function applyTranslations() {
