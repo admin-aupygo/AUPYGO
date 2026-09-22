@@ -2213,6 +2213,15 @@ function eventWizardValidate(stepName) {
     return true;
   }
   if (stepName === 'max') {
+    const vis = (document.getElementById('createEventVisibility') || {}).value || 'public';
+    if (vis === 'friends') {
+      const ids = getSelectedFriendIdsForEvent();
+      if (!ids.length) {
+        showToast('Sélectionne au moins un ami à inviter.', 'error');
+        return false;
+      }
+      return true;
+    }
     const maxP = parseInt(document.getElementById('createEventMax').value, 10) || 0;
     const isRest = selectedEventType === 'restaurant';
     const hardMax = isRest ? 10 : 200;
@@ -2327,6 +2336,7 @@ function openCreateEventModal(visibility) {
   // Réinitialise le wizard à la première étape
   eventWizardStep = 0;
   if (typeof applyRestaurantLimitsUI === 'function') applyRestaurantLimitsUI();
+  if (typeof applyCreateEventModeUI === 'function') applyCreateEventModeUI();
   eventWizardRender();
 
   const ov = document.getElementById('createEventOverlay');
@@ -2383,13 +2393,27 @@ async function submitCreateEvent() {
   }
 
   try {
+    // Seul l'admin peut monétiser
     const paidRadio = document.querySelector('input[name="eventPaid"]:checked');
-    const isPaid = !!(paidRadio && paidRadio.value === 'paid');
+    let isPaid = !!(paidRadio && paidRadio.value === 'paid') && isAdmin();
     let price = 0;
     if (isPaid) {
       price = parseFloat((document.getElementById('createEventPrice') || {}).value) || 0;
     }
     const isSpecial = visibility === 'admin' || selectedEventType === 'special';
+    const isFriends = visibility === 'friends';
+    const friendIds = isFriends ? getSelectedFriendIdsForEvent() : [];
+    if (isFriends && !friendIds.length) {
+      showToast('Sélectionne au moins un ami à inviter.', 'error');
+      return;
+    }
+    const isRest = selectedEventType === 'restaurant';
+    const resCb = document.getElementById('restaurantReservationDone');
+    const reservationConfirmed = !!(isRest && resCb && resCb.checked);
+    let finalMax = maxP;
+    if (isFriends) finalMax = Math.max(2, friendIds.length + 1);
+    if (isRest) finalMax = Math.min(finalMax, 10);
+
     const row = {
       creator_id: currentUser.id,
       title,
@@ -2398,11 +2422,12 @@ async function submitCreateEvent() {
       description: desc || null,
       address,
       event_date: eventDate.toISOString(),
-      max_participants: maxP,
+      max_participants: finalMax,
       visibility: isSpecial ? 'admin' : visibility,
       is_paid: isPaid,
       price: isPaid ? price : 0,
-      is_special_aupygo: isSpecial
+      is_special_aupygo: isSpecial,
+      reservation_confirmed: reservationConfirmed
     };
     const { data, error } = await supabaseClient.from('events').insert(row).select().single();
     if (error) {
@@ -2422,6 +2447,26 @@ async function submitCreateEvent() {
         user_id: currentUser.id
       });
     } catch (e) {}
+
+    // Invitations sortie entre amis
+    if (visibility === 'friends') {
+      const ids = getSelectedFriendIdsForEvent();
+      if (ids.length) {
+        const invites = ids.map(toId => ({
+          event_id: data.id,
+          from_id: currentUser.id,
+          to_id: toId,
+          status: 'pending'
+        }));
+        try {
+          const { error: invErr } = await supabaseClient.from('event_invitations').insert(invites);
+          if (invErr) console.warn('invitations:', invErr);
+          else showToast('📨 Invitations envoyées à ' + ids.length + ' ami(s)', 'success');
+        } catch (e) {
+          console.warn(e);
+        }
+      }
+    }
 
     closeCreateEventModal();
     showToast('✅ Sortie créée !', 'success');
@@ -2475,7 +2520,9 @@ async function loadAndRenderEvents() {
         return isAdmin() || ev.creator_id === currentUser.id;
       }
       if (ev.visibility === 'friends') {
-        return ev.creator_id === currentUser.id || friendIds.has(ev.creator_id);
+        const parts = ev.event_participants || [];
+        const isPart = parts.some(p => p.user_id === currentUser.id);
+        return ev.creator_id === currentUser.id || friendIds.has(ev.creator_id) || isPart;
       }
       return true;
     });
@@ -2512,9 +2559,13 @@ async function loadAndRenderEvents() {
         // annuler sa propre participation à tout moment.
         let actionHtml;
         if (isCreator) {
+          const canEdit = canEditOwnEvent(ev);
           actionHtml =
             '<div class="event-actions-row">' +
               '<button class="btn btn-secondary" style="margin-top:0" disabled>👑 Ton événement</button>' +
+              (canEdit
+                ? '<button type="button" class="btn btn-secondary" style="margin-top:0" onclick="editRealEvent(\'' + ev.id + '\')" title="Modifier">✏️</button>'
+                : '') +
               '<button type="button" class="btn-icon-delete" onclick="deleteRealEvent(\'' + ev.id + '\')" title="Supprimer la sortie" aria-label="Supprimer la sortie">🗑️</button>' +
             '</div>';
         } else if (isJoined) {
@@ -2556,6 +2607,7 @@ async function loadAndRenderEvents() {
 
     renderEventsAgenda(visible);
     renderCommunityAgenda(visible);
+    renderPersonalAgenda(visible);
     updateMyAgendaList();
     if (typeof updateEventsBadge === 'function') updateEventsBadge();
     if (typeof startEventUrgencyWatch === 'function') startEventUrgencyWatch();
@@ -2601,21 +2653,7 @@ function renderEventsAgenda(events) {
     cal.innerHTML = '<p class="footer-muted" id="eventsAgendaEmpty" style="grid-column:1/-1;padding:12px">Aucune sortie pour le moment. Sois le premier à en organiser une !</p>';
     return;
   }
-  const headers = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d =>
-    `<div class="day"><strong>${d}</strong></div>`).join('');
-  const items = list.slice(0, 14).map(ev => {
-    const d = new Date(ev.event_date);
-    const dayNum = d.getDate();
-    const parts = ev.event_participants || [];
-    const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
-    const role = eventRoleClass(ev);
-    const urg = getEventUrgency(ev);
-    return `<div class="day ${role} urgency-${urg}" data-event-id="${ev.id}"><strong>${dayNum}</strong>
-      <div class="agenda-event">${ev.emoji || '🎉'} ${escapeHtml(ev.title)}
-        <span style="font-size:11px;opacity:.8">(${remaining} pl.)</span>
-      </div></div>`;
-  }).join('');
-  cal.innerHTML = headers + items;
+  cal.innerHTML = buildWeekCalendarHtml(list);
 }
 
 function renderCommunityAgenda(events) {
@@ -2623,24 +2661,118 @@ function renderCommunityAgenda(events) {
   if (!cal) return;
   const publicOnes = (events || []).filter(e =>
     (e.visibility === 'public' || e.visibility === 'admin' || e.visibility === 'admin_only') &&
+    e.visibility !== 'friends' &&
     getEventUrgency(e) !== 'expired'
   );
   if (!publicOnes.length) {
     cal.innerHTML = '<p class="footer-muted" id="agendaCommunityEmpty" style="grid-column:1/-1;padding:12px">Aucune sortie communautaire pour le moment.</p>';
     return;
   }
-  const headers = ['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'].map(d =>
-    `<div class="day"><strong>${d}</strong></div>`).join('');
-  const items = publicOnes.slice(0, 14).map(ev => {
-    const d = new Date(ev.event_date);
-    const parts = ev.event_participants || [];
-    const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
-    const role = eventRoleClass(ev);
-    const urg = getEventUrgency(ev);
-    return `<div class="day ${role} urgency-${urg}" data-event-id="${ev.id}"><strong>${d.getDate()}</strong>
-      <div class="agenda-event">${ev.emoji || '🎉'} ${escapeHtml(ev.title)} (${remaining} pl.)</div></div>`;
-  }).join('');
-  cal.innerHTML = headers + items;
+  cal.innerHTML = buildWeekCalendarHtml(publicOnes);
+}
+
+
+/** Modification autorisée jusqu'à 1 h avant, sauf réservation restaurant confirmée */
+function canEditOwnEvent(ev) {
+  if (!ev || !currentUser || ev.creator_id !== currentUser.id) return false;
+  if (ev.reservation_confirmed) return false;
+  const t = new Date(ev.event_date).getTime();
+  if (isNaN(t)) return false;
+  return (t - Date.now()) > 60 * 60 * 1000;
+}
+
+async function editRealEvent(eventId) {
+  const ev = (cachedEvents || []).find(e => e.id === eventId);
+  if (!ev) return;
+  if (!canEditOwnEvent(ev)) {
+    showToast(ev.reservation_confirmed
+      ? 'Modification impossible : réservation restaurant confirmée.'
+      : 'Tu ne peux plus modifier (moins d’1 h avant le début).', 'error');
+    return;
+  }
+  const newTitle = prompt('Nouveau titre :', ev.title || '');
+  if (newTitle === null) return;
+  const newAddress = prompt('Nouvelle adresse :', ev.address || '');
+  if (newAddress === null) return;
+  const newDesc = prompt('Description (optionnel) :', ev.description || '');
+  if (newDesc === null) return;
+  try {
+    const { error } = await supabaseClient.from('events').update({
+      title: (newTitle || ev.title).trim(),
+      address: (newAddress || ev.address).trim(),
+      description: (newDesc || '').trim() || null
+    }).eq('id', eventId).eq('creator_id', currentUser.id);
+    if (error) throw error;
+    showToast('✅ Sortie mise à jour', 'success');
+    await loadAndRenderEvents();
+  } catch (e) {
+    showToast('Erreur : ' + (e.message || e), 'error');
+  }
+}
+
+async function loadEventInvitations() {
+  const card = document.getElementById('eventInvitesCard');
+  const list = document.getElementById('eventInvitesList');
+  if (!currentUser || !list) {
+    if (card) card.style.display = 'none';
+    return;
+  }
+  try {
+    const { data, error } = await supabaseClient
+      .from('event_invitations')
+      .select('id, event_id, from_id, status, events(id, title, emoji, event_date, address, visibility)')
+      .eq('to_id', currentUser.id)
+      .eq('status', 'pending');
+    if (error) {
+      if (card) card.style.display = 'none';
+      return;
+    }
+    const rows = data || [];
+    if (!rows.length) {
+      if (card) card.style.display = 'none';
+      list.innerHTML = '';
+      return;
+    }
+    if (card) card.style.display = 'block';
+    list.innerHTML = rows.map(inv => {
+      const ev = inv.events || {};
+      return `<div class="agenda-item" style="padding:12px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border,#eee)">
+        <strong>${ev.emoji || '🤝'} ${escapeHtml(ev.title || 'Sortie entre amis')}</strong><br>
+        <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · ${escapeHtml(ev.address || '')}</span>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="button" class="btn btn-primary" onclick="respondEventInvitation('${inv.id}','${inv.event_id}','accepted')">✅ Accepter</button>
+          <button type="button" class="btn btn-secondary" onclick="respondEventInvitation('${inv.id}','${inv.event_id}','refused')">✖️ Refuser</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    if (card) card.style.display = 'none';
+  }
+}
+
+async function respondEventInvitation(inviteId, eventId, status) {
+  if (!currentUser) return;
+  try {
+    const { error } = await supabaseClient
+      .from('event_invitations')
+      .update({ status })
+      .eq('id', inviteId)
+      .eq('to_id', currentUser.id);
+    if (error) throw error;
+    if (status === 'accepted') {
+      await supabaseClient.from('event_participants').insert({
+        event_id: eventId,
+        user_id: currentUser.id
+      });
+      showToast('🎉 Invitation acceptée — ajoutée à ton agenda !', 'success');
+    } else {
+      showToast('Invitation refusée.', 'success');
+    }
+    await loadEventInvitations();
+    await loadAndRenderEvents();
+  } catch (e) {
+    showToast('Erreur : ' + (e.message || e), 'error');
+  }
 }
 
 async function joinRealEvent(eventId) {
@@ -2769,9 +2901,115 @@ function getEventUrgency(ev) {
 
 function eventRoleClass(ev) {
   if (!currentUser || !ev) return '';
-  if (ev.creator_id === currentUser.id) return 'agenda-role-organizer'; // vert
-  if (myEventIds.has(ev.id)) return 'agenda-role-participant'; // bleu
+  if (ev.creator_id === currentUser.id) return 'agenda-role-organizer';
+  if (ev.visibility === 'friends') return 'agenda-role-friends';
+  if (myEventIds.has(ev.id)) return 'agenda-role-participant';
   return '';
+}
+
+function getCurrentWeekDays() {
+  const names = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
+  const now = new Date();
+  const day = (now.getDay() + 6) % 7;
+  const monday = new Date(now.getFullYear(), now.getMonth(), now.getDate() - day);
+  const out = [];
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(monday.getFullYear(), monday.getMonth(), monday.getDate() + i);
+    out.push({
+      name: names[i],
+      date: d,
+      dayNum: d.getDate(),
+      monthNum: d.getMonth() + 1,
+      key: d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0')
+    });
+  }
+  return out;
+}
+
+function eventDayKey(iso) {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function buildWeekCalendarHtml(events) {
+  const week = getCurrentWeekDays();
+  const byDay = {};
+  week.forEach(w => { byDay[w.key] = []; });
+  (events || []).forEach(ev => {
+    const k = eventDayKey(ev.event_date);
+    if (byDay[k]) byDay[k].push(ev);
+  });
+  const today = new Date();
+  return week.map(w => {
+    const items = byDay[w.key] || [];
+    const eventsHtml = items.map(ev => {
+      const role = eventRoleClass(ev);
+      const urg = getEventUrgency(ev);
+      return '<div class="agenda-event ' + role + ' urgency-' + urg + '" data-event-id="' + ev.id + '">' +
+        (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</div>';
+    }).join('');
+    const isToday = w.date.toDateString() === today.toDateString();
+    return '<div class="day' + (isToday ? ' day-today' : '') + '" data-day-key="' + w.key + '">' +
+      '<strong>' + w.name + ' <span class="day-date">' + String(w.dayNum).padStart(2, '0') + '/' + String(w.monthNum).padStart(2, '0') + '</span></strong>' +
+      (eventsHtml || '<span class="day-empty">—</span>') +
+      '</div>';
+  }).join('');
+}
+
+function renderPersonalAgenda(events) {
+  const cal = document.getElementById('personalCalendar');
+  if (!cal) return;
+  const mine = (events || []).filter(ev => {
+    if (getEventUrgency(ev) === 'expired') return false;
+    return myEventIds.has(ev.id) || (currentUser && ev.creator_id === currentUser.id);
+  });
+  cal.innerHTML = buildWeekCalendarHtml(mine);
+}
+
+
+function applyCreateEventModeUI() {
+  const vis = (document.getElementById('createEventVisibility') || {}).value || 'public';
+  const numWrap = document.getElementById('eventMaxNumberWrap');
+  const friendsWrap = document.getElementById('eventFriendsPickWrap');
+  const isFriends = vis === 'friends';
+  if (numWrap) numWrap.style.display = isFriends ? 'none' : 'block';
+  if (friendsWrap) friendsWrap.style.display = isFriends ? 'block' : 'none';
+  if (isFriends) renderEventFriendsPick();
+  const paidInput = document.getElementById('eventPaidPaid');
+  if (paidInput) {
+    const lab = paidInput.closest('label');
+    if (lab) lab.style.display = isAdmin() ? '' : 'none';
+  }
+  if (!isAdmin()) {
+    const free = document.getElementById('eventPaidFree');
+    if (free) free.checked = true;
+    onEventPaidChange();
+  }
+}
+
+function renderEventFriendsPick() {
+  const list = document.getElementById('eventFriendsPickList');
+  const empty = document.getElementById('eventFriendsPickEmpty');
+  if (!list) return;
+  const friends = Array.isArray(myFriends) ? myFriends : [];
+  if (!friends.length) {
+    list.innerHTML = '';
+    if (empty) empty.style.display = 'block';
+    return;
+  }
+  if (empty) empty.style.display = 'none';
+  list.innerHTML = friends.map(f => {
+    const id = f.id;
+    const name = escapeHtml(f.display_name || f.name || 'Ami');
+    return '<label style="display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--border,#e5e7eb);border-radius:10px;cursor:pointer">' +
+      '<input type="checkbox" class="event-friend-pick" value="' + id + '">' +
+      '<span>🤝 ' + name + '</span></label>';
+  }).join('');
+}
+
+function getSelectedFriendIdsForEvent() {
+  return Array.from(document.querySelectorAll('.event-friend-pick:checked')).map(el => el.value).filter(Boolean);
 }
 
 function updateMyAgendaList() {
@@ -2791,7 +3029,7 @@ function updateMyAgendaList() {
     const remaining = Math.max(0, (ev.max_participants || 0) - parts.length);
     const urg = getEventUrgency(ev);
     const role = eventRoleClass(ev);
-    const roleLabel = role === 'agenda-role-organizer' ? '👑 Organisateur' : '✅ Participant';
+    const roleLabel = role === 'agenda-role-organizer' ? '👑 Organisateur' : (role === 'agenda-role-friends' ? '🤝 Entre amis' : '🌍 Communauté');
     return `<div class="agenda-item ${role} urgency-${urg}" data-event-id="${ev.id}" style="padding:10px 12px;border-radius:10px;margin-bottom:8px;border-bottom:1px solid var(--border,#eee)">
       <strong>${ev.emoji || '🎉'} ${escapeHtml(ev.title)}</strong>
       <span class="agenda-role-pill">${roleLabel}</span><br>
@@ -5282,6 +5520,29 @@ function injectMessagingNotificationStyles() {
     }
     .agenda-role-organizer .agenda-role-pill { background: rgba(34,197,94,0.2); color: #15803d; }
     .agenda-role-participant .agenda-role-pill { background: rgba(59,130,246,0.2); color: #1d4ed8; }
+    .agenda-role-friends,
+    .event.agenda-role-friends {
+      background: linear-gradient(135deg, rgba(168,85,247,0.14), rgba(168,85,247,0.04));
+      border-left: 4px solid #a855f7;
+    }
+    .agenda-role-friends .agenda-role-pill { background: rgba(168,85,247,0.22); color: #7e22ce; }
+    .agenda-week .day {
+      min-height: 72px;
+    }
+    .agenda-week .day-date {
+      font-weight: 500;
+      opacity: 0.75;
+      font-size: 12px;
+    }
+    .agenda-week .day-today {
+      outline: 2px solid var(--primary, #7c3aed);
+      border-radius: 10px;
+    }
+    .agenda-week .day-empty {
+      font-size: 12px;
+      opacity: 0.4;
+    }
+
 
     @keyframes aupygoBlinkOrange {
       0%, 100% { box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.7); }
