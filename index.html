@@ -410,49 +410,74 @@
 
 </section>
 
-<!-- MODAL CRÉATION SORTIE -->
+<!-- MODAL CRÉATION SORTIE (wizard mobile-first, étape par étape) -->
 <div class="modal-overlay" id="createEventOverlay" style="display:none" onclick="if(event.target===this)closeCreateEventModal()">
-  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="createEventTitle" style="max-width:480px;max-height:90vh;overflow-y:auto">
-    <div class="modal-head" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px;border-bottom:1px solid var(--border,#e5e7eb)">
+  <div class="modal-sheet" role="dialog" aria-modal="true" aria-labelledby="createEventTitle">
+
+    <div class="modal-head" style="display:flex;align-items:center;justify-content:space-between;padding:14px 16px 0">
       <h3 id="createEventTitle" style="margin:0;font-size:17px">Organiser une sortie</h3>
       <button type="button" class="more-sheet-close" onclick="closeCreateEventModal()" aria-label="Fermer">×</button>
     </div>
-    <div style="padding:16px">
+
+    <div class="wizard-progress" id="eventWizardDots"></div>
+    <div class="wizard-step-label" id="wizardStepLabel">Étape 1 / 6</div>
+
+    <div class="wizard-body">
       <input type="hidden" id="createEventVisibility" value="public">
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:6px">Type / Avatar</label>
-      <div id="eventEmojiPicker" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px">
-        <button type="button" class="emoji-pick selected" data-emoji="☕" data-type="cafe" onclick="selectEventEmoji(this)">☕ Café</button>
-        <button type="button" class="emoji-pick" data-emoji="🥾" data-type="hike" onclick="selectEventEmoji(this)">🥾 Randonnée</button>
-        <button type="button" class="emoji-pick" data-emoji="🍝" data-type="restaurant" onclick="selectEventEmoji(this)">🍝 Restaurant</button>
-        <button type="button" class="emoji-pick" data-emoji="🎬" data-type="cinema" onclick="selectEventEmoji(this)">🎬 Cinéma</button>
-        <button type="button" class="emoji-pick" data-emoji="🏛️" data-type="culture" onclick="selectEventEmoji(this)">🏛️ Culture</button>
-        <button type="button" class="emoji-pick" data-emoji="🛍️" data-type="shopping" onclick="selectEventEmoji(this)">🛍️ Shopping</button>
-        <button type="button" class="emoji-pick" data-emoji="🎉" data-type="party" onclick="selectEventEmoji(this)">🎉 Fête</button>
-        <button type="button" class="emoji-pick" data-emoji="⚽" data-type="sport" onclick="selectEventEmoji(this)">⚽ Sport</button>
-        <button type="button" class="emoji-pick" data-emoji="⭐" data-type="special" onclick="selectEventEmoji(this)">⭐ Spécial</button>
-        <button type="button" class="emoji-pick" data-emoji="🌍" data-type="other" onclick="selectEventEmoji(this)">🌍 Autre</button>
+      <div class="wizard-step active" id="wizardStep_type">
+        <h4>Type de sortie</h4>
+        <p class="wizard-step-hint">Choisis une catégorie — l'étape suivante s'ouvre automatiquement.</p>
+        <div id="eventEmojiPicker" style="display:flex;flex-wrap:wrap;gap:8px">
+          <button type="button" class="emoji-pick selected" data-emoji="☕" data-type="cafe" onclick="selectEventEmoji(this)">☕ Café</button>
+          <button type="button" class="emoji-pick" data-emoji="🥾" data-type="hike" onclick="selectEventEmoji(this)">🥾 Randonnée</button>
+          <button type="button" class="emoji-pick" data-emoji="🍝" data-type="restaurant" onclick="selectEventEmoji(this)">🍝 Restaurant</button>
+          <button type="button" class="emoji-pick" data-emoji="🎬" data-type="cinema" onclick="selectEventEmoji(this)">🎬 Cinéma</button>
+          <button type="button" class="emoji-pick" data-emoji="🏛️" data-type="culture" onclick="selectEventEmoji(this)">🏛️ Culture</button>
+          <button type="button" class="emoji-pick" data-emoji="🛍️" data-type="shopping" onclick="selectEventEmoji(this)">🛍️ Shopping</button>
+          <button type="button" class="emoji-pick" data-emoji="🎉" data-type="party" onclick="selectEventEmoji(this)">🎉 Fête</button>
+          <button type="button" class="emoji-pick" data-emoji="⚽" data-type="sport" onclick="selectEventEmoji(this)">⚽ Sport</button>
+          <button type="button" class="emoji-pick" data-emoji="⭐" data-type="special" onclick="selectEventEmoji(this)">⭐ Spécial</button>
+          <button type="button" class="emoji-pick" data-emoji="🌍" data-type="other" onclick="selectEventEmoji(this)">🌍 Autre</button>
+        </div>
       </div>
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px">Nom de la sortie *</label>
-      <input type="text" id="createEventTitleInput" class="input" placeholder="Ex : Café au bord du lac" maxlength="80" style="width:100%;margin-bottom:12px">
+      <div class="wizard-step" id="wizardStep_title">
+        <h4>Nom de la sortie</h4>
+        <p class="wizard-step-hint">Un titre court et clair.</p>
+        <input type="text" id="createEventTitleInput" class="input" placeholder="Ex : Café au bord du lac" maxlength="80" style="width:100%">
+      </div>
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px">Date et heure *</label>
-      <input type="datetime-local" id="createEventDate" class="input" style="width:100%;margin-bottom:12px">
+      <div class="wizard-step" id="wizardStep_date">
+        <h4>Date et heure</h4>
+        <p class="wizard-step-hint">Quand est-ce que ça se passe ?</p>
+        <input type="datetime-local" id="createEventDate" class="input" style="width:100%">
+      </div>
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px">Adresse postale *</label>
-      <input type="text" id="createEventAddress" class="input" placeholder="Ex : 12 rue de la Paix, 1200 Genève" maxlength="200" style="width:100%;margin-bottom:12px">
+      <div class="wizard-step" id="wizardStep_address">
+        <h4>Adresse</h4>
+        <p class="wizard-step-hint">Le lieu exact de rendez-vous.</p>
+        <input type="text" id="createEventAddress" class="input" placeholder="Ex : 12 rue de la Paix, 1200 Genève" maxlength="200" style="width:100%">
+      </div>
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px">Nombre max de personnes *</label>
-      <input type="number" id="createEventMax" class="input" min="2" max="100" value="8" style="width:100%;margin-bottom:12px">
+      <div class="wizard-step" id="wizardStep_max">
+        <h4>Nombre de participants</h4>
+        <p class="wizard-step-hint">Combien de personnes maximum (toi inclus) ?</p>
+        <input type="number" id="createEventMax" class="input" min="2" max="200" value="8" style="width:100%">
+      </div>
 
-      <label style="display:block;font-size:13px;font-weight:600;margin-bottom:4px">Description (optionnel)</label>
-      <textarea id="createEventDesc" class="input" rows="3" placeholder="Quelques détails…" maxlength="500" style="width:100%;margin-bottom:16px;resize:vertical"></textarea>
-
-      <button type="button" class="btn btn-primary" style="width:100%" onclick="submitCreateEvent()">
-        ✅ Publier la sortie
-      </button>
+      <div class="wizard-step" id="wizardStep_desc">
+        <h4>Description <span style="color:var(--muted);font-weight:400">(optionnel)</span></h4>
+        <p class="wizard-step-hint">Quelques détails pour donner envie de venir.</p>
+        <textarea id="createEventDesc" class="input" rows="4" placeholder="Quelques détails…" maxlength="500" style="width:100%;resize:vertical"></textarea>
+      </div>
     </div>
+
+    <div class="wizard-nav">
+      <button type="button" class="btn btn-secondary" id="wizardBackBtn" onclick="eventWizardPrev()">← Retour</button>
+      <button type="button" class="btn btn-primary" id="wizardNextBtn" onclick="eventWizardNext()">Suivant →</button>
+    </div>
+
   </div>
 </div>
 
