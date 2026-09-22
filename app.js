@@ -2798,7 +2798,7 @@ async function loadAndRenderEvents() {
     // Filter by visibility
     const friendIds = new Set((typeof myFriends !== 'undefined' ? myFriends : []).map(f => f.id || f.user_id || f));
     // Admin / spécial AupyGo : visibles par TOUS (comme public), pas seulement l'admin
-    const visible = events.filter(ev => {
+    let visible = events.filter(ev => {
       if (ev.visibility === 'public') return true;
       if (ev.visibility === 'admin_only' || ev.visibility === 'admin' || ev.is_special_aupygo) {
         return true;
