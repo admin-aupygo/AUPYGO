@@ -461,24 +461,34 @@
       </div>
 
       <div class="wizard-step" id="wizardStep_max">
-        <h4>Nombre de participants</h4>
-        <p class="wizard-step-hint">Combien de personnes maximum (toi inclus) ?</p>
-        <input type="number" id="createEventMax" class="input" min="2" max="200" value="8" style="width:100%">
-        <div id="restaurantReservationWrap" style="display:none;margin-top:14px;padding:12px;border-radius:12px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25)">
-          <p style="margin:0 0 10px;font-size:13px;line-height:1.45">
-            🍝 <strong>Restaurant — max 10 AupyGo</strong><br>
-            Pense à réserver une table avant de publier la sortie.
-          </p>
-          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:14px">
-            <input type="checkbox" id="restaurantReservationDone" style="margin-top:3px;width:18px;height:18px">
-            <span><strong>Réservation faite</strong> — j’ai bien réservé au restaurant</span>
-          </label>
+        <!-- Mode communauté / admin : nombre -->
+        <div id="eventMaxNumberWrap">
+          <h4>Nombre de participants</h4>
+          <p class="wizard-step-hint">Combien de personnes maximum (toi inclus) ?</p>
+          <input type="number" id="createEventMax" class="input" min="2" max="200" value="8" style="width:100%">
+          <div id="restaurantReservationWrap" style="display:none;margin-top:14px;padding:12px;border-radius:12px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25)">
+            <p style="margin:0 0 10px;font-size:13px;line-height:1.45">
+              🍝 <strong>Restaurant — max 10 AupyGo</strong><br>
+              Pense à réserver une table avant de publier la sortie.
+            </p>
+            <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:14px">
+              <input type="checkbox" id="restaurantReservationDone" style="margin-top:3px;width:18px;height:18px">
+              <span><strong>Réservation faite</strong> — j’ai bien réservé au restaurant</span>
+            </label>
+          </div>
+        </div>
+        <!-- Mode sortie entre amis : sélection d'amis -->
+        <div id="eventFriendsPickWrap" style="display:none">
+          <h4>Inviter des amis</h4>
+          <p class="wizard-step-hint">Sélectionne les amis à inviter. Ils recevront une demande à accepter ou refuser.</p>
+          <div id="eventFriendsPickList" style="display:flex;flex-direction:column;gap:8px;max-height:240px;overflow:auto"></div>
+          <p id="eventFriendsPickEmpty" class="footer-muted" style="display:none;margin-top:8px">Tu n’as pas encore d’amis. Ajoute des AupyGo depuis « Amis ».</p>
         </div>
       </div>
 
       <div class="wizard-step" id="wizardStep_price">
         <h4>Tarif de la sortie</h4>
-        <p class="wizard-step-hint">Gratuit par défaut. Tu peux définir un prix si besoin.</p>
+        <p class="wizard-step-hint">Gratuit par défaut. Seul l’admin AUPYGO peut publier une sortie payante monétisée.</p>
         <div style="display:flex;flex-direction:column;gap:10px">
           <label style="display:flex;align-items:center;gap:10px;padding:12px 14px;border:1px solid var(--border,#e5e7eb);border-radius:12px;cursor:pointer">
             <input type="radio" name="eventPaid" id="eventPaidFree" value="free" checked onchange="onEventPaidChange()">
@@ -529,39 +539,41 @@
     ⭐ Les détails complets sont disponibles à partir du forfait <strong>STANDARD</strong>.
   </div>
 
-  <!-- MON AGENDA (calendrier personnel) -->
+  <!-- Invitations sorties entre amis en attente -->
+  <div class="card" id="eventInvitesCard" style="margin-bottom:20px;display:none">
+    <h3>🤝 Invitations de sorties</h3>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px">Tes amis t’invitent — accepte ou refuse</p>
+    <div id="eventInvitesList"></div>
+  </div>
+
+  <!-- MON AGENDA (semaine courante + dates) -->
   <div class="card" style="margin-bottom:20px">
     <h3 data-i18n="agenda.personal">MON AGENDA</h3>
-    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.personal_desc">Calendrier personnel</p>
-    <div class="calendar" style="margin-top:10px" id="personalCalendar">
-      <div class="day"><strong data-i18n="days.mon">Lun</strong></div>
-      <div class="day"><strong data-i18n="days.tue">Mar</strong></div>
-      <div class="day"><strong data-i18n="days.wed">Mer</strong></div>
-      <div class="day"><strong data-i18n="days.thu">Jeu</strong></div>
-      <div class="day"><strong data-i18n="days.fri">Ven</strong></div>
-      <div class="day"><strong data-i18n="days.sat">Sam</strong></div>
-      <div class="day"><strong data-i18n="days.sun">Dim</strong></div>
-      <div class="day"><strong>—</strong></div>
-      <div class="day"><strong>—</strong></div>
-      <div class="day"><strong>—</strong></div>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 8px" data-i18n="agenda.personal_desc">Semaine en cours — tes participations & sorties organisées</p>
+    <div class="agenda-legend" style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:10px;font-size:12px">
+      <span style="padding:4px 8px;border-radius:8px;background:rgba(34,197,94,.15);border-left:3px solid #22c55e">👑 Organisateur</span>
+      <span style="padding:4px 8px;border-radius:8px;background:rgba(59,130,246,.15);border-left:3px solid #3b82f6">🌍 Communauté</span>
+      <span style="padding:4px 8px;border-radius:8px;background:rgba(168,85,247,.15);border-left:3px solid #a855f7">🤝 Entre amis</span>
+    </div>
+    <div class="calendar agenda-week" style="margin-top:10px" id="personalCalendar">
+      <!-- rempli dynamiquement : Lun 22/09 … -->
     </div>
   </div>
 
   <!-- MES PROCHAINES SORTIES -->
   <div class="card" style="margin-bottom:20px">
     <h3 data-i18n="agenda.my_events">MES PROCHAINES SORTIES</h3>
-    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.my_events_desc">Sorties auxquelles tu participes</p>
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.my_events_desc">Liste détaillée (disparaît 24 h après l’événement)</p>
     <div id="myAgendaList" class="agenda-list">
       <p class="footer-muted" data-i18n="agenda.empty">Tu n’as encore rejoint aucune sortie.</p>
     </div>
   </div>
 
-  <!-- AGENDA COMMUNAUTAIRE -->
+  <!-- AGENDA COMMUNAUTAIRE (pas les sorties entre amis) -->
   <div class="card">
     <h3 data-i18n="agenda.community">AGENDA COMMUNAUTAIRE</h3>
-    <p style="font-size:13px;color:var(--muted);margin:4px 0 12px" data-i18n="agenda.community_desc">Événements publics de la communauté</p>
-    <div class="calendar" style="margin-top:15px" id="agendaCalendar">
-      <!-- rempli dynamiquement -->
+    <p style="font-size:13px;color:var(--muted);margin:4px 0 8px" data-i18n="agenda.community_desc">Sorties publiques uniquement (pas les sorties entre amis)</p>
+    <div class="calendar agenda-week" style="margin-top:10px" id="agendaCalendar">
       <p class="footer-muted" id="agendaCommunityEmpty" style="grid-column:1/-1;padding:12px">Aucune sortie communautaire pour le moment.</p>
     </div>
   </div>
@@ -1283,7 +1295,7 @@
 <script src="config.js?v=20260922b"></script>
 <script src="i18n.js?v=20260922b"></script>
 <script src="i18n-extra.js?v=20260922b"></script>
-<script src="app.js?v=20260922d"></script>
+<script src="app.js?v=20260922e"></script>
 <script src="map-markers.js?v=20260922b"></script>
 
 </body>
