@@ -464,6 +464,16 @@
         <h4>Nombre de participants</h4>
         <p class="wizard-step-hint">Combien de personnes maximum (toi inclus) ?</p>
         <input type="number" id="createEventMax" class="input" min="2" max="200" value="8" style="width:100%">
+        <div id="restaurantReservationWrap" style="display:none;margin-top:14px;padding:12px;border-radius:12px;background:rgba(249,115,22,0.08);border:1px solid rgba(249,115,22,0.25)">
+          <p style="margin:0 0 10px;font-size:13px;line-height:1.45">
+            🍝 <strong>Restaurant — max 10 AupyGo</strong><br>
+            Pense à réserver une table avant de publier la sortie.
+          </p>
+          <label style="display:flex;align-items:flex-start;gap:10px;cursor:pointer;font-size:14px">
+            <input type="checkbox" id="restaurantReservationDone" style="margin-top:3px;width:18px;height:18px">
+            <span><strong>Réservation faite</strong> — j’ai bien réservé au restaurant</span>
+          </label>
+        </div>
       </div>
 
       <div class="wizard-step" id="wizardStep_price">
@@ -1273,7 +1283,7 @@
 <script src="config.js?v=20260922b"></script>
 <script src="i18n.js?v=20260922b"></script>
 <script src="i18n-extra.js?v=20260922b"></script>
-<script src="app.js?v=20260922c"></script>
+<script src="app.js?v=20260922d"></script>
 <script src="map-markers.js?v=20260922b"></script>
 
 </body>
