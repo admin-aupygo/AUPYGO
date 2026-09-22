@@ -532,6 +532,7 @@ async function handleLogout(reason) {
   // Marque une déconnexion locale pour éviter le double toast via onAuthStateChange
   isLocalLogout = true;
   currentUser = null;
+  currentUserIsAdmin = false;
   currentPlan = 'FREE';
   localStorage.removeItem('aupygo_plan');
   profileSaved = false;
@@ -607,9 +608,13 @@ async function refreshAuthUI(redirectPage = 'profile') {
     // Charge le profil déjà sauvegardé pour ce compte, s'il existe
     const { data: profile } = await supabaseClient
       .from('profiles')
-      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked, languages, other_language, host_country, stay_end, city')
+      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked, languages, other_language, host_country, stay_end, city, is_admin')
       .eq('id', user.id)
       .maybeSingle();
+
+    // Mode Fantôme / admin : flag DB prioritaire, email en secours
+    currentUserIsAdmin = !!(profile && profile.is_admin === true) ||
+      !!(user.email && user.email.toLowerCase() === ADMIN_EMAIL);
 
     if (profile && profile.subscription) {
       currentPlan = profile.subscription;
@@ -617,9 +622,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       updatePlanUI();
     }
 
-    // Mode Admin : accès Premium automatique, quel que soit l'abonnement
-    // enregistré en base (le trigger SQL force déjà subscription='PREMIUM',
-    // ceci est une sécurité supplémentaire côté client).
+    // Mode Admin : accès Premium automatique
     if (isAdmin()) {
       currentPlan = 'PREMIUM';
       localStorage.setItem('aupygo_plan', 'PREMIUM');
@@ -1290,6 +1293,7 @@ async function loadProfiles() {
     // qui masque désormais le compte Admin à tout le monde sauf lui-même).
     // Fallback sur profiles avec colonnes nécessaires à la fiche membre.
     const cols = 'id, display_name, age, gender, city, country, host_country, stay_end, languages, interests, bio, subscription, last_seen, approx_lat, approx_lng';
+    const colsFallback = cols + ', is_admin';
     let data = null;
     let error = null;
 
@@ -1300,7 +1304,7 @@ async function loadProfiles() {
       if (viewRes.error) {
         console.warn('[AUPYGO] map_profiles indisponible, fallback profiles:', viewRes.error.message || viewRes.error);
       }
-      const tableRes = await supabaseClient.from('profiles').select(cols);
+      const tableRes = await supabaseClient.from('profiles').select(colsFallback);
       data = tableRes.data;
       error = tableRes.error;
     }
@@ -1312,7 +1316,12 @@ async function loadProfiles() {
       return;
     }
 
-    profiles = data || [];
+    // Mode Fantôme : filet de sécurité si la vue map_profiles n'est pas déployée
+    profiles = (data || []).filter(p => {
+      if (!p) return false;
+      if (p.is_admin === true && !(currentUser && p.id === currentUser.id)) return false;
+      return true;
+    });
     const onlineN = profiles.filter(isRecentlyOnline).length;
     const gpsN = profiles.filter(p => p.approx_lat != null && p.approx_lng != null).length;
     console.log('[AUPYGO] Profils chargés:', profiles.length, '| en ligne:', onlineN, '| avec GPS:', gpsN);
@@ -2091,8 +2100,11 @@ let selectedEventEmoji = '☕';
 let selectedEventType = 'cafe';
 let cachedEvents = [];
 let myEventIds = new Set();
+/** true si le profil courant a is_admin en base (Mode Fantôme / droits admin) */
+let currentUserIsAdmin = false;
 
 function isAdmin() {
+  if (currentUserIsAdmin) return true;
   return !!(currentUser && currentUser.email &&
     currentUser.email.toLowerCase() === ADMIN_EMAIL);
 }
@@ -2105,7 +2117,7 @@ function isAdmin() {
 ========================= */
 
 let eventWizardStep = 0;
-const EVENT_WIZARD_STEPS = ['type', 'title', 'date', 'address', 'max', 'desc'];
+const EVENT_WIZARD_STEPS = ['type', 'title', 'date', 'address', 'max', 'price', 'desc'];
 
 function selectEventEmoji(btn, skipAdvance) {
   document.querySelectorAll('#eventEmojiPicker .emoji-pick').forEach(b => b.classList.remove('selected'));
@@ -2183,6 +2195,19 @@ function eventWizardValidate(stepName) {
     if (maxP < 2 || maxP > 200) { showToast('Nombre de personnes entre 2 et 200.', 'error'); return false; }
     return true;
   }
+  if (stepName === 'price') {
+    const paid = document.querySelector('input[name="eventPaid"]:checked');
+    const isPaid = paid && paid.value === 'paid';
+    if (isPaid) {
+      const priceEl = document.getElementById('createEventPrice');
+      const price = parseFloat(priceEl && priceEl.value);
+      if (!price || price <= 0 || price > 9999) {
+        showToast('Indique un montant valide (€) pour une sortie payante.', 'error');
+        return false;
+      }
+    }
+    return true;
+  }
   return true;
 }
 
@@ -2231,6 +2256,14 @@ function openCreateEventModal(visibility) {
   document.getElementById('createEventAddress').value = '';
   document.getElementById('createEventDesc').value = '';
   document.getElementById('createEventMax').value = visibility === 'admin' ? '50' : '8';
+  const freeRadio = document.getElementById('eventPaidFree');
+  const paidRadio = document.getElementById('eventPaidPaid');
+  if (freeRadio) freeRadio.checked = true;
+  if (paidRadio) paidRadio.checked = false;
+  const priceInput = document.getElementById('createEventPrice');
+  if (priceInput) { priceInput.value = ''; priceInput.disabled = true; }
+  const priceWrap = document.getElementById('createEventPriceWrap');
+  if (priceWrap) priceWrap.style.display = 'none';
   const dt = document.getElementById('createEventDate');
   const now = new Date();
   now.setMinutes(0, 0, 0);
@@ -2288,6 +2321,13 @@ async function submitCreateEvent() {
   }
 
   try {
+    const paidRadio = document.querySelector('input[name="eventPaid"]:checked');
+    const isPaid = !!(paidRadio && paidRadio.value === 'paid');
+    let price = 0;
+    if (isPaid) {
+      price = parseFloat((document.getElementById('createEventPrice') || {}).value) || 0;
+    }
+    const isSpecial = visibility === 'admin' || selectedEventType === 'special';
     const row = {
       creator_id: currentUser.id,
       title,
@@ -2297,7 +2337,10 @@ async function submitCreateEvent() {
       address,
       event_date: eventDate.toISOString(),
       max_participants: maxP,
-      visibility
+      visibility: isSpecial ? 'admin' : visibility,
+      is_paid: isPaid,
+      price: isPaid ? price : 0,
+      is_special_aupygo: isSpecial
     };
     const { data, error } = await supabaseClient.from('events').insert(row).select().single();
     if (error) {
@@ -2394,8 +2437,12 @@ async function loadAndRenderEvents() {
         const full = remaining <= 0;
         const dateStr = formatEventDate(ev.event_date);
         const typeLabel = typeToLabel(ev.type);
+        const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
+        const isPaidEv = !!(ev.is_paid && Number(ev.price) > 0);
+        const priceLabel = isPaidEv ? (Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €') : 'Gratuit';
         const visBadge = ev.visibility === 'friends' ? '🤝 Amis' :
-          (ev.visibility === 'admin' || ev.visibility === 'admin_only') ? '⭐ AUPYGO' : '';
+          isSpecial ? '⭐ AUPYGO' : '';
+        const priceBadge = isPaidEv ? (' · 💶 ' + priceLabel) : ' · Gratuit';
         const seatsText = full ? 'Complet' : (remaining + ' place' + (remaining > 1 ? 's' : '') + ' restante' + (remaining > 1 ? 's' : ''));
 
         // Droits : seul le créateur peut supprimer ; un participant peut
@@ -2415,6 +2462,8 @@ async function loadAndRenderEvents() {
             '</div>';
         } else if (full) {
           actionHtml = '<button class="btn btn-secondary" style="margin-top:10px" disabled>Complet</button>';
+        } else if (isPaidEv) {
+          actionHtml = '<button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRealEvent(\'' + ev.id + '\')">💶 Participer — ' + priceLabel + '</button>';
         } else {
           actionHtml = '<button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>';
         }
@@ -2423,7 +2472,7 @@ async function loadAndRenderEvents() {
         <div class="event" data-event-id="${ev.id}">
           <div class="event-cover">${ev.emoji || '🎉'}</div>
           <div class="event-body">
-            <span class="badge">${typeLabel}${visBadge ? ' · ' + visBadge : ''}</span>
+            <span class="badge">${typeLabel}${visBadge ? ' · ' + visBadge : ''}${priceBadge}</span>
             <h3 style="margin:8px 0">${escapeHtml(ev.title)}</h3>
             ${locked && !isCreator ? `
               <p class="event-details locked-text" data-i18n="events.locked_text">🔒 Lieu et participants réservés au forfait STANDARD</p>
@@ -2431,6 +2480,7 @@ async function loadAndRenderEvents() {
             ` : `
               <p class="event-details">📍 ${escapeHtml(ev.address || '')}</p>
               <p class="event-details">🕐 ${dateStr} · 👥 Max ${ev.max_participants || '?'}</p>
+              <p class="event-details">${isPaidEv ? '💶 Tarif : <strong>' + priceLabel + '</strong>' : '🆓 Entrée libre'}</p>
               <p class="event-seats ${full ? 'full' : ''}">${seatsText}</p>
               ${actionHtml}
             `}
@@ -2529,6 +2579,22 @@ async function joinRealEvent(eventId) {
     showToast(t('events.join_locked') || 'Passe à STANDARD pour participer.', 'error');
     return;
   }
+
+  const ev = (cachedEvents || []).find(e => e.id === eventId);
+  const isPaidEv = !!(ev && ev.is_paid && Number(ev.price) > 0);
+  if (isPaidEv) {
+    const priceLabel = Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €';
+    // Placeholder paiement (PayPal / CB à brancher plus tard)
+    const goPay = confirm(
+      '💶 Cette sortie est payante : ' + priceLabel + '\n\n' +
+      'Le paiement en ligne (PayPal / carte bancaire) sera bientôt disponible.\n\n' +
+      'Continuer pour réserver ta place ? (simulation — aucun débit)'
+    );
+    if (!goPay) return;
+    // Emplacement réservé pour future intégration :
+    // await startCheckout(eventId, ev.price);
+  }
+
   try {
     const { error } = await supabaseClient.from('event_participants').insert({
       event_id: eventId,
@@ -2542,11 +2608,25 @@ async function joinRealEvent(eventId) {
         return;
       }
     } else {
-      showToast('🎉 Tu es inscrit !', 'success');
+      showToast(isPaidEv ? '🎉 Place réservée (paiement simulé) !' : '🎉 Tu es inscrit !', 'success');
     }
     await loadAndRenderEvents();
   } catch (e) {
     showToast('Erreur réseau.', 'error');
+  }
+}
+
+/** Bascule Free / Payant dans le wizard de création */
+function onEventPaidChange() {
+  const paid = document.querySelector('input[name="eventPaid"]:checked');
+  const isPaid = paid && paid.value === 'paid';
+  const wrap = document.getElementById('createEventPriceWrap');
+  const input = document.getElementById('createEventPrice');
+  if (wrap) wrap.style.display = isPaid ? 'block' : 'none';
+  if (input) {
+    input.disabled = !isPaid;
+    if (!isPaid) input.value = '';
+    else setTimeout(() => input.focus(), 150);
   }
 }
 
@@ -5075,6 +5155,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       const wasLoggedIn = !!currentUser;
       authIntent = null;
       currentUser = null;
+      currentUserIsAdmin = false;
       currentPlan = 'FREE';
       localStorage.removeItem('aupygo_plan');
       profileSaved = false;
