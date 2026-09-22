@@ -4154,20 +4154,24 @@ async function renderFriendsUI() {
 async function acceptFriendRequest(reqId) {
   const req = friendshipsCache.find(r => r.id === reqId);
   if (!req || req.status !== 'pending') return;
+  if (!currentUser) return;
 
   const { error } = await supabaseClient
     .from('friendships')
     .update({ status: 'accepted' })
-    .eq('id', reqId);
+    .eq('id', reqId)
+    .eq('to_id', currentUser.id)
+    .eq('status', 'pending');
 
   if (error) {
     console.error('acceptFriendRequest:', error);
-    showToast('Erreur : ' + error.message, 'error');
+    showToast('Erreur acceptation : ' + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
     return;
   }
 
   const p = getProfileById(req.from_id);
-  showToast('💚 Tu es maintenant ami(e) avec ' + (p.display_name || 'cet AUPYGO'), 'success');
+  showToast('💚 Tu es maintenant ami(e) avec ' + ((p && p.display_name) || 'cet AUPYGO'), 'success');
+  await loadFriendshipsFromDB();
   await renderFriendsUI();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
 }
@@ -4175,19 +4179,35 @@ async function acceptFriendRequest(reqId) {
 async function refuseFriendRequest(reqId) {
   const req = friendshipsCache.find(r => r.id === reqId);
   if (!req || req.status !== 'pending') return;
+  if (!currentUser) return;
 
-  const { error } = await supabaseClient
+  // Destinataire uniquement (sécurité + RLS)
+  let q = supabaseClient
     .from('friendships')
     .update({ status: 'refused' })
-    .eq('id', reqId);
+    .eq('id', reqId)
+    .eq('to_id', currentUser.id)
+    .eq('status', 'pending');
+
+  let { error } = await q;
+
+  // Anciennes bases qui n'acceptent que "rejected"
+  if (error && /check|constraint|invalid|400/i.test(String(error.message || error.code || ''))) {
+    ({ error } = await supabaseClient
+      .from('friendships')
+      .update({ status: 'rejected' })
+      .eq('id', reqId)
+      .eq('to_id', currentUser.id));
+  }
 
   if (error) {
     console.error('refuseFriendRequest:', error);
-    showToast('Erreur : ' + error.message, 'error');
+    showToast('Erreur refus ami : ' + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
     return;
   }
 
   showToast('Demande refusée', 'success');
+  await loadFriendshipsFromDB();
   await renderFriendsUI();
 }
 
