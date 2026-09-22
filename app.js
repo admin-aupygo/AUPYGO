@@ -1438,11 +1438,13 @@ function openMemberProfile(memberId) {
   // Amitié refusée (dans les deux sens) : popup minimale, aucune fiche visible
   if (isRefusedContact) {
     box.classList.add('member-refused-gray');
+    const refusedTitle = (typeof t === 'function' ? t('friend.refused_title') : '🚫 Amitié refusée');
+    const refusedBody = (typeof t === 'function' ? t('friend.refused_body') : 'Cette personne a refusé (ou tu as refusé) la demande d’ami. Tu ne peux plus voir sa fiche ni échanger avec elle.');
     box.innerHTML =
       '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
       '<div class="member-avatar" style="filter:grayscale(1);opacity:0.55">' + emoji + '</div>' +
-      '<h3 style="margin-top:8px">🚫 Amitié refusée</h3>' +
-      '<p style="font-size:14px;color:#6b7280;margin:10px 0 0;line-height:1.45">Cette personne a refusé (ou tu as refusé) la demande d’ami.<br>Tu ne peux plus voir sa fiche ni échanger avec elle.</p>';
+      '<h3 style="margin-top:8px">' + refusedTitle + '</h3>' +
+      '<p style="font-size:14px;color:#6b7280;margin:10px 0 0;line-height:1.45">' + refusedBody + '</p>';
     overlay.classList.add('open');
     document.body.style.overflow = 'hidden';
     return;
@@ -5338,12 +5340,25 @@ function applyTranslations() {
 }
 
 function changeLanguage(lang) {
-  if (!I18N || !I18N[lang]) return;
+  lang = String(lang || 'fr').toLowerCase().slice(0, 2);
+  if (typeof I18N === 'undefined' || !I18N[lang]) {
+    console.warn('[AUPYGO] langue inconnue ou i18n non chargé:', lang);
+    return;
+  }
   currentLang = lang;
-  localStorage.setItem('aupygo_lang', lang);
+  try { window.currentLang = lang; } catch (e) {}
+  try { localStorage.setItem('aupygo_lang', lang); } catch (e) {}
   const sel = document.getElementById('language');
   if (sel) sel.value = lang;
+  document.documentElement.lang = lang;
   applyTranslations();
+  // Force re-render of dynamic UI that embeds translated strings
+  if (typeof renderFriendsUI === 'function') {
+    try { renderFriendsUI(); } catch (e) {}
+  }
+  if (typeof renderConversationSidebar === 'function') {
+    try { renderConversationSidebar(); } catch (e) {}
+  }
 }
 /* =========================
    INACTIVITÉ (45 min → déconnexion auto)
