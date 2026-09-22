@@ -2736,8 +2736,9 @@ function closeSpecialInviteModal() {
   document.body.style.overflow = '';
 }
 
-/** Liste d'invités — visible par le créateur (admin) d'un événement spécial */
-async function openSpecialGuestList(eventId) {
+/** Liste des participants — visible par le créateur de l'événement (ou admin) */
+async function openSpecialGuestList(eventId) { return openEventGuestList(eventId); }
+async function openEventGuestList(eventId) {
   if (!currentUser) {
     showToast(t('plans.need_login') || 'Connecte-toi.', 'error');
     return;
@@ -2748,9 +2749,8 @@ async function openSpecialGuestList(eventId) {
     return;
   }
   const isCreator = ev.creator_id === currentUser.id;
-  const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
   if (!isCreator && !(typeof isAdmin === 'function' && isAdmin())) {
-    showToast('Réservé à l’organisateur.', 'error');
+    showToast('Réservé à l\u2019organisateur.', 'error');
     return;
   }
 
@@ -2842,7 +2842,7 @@ async function openSpecialGuestList(eventId) {
     '<div class="special-guest-modal" role="dialog" aria-modal="true">' +
       '<button type="button" class="member-modal-close" onclick="closeSpecialGuestList()" aria-label="Fermer">×</button>' +
       '<div class="special-guest-head">' +
-        '<h3>📋 Liste des invités</h3>' +
+        '<h3>📋 Participants</h3>' +
         '<p class="special-guest-sub">' + escapeHtml(title) + '</p>' +
         '<p class="special-guest-count">' + lines.length + ' participant' + (lines.length > 1 ? 's' : '') + '</p>' +
       '</div>' +
@@ -2874,7 +2874,7 @@ function closeSpecialGuestList() {
 function copySpecialGuestList() {
   const ov = document.getElementById('specialGuestListOverlay');
   if (!ov) return;
-  const title = ov.dataset.guestTitle || 'Liste des invités';
+  const title = ov.dataset.guestTitle || 'Participants';
   const body = ov.dataset.guestPlain || '';
   const full = title + '\\n\\n' + body;
   if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -2965,9 +2965,7 @@ function buildEventCardHtml(ev, locked) {
     actionHtml = '<p class="event-details" style="opacity:.7">Événement terminé</p>';
   } else if (isCreator) {
     const canEdit = typeof canEditOwnEvent === 'function' && canEditOwnEvent(ev);
-    const guestBtn = isSpecial
-      ? '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="openSpecialGuestList(\'' + ev.id + '\')">📋 Liste des invités (' + count + ')</button>'
-      : '';
+    const guestBtn = '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="openEventGuestList(\'' + ev.id + '\')">📋 Participants (' + count + ')</button>';
     actionHtml = guestBtn + '<div class="event-actions-row">' +
       '<button class="btn btn-secondary" disabled>👑 Toi</button>' +
       (canEdit ? '<button type="button" class="btn btn-secondary" onclick="editRealEvent(\'' + ev.id + '\')">✏️</button>' : '') +
@@ -6528,7 +6526,7 @@ function injectMessagingNotificationStyles() {
     }
     .special-invite-close:hover { background: rgba(255,255,255,0.3); }
 
-    /* Liste d'invités — organisateur événement spécial */
+    /* Liste des participants — organisateur de l'événement */
     .special-guest-overlay {
       position: fixed;
       inset: 0;
