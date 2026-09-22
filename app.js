@@ -1429,10 +1429,10 @@ function openMemberProfile(memberId) {
   // STANDARD → fiche + voyant en ligne
   // PREMIUM  → fiche + voyant + bouton Message
   const showOnline = (plan === 'STANDARD' || plan === 'PREMIUM');
-  const showMessage = !!currentUser; // messagerie dès FREE (quota à l'envoi)
-
-  // Demande d'ami : accessible dès FREE (plafond 5 en attente)
-  const canSendFriendRequest = !!currentUser; // FREE inclus (plafond 5 demandes en attente)
+  const friendStatus = currentUser ? getFriendshipStatusWith(member.id) : null;
+  const showMessage = !!currentUser && friendStatus === 'accepted';
+  const isRefusedContact = friendStatus === 'refused' || friendStatus === 'rejected' || friendStatus === 'declined';
+  const canSendFriendRequest = !!currentUser && !friendStatus; // pas encore de relation
 
   let onlineHtml = '';
   if (showOnline) {
@@ -1469,14 +1469,24 @@ function openMemberProfile(memberId) {
     msgBtn = '<button type="button" class="member-msg-btn" onclick="messageMember(\'' + member.id + '\')">💬 Message</button>';
   }
 
-  const friendBtn = canSendFriendRequest
-    ? '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>'
-    : '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Connecte-toi pour envoyer une demande d\u2019ami</p>';
+  let friendBtn = '';
+  if (!currentUser) {
+    friendBtn = '<p style="margin-top:12px;font-size:12px;color:#9ca3af">Connecte-toi pour envoyer une demande d\u2019ami</p>';
+  } else if (friendStatus === 'accepted') {
+    friendBtn = '<p style="margin-top:12px;font-size:12px;color:#15803d">✅ Vous êtes amis</p>';
+  } else if (friendStatus === 'pending') {
+    friendBtn = '<p style="margin-top:12px;font-size:12px;color:#a16207">⏳ Demande d\u2019ami en attente</p>';
+  } else if (isRefusedContact) {
+    friendBtn = '<p style="margin-top:12px;font-size:12px;color:#9ca3af">🚫 Demande refusée</p>';
+  } else {
+    friendBtn = '<button type="button" class="member-friend-btn" onclick="sendFriendRequestToMember(\'' + member.id + '\')">🤝 Demande d\u2019ami</button>';
+  }
 
   // Visiteur PREMIUM face à un profil non-PREMIUM : pastille rouge explicative
   // sur l'avatar (messagerie privée indisponible pour ce contact).
   const restrictedBadge = ''; // plus de pastille premium-only
 
+  box.classList.toggle('member-refused-gray', !!isRefusedContact);
   box.innerHTML =
     '<button type="button" class="member-modal-close" onclick="closeMemberProfile()" aria-label="Fermer">×</button>' +
     onlineHtml +
@@ -1503,7 +1513,26 @@ function closeMemberProfile() {
 }
 
 
-async function messageMember(memberId) {
+async function getFriendshipStatusWith(memberId) {
+  if (!currentUser || !memberId) return null;
+  const list = typeof friendshipsCache !== 'undefined' ? friendshipsCache : [];
+  const row = (list || []).find(f =>
+    (f.from_id === currentUser.id && f.to_id === memberId) ||
+    (f.to_id === currentUser.id && f.from_id === memberId)
+  );
+  return row ? (row.status || null) : null;
+}
+
+function isAcceptedFriend(memberId) {
+  return getFriendshipStatusWith(memberId) === 'accepted';
+}
+
+function isRefusedFriend(memberId) {
+  const s = getFriendshipStatusWith(memberId);
+  return s === 'refused' || s === 'rejected' || s === 'declined';
+}
+
+function messageMember(memberId) {
   if (!currentUser) {
     showToast(t('toast.friend_login_required') || 'Connecte-toi pour écrire', 'error');
     closeMemberProfile();
@@ -1513,9 +1542,23 @@ async function messageMember(memberId) {
   const raw = profiles.find(m => m.id === memberId);
   if (!raw) return;
   const name = raw.display_name || 'AUPYGO';
-  // FREE / STANDARD / PREMIUM : messagerie (quota à l'envoi). Plus d'exigence PREMIUM mutuel.
-  closeMemberProfile();
-  openConversation('dm', memberId, name);
+
+  // Obligation : amis acceptés avant de discuter
+  const st = getFriendshipStatusWith(memberId);
+  if (st === 'accepted') {
+    closeMemberProfile();
+    openConversation('dm', memberId, name);
+    return;
+  }
+  if (st === 'pending') {
+    showToast('⏳ Demande d’ami en attente — impossible de discuter pour l’instant.', 'error');
+    return;
+  }
+  if (st === 'refused' || st === 'rejected' || st === 'declined') {
+    showToast('Cette personne a refusé ta demande d’ami. Messagerie indisponible.', 'error');
+    return;
+  }
+  showToast('🤝 Envoie d’abord une demande d’ami. La messagerie s’ouvre seulement après acceptation.', 'error');
 }
 
 
@@ -2100,6 +2143,8 @@ let selectedEventEmoji = '☕';
 let selectedEventType = 'cafe';
 let cachedEvents = [];
 let myEventIds = new Set();
+let selectedAgendaDay = null; // YYYY-MM-DD | null = tous
+let pendingEventInviteIds = new Set();
 /** true si le profil courant a is_admin en base (Mode Fantôme / droits admin) */
 let currentUserIsAdmin = false;
 
@@ -2477,6 +2522,96 @@ async function submitCreateEvent() {
   }
 }
 
+
+function getEventsForSelectedDay(list) {
+  const src = list || cachedEvents || [];
+  if (!selectedAgendaDay) return src;
+  return src.filter(ev => eventDayKey(ev.event_date) === selectedAgendaDay);
+}
+
+function renderEventGridFiltered() {
+  const grid = document.getElementById('eventGrid');
+  if (!grid || !cachedEvents) return;
+  // Re-trigger full render is heavy; filter DOM: rebuild from cachedEvents
+  // Appelle la logique d'affichage via loadAndRenderEvents trop coûteux → rebuild simple
+  const all = cachedEvents;
+  const locked = currentPlan === 'FREE';
+  const toShow = getEventsForSelectedDay(all);
+  const bar = document.getElementById('eventDayFilterBar');
+  if (bar) {
+    if (selectedAgendaDay) {
+      const parts = selectedAgendaDay.split('-');
+      bar.innerHTML = '<span>📅 ' + parts[2] + '/' + parts[1] + '</span> ' +
+        '<button type="button" class="btn btn-secondary" style="padding:4px 10px;font-size:12px" onclick="selectAgendaDay(null)">Voir toutes les sorties</button>';
+      bar.style.display = 'flex';
+    } else {
+      bar.innerHTML = '<span class="footer-muted">Clique un jour dans l’agenda pour filtrer</span>';
+      bar.style.display = 'flex';
+    }
+  }
+  if (!toShow.length) {
+    grid.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:12px">Aucune sortie pour ce jour.</p>';
+    return;
+  }
+  // Délègue au re-render complet en forçant selected day via loadAndRenderEvents fragment
+  // Reconstruction des cartes (copie simplifiée de loadAndRenderEvents)
+  grid.innerHTML = toShow.map(ev => buildEventCardHtml(ev, locked)).join('');
+}
+
+function buildEventCardHtml(ev, locked) {
+  const parts = ev.event_participants || [];
+  const count = parts.length;
+  const remaining = Math.max(0, (ev.max_participants || 0) - count);
+  const isJoined = myEventIds.has(ev.id);
+  const isCreator = !!(currentUser && ev.creator_id === currentUser.id);
+  const full = remaining <= 0;
+  const dateStr = formatEventDate(ev.event_date);
+  const typeLabel = typeToLabel(ev.type);
+  const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
+  const isPaidEv = !!(ev.is_paid && Number(ev.price) > 0);
+  const priceLabel = isPaidEv ? (Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €') : 'Gratuit';
+  const visBadge = ev.visibility === 'friends' ? '🤝 Amis' : isSpecial ? '⭐ AUPYGO' : '';
+  const priceBadge = isPaidEv ? (' · 💶 ' + priceLabel) : ' · Gratuit';
+  const seatsText = full ? 'Complet' : (remaining + ' place' + (remaining > 1 ? 's' : ''));
+  const urgCard = getEventUrgency(ev);
+  const roleCard = eventRoleClass(ev);
+  let actionHtml;
+  if (isCreator) {
+    const canEdit = typeof canEditOwnEvent === 'function' && canEditOwnEvent(ev);
+    actionHtml = '<div class="event-actions-row">' +
+      '<button class="btn btn-secondary" disabled>👑 Toi</button>' +
+      (canEdit ? '<button type="button" class="btn btn-secondary" onclick="editRealEvent(\'' + ev.id + '\')">✏️</button>' : '') +
+      '<button type="button" class="btn-icon-delete" onclick="deleteRealEvent(\'' + ev.id + '\')">🗑️</button></div>';
+  } else if (isJoined) {
+    actionHtml = '<div class="event-actions-row">' +
+      '<button class="btn btn-secondary" disabled>✅ Inscrit</button>' +
+      '<button type="button" class="btn-icon-delete" onclick="leaveRealEvent(\'' + ev.id + '\')">✖️</button></div>';
+  } else if (full) {
+    actionHtml = '<button class="btn btn-secondary" disabled>Complet</button>';
+  } else if (isPaidEv) {
+    actionHtml = '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">💶 ' + priceLabel + '</button>';
+  } else {
+    actionHtml = '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>';
+  }
+  if (locked && !isCreator) {
+    return '<div class="event ' + roleCard + ' urgency-' + urgCard + '" data-event-id="' + ev.id + '">' +
+      '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
+      '<span class="badge">' + typeLabel + (visBadge ? ' · ' + visBadge : '') + priceBadge + '</span>' +
+      '<h3>' + escapeHtml(ev.title) + '</h3>' +
+      '<p class="event-details locked-text">🔒 STANDARD requis</p>' +
+      '<button class="btn btn-locked event-upgrade" onclick="go(\'' + 'plans' + '\')">Passer à STANDARD</button>' +
+      '</div></div>';
+  }
+  return '<div class="event ' + roleCard + ' urgency-' + urgCard + '" data-event-id="' + ev.id + '">' +
+    '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
+    '<span class="badge">' + typeLabel + (visBadge ? ' · ' + visBadge : '') + priceBadge + '</span>' +
+    '<h3>' + escapeHtml(ev.title) + '</h3>' +
+    '<p class="event-details">📍 ' + escapeHtml(ev.address || '') + '</p>' +
+    '<p class="event-details">🕐 ' + dateStr + ' · 👥 ' + (ev.max_participants || '?') + '</p>' +
+    '<p class="event-seats">' + seatsText + '</p>' + actionHtml +
+    '</div></div>';
+}
+
 async function loadAndRenderEvents() {
   const grid = document.getElementById('eventGrid');
   const empty = document.getElementById('eventGridEmpty');
@@ -2514,10 +2649,11 @@ async function loadAndRenderEvents() {
 
     // Filter by visibility
     const friendIds = new Set((typeof myFriends !== 'undefined' ? myFriends : []).map(f => f.id || f.user_id || f));
+    // Admin / spécial AupyGo : visibles par TOUS (comme public), pas seulement l'admin
     const visible = events.filter(ev => {
       if (ev.visibility === 'public') return true;
-      if (ev.visibility === 'admin_only' || ev.visibility === 'admin') {
-        return isAdmin() || ev.creator_id === currentUser.id;
+      if (ev.visibility === 'admin_only' || ev.visibility === 'admin' || ev.is_special_aupygo) {
+        return true;
       }
       if (ev.visibility === 'friends') {
         const parts = ev.event_participants || [];
@@ -2534,11 +2670,12 @@ async function loadAndRenderEvents() {
       if (parts.some(p => p.user_id === currentUser.id)) myEventIds.add(ev.id);
     });
 
-    if (!visible.length) {
+    const toShow = getEventsForSelectedDay(visible);
+    if (!toShow.length) {
       grid.innerHTML = '<p class="footer-muted" id="eventGridEmpty" style="grid-column:1/-1;padding:16px">Aucune sortie pour le moment. Organise-en une !</p>';
     } else {
       const locked = currentPlan === 'FREE';
-      grid.innerHTML = visible.map(ev => {
+      grid.innerHTML = toShow.map(ev => {
         const parts = ev.event_participants || [];
         const count = parts.length;
         const remaining = Math.max(0, (ev.max_participants || 0) - count);
@@ -2713,6 +2850,7 @@ async function editRealEvent(eventId) {
 async function loadEventInvitations() {
   const card = document.getElementById('eventInvitesCard');
   const list = document.getElementById('eventInvitesList');
+  pendingEventInviteIds = new Set();
   if (!currentUser || !list) {
     if (card) card.style.display = 'none';
     return;
@@ -2728,15 +2866,18 @@ async function loadEventInvitations() {
       return;
     }
     const rows = data || [];
+    rows.forEach(inv => { if (inv.event_id) pendingEventInviteIds.add(inv.event_id); });
     if (!rows.length) {
       if (card) card.style.display = 'none';
       list.innerHTML = '';
+      if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(cachedEvents);
+      if (typeof renderEventsAgenda === 'function') renderEventsAgenda(cachedEvents);
       return;
     }
     if (card) card.style.display = 'block';
     list.innerHTML = rows.map(inv => {
       const ev = inv.events || {};
-      return `<div class="agenda-item" style="padding:12px;margin-bottom:8px;border-radius:10px;border:1px solid var(--border,#eee)">
+      return `<div class="agenda-item invite-pending" style="padding:12px;margin-bottom:8px;border-radius:10px;border:1px solid #eab308">
         <strong>${ev.emoji || '🤝'} ${escapeHtml(ev.title || 'Sortie entre amis')}</strong><br>
         <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · ${escapeHtml(ev.address || '')}</span>
         <div style="display:flex;gap:8px;margin-top:10px">
@@ -2745,6 +2886,8 @@ async function loadEventInvitations() {
         </div>
       </div>`;
     }).join('');
+    if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(cachedEvents);
+    if (typeof renderEventsAgenda === 'function') renderEventsAgenda(cachedEvents);
   } catch (e) {
     if (card) card.style.display = 'none';
   }
@@ -2943,18 +3086,36 @@ function buildWeekCalendarHtml(events) {
   const today = new Date();
   return week.map(w => {
     const items = byDay[w.key] || [];
-    const eventsHtml = items.map(ev => {
-      const role = eventRoleClass(ev);
-      const urg = getEventUrgency(ev);
-      return '<div class="agenda-event ' + role + ' urgency-' + urg + '" data-event-id="' + ev.id + '">' +
-        (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</div>';
-    }).join('');
+    const count = items.length;
     const isToday = w.date.toDateString() === today.toDateString();
-    return '<div class="day' + (isToday ? ' day-today' : '') + '" data-day-key="' + w.key + '">' +
+    const isSel = selectedAgendaDay === w.key;
+    // Pastille compacte : nombre d'événements + clignotement jaune si invitation pending ce jour
+    const hasPending = items.some(ev => pendingEventInviteIds.has(ev.id));
+    let dots = '';
+    if (count > 0) {
+      dots = '<span class="day-count' + (hasPending ? ' day-pending-blink' : '') + '">' + count + ' sortie' + (count > 1 ? 's' : '') + '</span>';
+    } else {
+      dots = '<span class="day-empty">—</span>';
+    }
+    return '<div class="day day-clickable' + (isToday ? ' day-today' : '') + (isSel ? ' day-selected' : '') +
+      (hasPending ? ' day-pending-blink' : '') +
+      '" data-day-key="' + w.key + '" onclick="selectAgendaDay(\'' + w.key + '\')">' +
       '<strong>' + w.name + ' <span class="day-date">' + String(w.dayNum).padStart(2, '0') + '/' + String(w.monthNum).padStart(2, '0') + '</span></strong>' +
-      (eventsHtml || '<span class="day-empty">—</span>') +
+      dots +
       '</div>';
   }).join('');
+}
+
+function selectAgendaDay(dayKey) {
+  if (selectedAgendaDay === dayKey) selectedAgendaDay = null; // re-clic = tous
+  else selectedAgendaDay = dayKey;
+  // Re-render listes filtrées
+  if (typeof renderEventGridFiltered === 'function') renderEventGridFiltered();
+  if (typeof updateMyAgendaList === 'function') updateMyAgendaList();
+  // Refresh calendriers pour état selected
+  if (typeof renderEventsAgenda === 'function') renderEventsAgenda(cachedEvents);
+  if (typeof renderCommunityAgenda === 'function') renderCommunityAgenda(cachedEvents);
+  if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(cachedEvents);
 }
 
 function renderPersonalAgenda(events) {
@@ -3018,7 +3179,9 @@ function updateMyAgendaList() {
   // Mes sorties : participations + celles que j'organise, visibles jusqu'à +24h après l'heure
   const mine = (cachedEvents || []).filter(ev => {
     if (!myEventIds.has(ev.id) && !(currentUser && ev.creator_id === currentUser.id)) return false;
-    return getEventUrgency(ev) !== 'expired';
+    if (getEventUrgency(ev) === 'expired') return false;
+    if (selectedAgendaDay && eventDayKey(ev.event_date) !== selectedAgendaDay) return false;
+    return true;
   });
   if (!mine.length) {
     list.innerHTML = '<p class="footer-muted" data-i18n="agenda.empty">Tu n’as encore rejoint aucune sortie.</p>';
@@ -4199,7 +4362,20 @@ async function openConversation(type, id, name) {
     }
   }
 
-  // DM entre amis dès FREE (quota 10/j). Plus d'exigence PREMIUM mutuel.
+  // DM : uniquement entre amis acceptés (tous forfaits)
+  if (type === 'dm') {
+    const st = getFriendshipStatusWith(id);
+    if (st !== 'accepted') {
+      if (st === 'pending') {
+        showToast('⏳ Demande d’ami en attente.', 'error');
+      } else if (st === 'refused' || st === 'rejected' || st === 'declined') {
+        showToast('Demande d’ami refusée — messagerie indisponible.', 'error');
+      } else {
+        showToast('🤝 Vous devez être amis pour discuter. Envoie une demande d’ami d’abord.', 'error');
+      }
+      return;
+    }
+  }
 
   // Bascule sur l'onglet Messagerie
   if (getActivePage() !== 'messages') go('messages');
@@ -5571,6 +5747,90 @@ function injectMessagingNotificationStyles() {
     }
     .day.urgency-orange .agenda-event { color: #c2410c; font-weight: 700; }
     .day.urgency-red .agenda-event { color: #b91c1c; font-weight: 700; }
+
+    .agenda-week .day-clickable { cursor: pointer; transition: background .15s; }
+    .agenda-week .day-clickable:hover { background: rgba(124,58,237,0.08); }
+    .agenda-week .day-selected {
+      background: rgba(124,58,237,0.12);
+      outline: 2px solid #7c3aed;
+      border-radius: 10px;
+    }
+    .day-count {
+      display: inline-block;
+      margin-top: 4px;
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--primary, #7c3aed);
+    }
+    @keyframes aupygoBlinkYellow {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(234, 179, 8, 0.75); background-color: rgba(250, 204, 21, 0.25); }
+      50% { box-shadow: 0 0 0 8px rgba(234, 179, 8, 0); background-color: rgba(250, 204, 21, 0.55); }
+    }
+    .day-pending-blink,
+    .agenda-item.invite-pending,
+    .event-invite-pending {
+      animation: aupygoBlinkYellow 1s ease-in-out infinite;
+    }
+    /* Cartes sorties compactes */
+    .event-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 10px;
+    }
+    .event {
+      padding: 0;
+      margin: 0;
+      border-radius: 12px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    .event .event-cover {
+      font-size: 28px;
+      padding: 10px 8px 4px;
+      text-align: center;
+      line-height: 1.2;
+    }
+    .event .event-body {
+      padding: 6px 10px 10px;
+    }
+    .event .event-body h3 {
+      font-size: 14px !important;
+      margin: 4px 0 6px !important;
+      line-height: 1.25;
+    }
+    .event .event-details {
+      font-size: 11px;
+      margin: 2px 0;
+    }
+    .event .badge {
+      font-size: 10px;
+      padding: 2px 6px;
+    }
+    .event .btn, .event .event-join {
+      font-size: 12px !important;
+      padding: 6px 10px !important;
+      margin-top: 6px !important;
+      width: 100%;
+    }
+    .event-actions-row {
+      display: flex;
+      gap: 6px;
+      align-items: center;
+      margin-top: 6px;
+    }
+    .event-actions-row .btn { width: auto; flex: 1; }
+    .member-refused-gray {
+      filter: grayscale(1);
+      opacity: 0.72;
+    }
+    #eventDayFilterBar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+      margin-bottom: 12px;
+      font-size: 13px;
+    }
 `;
   document.head.appendChild(style);
 }
