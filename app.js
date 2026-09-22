@@ -2729,11 +2729,181 @@ function openSpecialInviteModal(eventId) {
   document.body.style.overflow = 'hidden';
 }
 
+
 function closeSpecialInviteModal() {
   const ov = document.getElementById('specialInviteOverlay');
   if (ov) ov.classList.remove('open');
   document.body.style.overflow = '';
 }
+
+/** Liste d'invités — visible par le créateur (admin) d'un événement spécial */
+async function openSpecialGuestList(eventId) {
+  if (!currentUser) {
+    showToast(t('plans.need_login') || 'Connecte-toi.', 'error');
+    return;
+  }
+  const ev = (cachedEvents || []).find(e => e.id === eventId);
+  if (!ev) {
+    showToast('Événement introuvable.', 'error');
+    return;
+  }
+  const isCreator = ev.creator_id === currentUser.id;
+  const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
+  if (!isCreator && !(typeof isAdmin === 'function' && isAdmin())) {
+    showToast('Réservé à l’organisateur.', 'error');
+    return;
+  }
+
+  let parts = [];
+  try {
+    const { data, error } = await supabaseClient
+      .from('event_participants')
+      .select('user_id, joined_at')
+      .eq('event_id', eventId)
+      .order('joined_at', { ascending: true });
+    if (error) throw error;
+    parts = data || [];
+  } catch (e) {
+    console.error('guest list participants:', e);
+    showToast('Impossible de charger les participants.', 'error');
+    return;
+  }
+
+  const ids = parts.map(p => p.user_id).filter(Boolean);
+  let profilesMap = {};
+  if (ids.length) {
+    try {
+      // Préfère les profils déjà en cache carte
+      (profiles || []).forEach(p => {
+        if (p && p.id && ids.includes(p.id)) profilesMap[p.id] = p;
+      });
+      const missing = ids.filter(id => !profilesMap[id]);
+      if (missing.length) {
+        const { data: rows, error: pErr } = await supabaseClient
+          .from('profiles')
+          .select('id, display_name, gender, city, country, age')
+          .in('id', missing);
+        if (pErr) {
+          // fallback map_profiles
+          const { data: rows2 } = await supabaseClient
+            .from('map_profiles')
+            .select('id, display_name, gender, city, country, age')
+            .in('id', missing);
+          (rows2 || []).forEach(r => { profilesMap[r.id] = r; });
+        } else {
+          (rows || []).forEach(r => { profilesMap[r.id] = r; });
+        }
+      }
+    } catch (e) {
+      console.warn('guest list profiles:', e);
+    }
+  }
+
+  const lines = ids.map((uid, i) => {
+    const p = profilesMap[uid] || {};
+    const name = p.display_name || ('Participant ' + (i + 1));
+    const gender = p.gender === 'Homme' ? '👨' : (p.gender === 'Femme' ? '👩' : '👤');
+    const city = p.city || p.country || '';
+    const age = p.age ? (p.age + ' ans') : '';
+    const meta = [age, city].filter(Boolean).join(' · ');
+    const joined = parts.find(x => x.user_id === uid);
+    let when = '';
+    if (joined && joined.joined_at) {
+      try {
+        const d = new Date(joined.joined_at);
+        when = d.toLocaleDateString('fr-FR', { day: '2-digit', month: 'short', hour: '2-digit', minute: '2-digit' });
+      } catch (e) {}
+    }
+    return {
+      name, gender, meta, when, uid,
+      html: '<div class="guest-list-row">' +
+        '<span class="guest-list-av">' + gender + '</span>' +
+        '<div class="guest-list-info">' +
+          '<strong>' + escapeHtml(name) + '</strong>' +
+          (meta ? '<span class="guest-list-meta">' + escapeHtml(meta) + '</span>' : '') +
+          (when ? '<span class="guest-list-meta">Inscrit · ' + escapeHtml(when) + '</span>' : '') +
+        '</div></div>'
+    };
+  });
+
+  let ov = document.getElementById('specialGuestListOverlay');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'specialGuestListOverlay';
+    ov.className = 'special-guest-overlay';
+    ov.onclick = function (e) { if (e.target === ov) closeSpecialGuestList(); };
+    document.body.appendChild(ov);
+  }
+
+  const title = (ev.emoji || '🎉') + ' ' + (ev.title || 'Événement spécial');
+  const plainText = lines.map((l, i) => (i + 1) + '. ' + l.name + (l.meta ? ' (' + l.meta + ')' : '')).join('\\n');
+
+  ov.innerHTML =
+    '<div class="special-guest-modal" role="dialog" aria-modal="true">' +
+      '<button type="button" class="member-modal-close" onclick="closeSpecialGuestList()" aria-label="Fermer">×</button>' +
+      '<div class="special-guest-head">' +
+        '<h3>📋 Liste d\\'invités</h3>' +
+        '<p class="special-guest-sub">' + escapeHtml(title) + '</p>' +
+        '<p class="special-guest-count">' + lines.length + ' participant' + (lines.length > 1 ? 's' : '') + '</p>' +
+      '</div>' +
+      '<div class="special-guest-list">' +
+        (lines.length
+          ? lines.map(l => l.html).join('')
+          : '<p class="footer-muted" style="padding:16px;text-align:center">Personne n\\'est encore inscrit.</p>') +
+      '</div>' +
+      (lines.length
+        ? '<div class="special-guest-actions">' +
+            '<button type="button" class="btn btn-primary" onclick="copySpecialGuestList()">📄 Copier la liste</button>' +
+          '</div>'
+        : '') +
+    '</div>';
+
+  // stash plain text for copy
+  ov.dataset.guestPlain = plainText;
+  ov.dataset.guestTitle = title;
+  ov.classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeSpecialGuestList() {
+  const ov = document.getElementById('specialGuestListOverlay');
+  if (ov) ov.classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function copySpecialGuestList() {
+  const ov = document.getElementById('specialGuestListOverlay');
+  if (!ov) return;
+  const title = ov.dataset.guestTitle || 'Liste d\\'invités';
+  const body = ov.dataset.guestPlain || '';
+  const full = title + '\\n\\n' + body;
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(full).then(function () {
+      showToast('Liste copiée ✓', 'success');
+    }).catch(function () {
+      fallbackCopyGuestList(full);
+    });
+  } else {
+    fallbackCopyGuestList(full);
+  }
+}
+
+function fallbackCopyGuestList(text) {
+  try {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    ta.style.position = 'fixed';
+    ta.style.left = '-9999px';
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+    showToast('Liste copiée ✓', 'success');
+  } catch (e) {
+    showToast('Copie impossible', 'error');
+  }
+}
+
 
 
 function getEventsForSelectedDay(list) {
@@ -2795,7 +2965,10 @@ function buildEventCardHtml(ev, locked) {
     actionHtml = '<p class="event-details" style="opacity:.7">Événement terminé</p>';
   } else if (isCreator) {
     const canEdit = typeof canEditOwnEvent === 'function' && canEditOwnEvent(ev);
-    actionHtml = '<div class="event-actions-row">' +
+    const guestBtn = isSpecial
+      ? '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="openSpecialGuestList(\'' + ev.id + '\')">📋 Liste d\'invités (' + count + ')</button>'
+      : '';
+    actionHtml = guestBtn + '<div class="event-actions-row">' +
       '<button class="btn btn-secondary" disabled>👑 Toi</button>' +
       (canEdit ? '<button type="button" class="btn btn-secondary" onclick="editRealEvent(\'' + ev.id + '\')">✏️</button>' : '') +
       '<button type="button" class="btn-icon-delete" onclick="deleteRealEvent(\'' + ev.id + '\')">🗑️</button></div>';
@@ -6354,6 +6527,93 @@ function injectMessagingNotificationStyles() {
       font-weight: 700;
     }
     .special-invite-close:hover { background: rgba(255,255,255,0.3); }
+
+    /* Liste d'invités — organisateur événement spécial */
+    .special-guest-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 12100;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 20px;
+      background: rgba(23, 21, 34, 0.55);
+      backdrop-filter: blur(4px);
+    }
+    .special-guest-overlay.open { display: flex; }
+    .special-guest-modal {
+      background: #fff;
+      border-radius: 20px;
+      max-width: 420px;
+      width: 100%;
+      max-height: 85vh;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 50px rgba(42, 24, 70, 0.25);
+      position: relative;
+      animation: memberPop 0.22s ease;
+    }
+    .special-guest-head {
+      padding: 22px 22px 12px;
+      border-bottom: 1px solid var(--border, #e8e4ef);
+      text-align: center;
+    }
+    .special-guest-head h3 { margin: 0 0 6px; font-size: 20px; }
+    .special-guest-sub { font-size: 14px; color: var(--muted, #777); margin: 0 0 4px; }
+    .special-guest-count {
+      display: inline-block;
+      margin-top: 8px;
+      font-size: 12px;
+      font-weight: 700;
+      color: #6d28d9;
+      background: #f3e8ff;
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .special-guest-list {
+      overflow-y: auto;
+      padding: 12px 16px;
+      flex: 1;
+    }
+    .guest-list-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 8px;
+      border-bottom: 1px solid #f3f0f8;
+    }
+    .guest-list-row:last-child { border-bottom: 0; }
+    .guest-list-av {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      background: linear-gradient(135deg, #ede9fe, #fce7f3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      flex-shrink: 0;
+    }
+    .guest-list-info {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .guest-list-info strong {
+      font-size: 15px;
+      color: var(--text, #292638);
+    }
+    .guest-list-meta {
+      font-size: 12px;
+      color: var(--muted, #777);
+    }
+    .special-guest-actions {
+      padding: 12px 16px 18px;
+      border-top: 1px solid var(--border, #e8e4ef);
+    }
+    .special-guest-actions .btn { width: 100%; }
     .special-event-banner .special-actions {
       display: flex;
       flex-wrap: wrap;
