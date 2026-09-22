@@ -2838,6 +2838,10 @@ async function loadAndRenderEvents() {
     if (typeof updateEventsBadge === 'function') updateEventsBadge();
     if (typeof startEventUrgencyWatch === 'function') startEventUrgencyWatch();
     if (typeof applyEventUrgencyUI === 'function') applyEventUrgencyUI();
+    // Charger les invitations de sorties (amis) pour le destinataire
+    if (typeof loadEventInvitations === 'function') {
+      try { await loadEventInvitations(); } catch (eInv) { console.warn('loadEventInvitations', eInv); }
+    }
   } catch (e) {
     console.error(e);
     grid.innerHTML = '<p class="footer-muted" style="grid-column:1/-1">Erreur de chargement.</p>';
@@ -2970,6 +2974,8 @@ async function loadEventInvitations() {
       .eq('to_id', currentUser.id)
       .eq('status', 'pending');
     if (error) {
+      console.warn('[AUPYGO] event_invitations:', error.message || error);
+      // Table absente ou RLS : on masque silencieusement la carte
       if (card) card.style.display = 'none';
       return;
     }
