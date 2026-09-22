@@ -32,8 +32,6 @@ Object.assign(I18N.fr, {
   "cleanup.body":"Tu as {n} message(s) déjà lu(s) depuis plus d’une semaine. Les supprimer pour libérer de l’espace ? Action définitive.",
   "cleanup.done":"{n} message(s) supprimé(s).","cleanup.refused":"Messages conservés.",
   "geo.title":"Activer la géolocalisation ?","geo.accept":"✅ Oui, activer (~1 km)","geo.decline":"Non merci","geo.continue":"Continuer sans position",
-
-  /* ÉTAPE 1 — freemium */
   "messages.friends_only":"Tu ne peux écrire qu’à tes amis validés",
   "messages.groups_locked":"👥 Les groupes sont réservés aux forfaits STANDARD et PREMIUM",
   "messages.quota_left":"{n}/{max} messages restants aujourd’hui",
@@ -51,7 +49,14 @@ Object.assign(I18N.fr, {
   "events.btn_upgrade":"🔒 S’inscrire — dès STANDARD",
   "plans.free_f5":"Messages entre amis (10 max)",
   "plans.standard_f6":"10 messages/jour & groupes",
-  "plans.premium_f3":"Notes vocales & organisation d’événements (bientôt)"
+  "plans.premium_f3":"Notes vocales & organisation d’événements (bientôt)",
+  "friend.refused_title":"🚫 Amitié refusée",
+  "friend.refused_body":"Cette personne a refusé (ou tu as refusé) la demande d’ami. Tu ne peux plus voir sa fiche ni échanger avec elle.",
+  "friend.refused_short":"🚫 Demande refusée",
+  "friend.pending":"⏳ Demande d’ami en attente",
+  "friend.accepted":"✅ Vous êtes amis",
+  "friend.request_btn":"🤝 Demande d’ami",
+  "friend.login_to_request":"Connecte-toi pour envoyer une demande d’ami"
 });
 
 Object.assign(I18N.en, {
@@ -83,7 +88,6 @@ Object.assign(I18N.en, {
   "cleanup.body":"You have {n} message(s) read more than a week ago. Delete them to free space? This is permanent.",
   "cleanup.done":"{n} message(s) deleted.","cleanup.refused":"Messages kept.",
   "geo.title":"Enable location?","geo.accept":"✅ Yes, enable (~1 km)","geo.decline":"No thanks","geo.continue":"Continue without location",
-
   "messages.friends_only":"You can only message your confirmed friends",
   "messages.groups_locked":"👥 Groups are reserved for STANDARD and PREMIUM plans",
   "messages.quota_left":"{n}/{max} messages left today",
@@ -101,7 +105,14 @@ Object.assign(I18N.en, {
   "events.btn_upgrade":"🔒 Sign up — from STANDARD",
   "plans.free_f5":"Messages between friends (10 max)",
   "plans.standard_f6":"10 messages/day & groups",
-  "plans.premium_f3":"Voice notes & event organisation (soon)"
+  "plans.premium_f3":"Voice notes & event organisation (soon)",
+  "friend.refused_title":"🚫 Friendship declined",
+  "friend.refused_body":"This person declined (or you declined) the friend request. You can no longer view their profile or message them.",
+  "friend.refused_short":"🚫 Request declined",
+  "friend.pending":"⏳ Friend request pending",
+  "friend.accepted":"✅ You are friends",
+  "friend.request_btn":"🤝 Friend request",
+  "friend.login_to_request":"Log in to send a friend request"
 });
 
 Object.assign(I18N.es || (I18N.es = {}), {
@@ -133,7 +144,6 @@ Object.assign(I18N.es || (I18N.es = {}), {
   "cleanup.body":"Tienes {n} mensaje(s) ya leído(s) desde hace más de una semana. ¿Eliminarlos para liberar espacio? Acción definitiva.",
   "cleanup.done":"{n} mensaje(s) eliminado(s).","cleanup.refused":"Mensajes conservados.",
   "geo.title":"¿Activar la geolocalización?","geo.accept":"✅ Sí, activar (~1 km)","geo.decline":"No, gracias","geo.continue":"Continuar sin ubicación",
-
   "messages.friends_only":"Solo puedes escribir a tus amigos confirmados",
   "messages.groups_locked":"👥 Los grupos están reservados a los planes STANDARD y PREMIUM",
   "messages.quota_left":"{n}/{max} mensajes restantes hoy",
@@ -151,5 +161,12 @@ Object.assign(I18N.es || (I18N.es = {}), {
   "events.btn_upgrade":"🔒 Inscribirse — desde STANDARD",
   "plans.free_f5":"Mensajes entre amigos (10 máx.)",
   "plans.standard_f6":"10 mensajes/día y grupos",
-  "plans.premium_f3":"Notas de voz y organización de eventos (próximamente)"
+  "plans.premium_f3":"Notas de voz y organización de eventos (próximamente)",
+  "friend.refused_title":"🚫 Amistad rechazada",
+  "friend.refused_body":"Esta persona rechazó (o tú rechazaste) la solicitud de amistad. Ya no puedes ver su ficha ni escribirle.",
+  "friend.refused_short":"🚫 Solicitud rechazada",
+  "friend.pending":"⏳ Solicitud de amistad pendiente",
+  "friend.accepted":"✅ Sois amigos",
+  "friend.request_btn":"🤝 Solicitud de amistad",
+  "friend.login_to_request":"Inicia sesión para enviar una solicitud de amistad"
 });
