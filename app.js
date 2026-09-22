@@ -2656,7 +2656,7 @@ function renderSpecialEventsHero(list) {
       '<span class="fw" style="top:12px;right:18px;animation-delay:.4s">🎇</span>' +
       '<span class="fw" style="bottom:10px;left:40%;animation-delay:.8s">✨</span>' +
       '<span class="fw" style="top:40%;right:8px;animation-delay:1.1s">🎆</span>' +
-      '<div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:.04em;opacity:.9">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
+      '<div style="position:relative;z-index:1;font-size:12px;font-weight:700;letter-spacing:.06em;color:#fbbf24;opacity:.85">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
       '<h3>' + (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</h3>' +
       '<p class="event-address-link" style="position:relative;z-index:1" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
       '<p>🕐 ' + dateStr + '</p>' +
@@ -6007,41 +6007,47 @@ function injectMessagingNotificationStyles() {
     .special-event-banner {
       position: relative;
       overflow: hidden;
-      border-radius: 16px;
-      padding: 20px 16px;
-      margin-bottom: 12px;
-      background: linear-gradient(135deg, #4c1d95, #7c3aed 40%, #db2777);
-      color: #fff;
-      box-shadow: 0 8px 28px rgba(124, 58, 237, 0.35);
-      animation: specialPulse 2s ease-in-out infinite;
-    }
-    @keyframes specialPulse {
-      0%, 100% { transform: scale(1); }
-      50% { transform: scale(1.01); }
+      border-radius: 18px;
+      padding: 22px 18px;
+      margin-bottom: 14px;
+      /* Feu d'artifice soft : fond sombre + lueurs or/ambre */
+      background:
+        radial-gradient(ellipse 80% 60% at 50% 40%, rgba(251, 191, 36, 0.22), transparent 55%),
+        radial-gradient(ellipse 50% 40% at 20% 70%, rgba(245, 158, 11, 0.12), transparent 50%),
+        radial-gradient(ellipse 40% 35% at 80% 25%, rgba(253, 224, 71, 0.10), transparent 45%),
+        linear-gradient(160deg, #0f0e17 0%, #1a1525 50%, #12101a 100%);
+      color: #fef3c7;
+      border: 1px solid rgba(251, 191, 36, 0.25);
+      box-shadow: 0 8px 32px rgba(0, 0, 0, 0.35);
+      animation: none;
     }
     .special-event-banner .fw {
       position: absolute;
-      font-size: 22px;
-      animation: fwFloat 2.5s ease-in-out infinite;
-      opacity: 0.9;
+      font-size: 16px;
+      animation: fwSoft 4s ease-in-out infinite;
+      opacity: 0.45;
       pointer-events: none;
+      filter: grayscale(0.15) brightness(1.1);
     }
-    @keyframes fwFloat {
-      0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
-      50% { transform: translateY(-12px) scale(1.2); opacity: 1; }
+    @keyframes fwSoft {
+      0%, 100% { transform: translateY(0); opacity: 0.35; }
+      50% { transform: translateY(-6px); opacity: 0.55; }
     }
     .special-event-banner h3 {
       margin: 8px 0 6px;
-      font-size: 22px;
+      font-size: 20px;
       position: relative;
       z-index: 1;
+      color: #fde68a;
+      letter-spacing: -0.02em;
     }
     .special-event-banner p {
       margin: 4px 0;
       font-size: 14px;
       position: relative;
       z-index: 1;
-      opacity: 0.95;
+      color: rgba(254, 243, 199, 0.88);
+      opacity: 1;
     }
     .special-event-banner .special-actions {
       display: flex;
