@@ -1370,7 +1370,7 @@ function initMap() {
 
 
 function createIcon(gender, kind) {
-  // kind: 'me' | 'online' | 'offline'
+  // kind: 'me' | 'online' | 'offline' | 'refused'
   const emoji = gender === 'Homme' ? '👨' : (gender === 'Femme' ? '👩' : '👤');
   const cls = 'aupy-marker ' + (kind || 'offline');
   return L.divIcon({
@@ -1385,6 +1385,7 @@ function createIcon(gender, kind) {
  *  Toi-même = toujours « me » (bleu), indépendamment du statut. */
 function getMarkerKind(member) {
   if (currentUser && member.id === currentUser.id) return 'me';
+  if (typeof isRefusedFriend === 'function' && isRefusedFriend(member.id)) return 'refused';
   return isRecentlyOnline(member) ? 'online' : 'offline';
 }
 
@@ -2198,15 +2199,21 @@ function applyRestaurantLimitsUI() {
 }
 
 function eventWizardRender() {
-  const total = EVENT_WIZARD_STEPS.length;
-  EVENT_WIZARD_STEPS.forEach((name, i) => {
+  const steps = getEventWizardSteps();
+  const total = steps.length;
+  // Masque toutes les étapes puis active la courante
+  EVENT_WIZARD_STEPS.forEach((name) => {
+    const panel = document.getElementById('wizardStep_' + name);
+    if (panel) panel.classList.remove('active');
+  });
+  steps.forEach((name, i) => {
     const panel = document.getElementById('wizardStep_' + name);
     if (panel) panel.classList.toggle('active', i === eventWizardStep);
   });
 
   const dotsWrap = document.getElementById('eventWizardDots');
   if (dotsWrap) {
-    dotsWrap.innerHTML = EVENT_WIZARD_STEPS.map((_, i) =>
+    dotsWrap.innerHTML = steps.map((_, i) =>
       '<span class="wizard-dot' +
         (i === eventWizardStep ? ' active' : '') +
         (i < eventWizardStep ? ' done' : '') +
@@ -2229,7 +2236,7 @@ function eventWizardRender() {
     title: 'createEventTitleInput',
     address: 'createEventAddress'
   };
-  const stepName = EVENT_WIZARD_STEPS[eventWizardStep];
+  const stepName = steps[eventWizardStep];
   if (focusMap[stepName]) {
     const el = document.getElementById(focusMap[stepName]);
     if (el) setTimeout(() => el.focus(), 200);
@@ -2311,15 +2318,16 @@ function eventWizardValidate(stepName) {
 }
 
 function eventWizardNext() {
-  const stepName = EVENT_WIZARD_STEPS[eventWizardStep];
+  const steps = getEventWizardSteps();
+  const stepName = steps[eventWizardStep];
   if (!eventWizardValidate(stepName)) return;
 
-  if (eventWizardStep === EVENT_WIZARD_STEPS.length - 1) {
+  if (eventWizardStep === steps.length - 1) {
     submitCreateEvent();
     return;
   }
 
-  eventWizardStep = Math.min(eventWizardStep + 1, EVENT_WIZARD_STEPS.length - 1);
+  eventWizardStep = Math.min(eventWizardStep + 1, steps.length - 1);
   eventWizardRender();
 }
 
@@ -2523,6 +2531,89 @@ async function submitCreateEvent() {
 }
 
 
+
+/** Événements refusés localement (disparaissent pour ce user) */
+function getDeclinedEventIds() {
+  try {
+    const raw = localStorage.getItem('aupygo_declined_events') || '[]';
+    const arr = JSON.parse(raw);
+    return new Set(Array.isArray(arr) ? arr : []);
+  } catch (e) { return new Set(); }
+}
+function setDeclinedEventIds(set) {
+  try { localStorage.setItem('aupygo_declined_events', JSON.stringify(Array.from(set))); } catch (e) {}
+}
+function hasDeclinedEvent(eventId) {
+  return getDeclinedEventIds().has(eventId);
+}
+function refuseEvent(eventId) {
+  if (!eventId) return;
+  const set = getDeclinedEventIds();
+  set.add(eventId);
+  setDeclinedEventIds(set);
+  // Si déjà inscrit, on quitte aussi
+  if (myEventIds && myEventIds.has(eventId) && typeof leaveRealEvent === 'function') {
+    // leaveRealEvent demande confirm — on fait un leave silencieux
+    (async () => {
+      try {
+        if (currentUser) {
+          await supabaseClient.from('event_participants')
+            .delete()
+            .eq('event_id', eventId)
+            .eq('user_id', currentUser.id);
+        }
+      } catch (e) {}
+      showToast('Sortie refusée — elle ne s’affichera plus.', 'success');
+      await loadAndRenderEvents();
+    })();
+    return;
+  }
+  showToast('Sortie refusée — elle ne s’affichera plus.', 'success');
+  if (typeof loadAndRenderEvents === 'function') loadAndRenderEvents();
+}
+
+function renderSpecialEventsHero(list) {
+  const host = document.getElementById('specialEventsHero');
+  if (!host) return;
+  const declined = getDeclinedEventIds();
+  const specials = (list || []).filter(ev => {
+    if (declined.has(ev.id)) return false;
+    const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
+    if (!isSpecial) return false;
+    if (getEventUrgency(ev) === 'expired' || getEventUrgency(ev) === 'past') return false;
+    // Pas encore de choix : ni inscrit ni créateur
+    if (myEventIds.has(ev.id)) return false;
+    if (currentUser && ev.creator_id === currentUser.id) return false;
+    return true;
+  });
+  if (!specials.length) {
+    host.innerHTML = '';
+    host.style.display = 'none';
+    return;
+  }
+  host.style.display = 'block';
+  host.innerHTML = specials.map(ev => {
+    const dateStr = formatEventDate(ev.event_date);
+    const locked = currentPlan === 'FREE';
+    const actions = locked
+      ? '<button class="btn btn-locked" onclick="go(\'plans\')">🔒 STANDARD pour participer</button>' +
+        '<button class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button>'
+      : '<button class="btn btn-primary" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>' +
+        '<button class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button>';
+    return '<div class="special-event-banner" data-event-id="' + ev.id + '">' +
+      '<span class="fw" style="top:8px;left:12px">🎆</span>' +
+      '<span class="fw" style="top:12px;right:18px;animation-delay:.4s">🎇</span>' +
+      '<span class="fw" style="bottom:10px;left:40%;animation-delay:.8s">✨</span>' +
+      '<span class="fw" style="top:40%;right:8px;animation-delay:1.1s">🎆</span>' +
+      '<div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:.04em;opacity:.9">⭐ ÉVÉNEMENT SPÉCIAL AUPYGO</div>' +
+      '<h3>' + (ev.emoji || '🎉') + ' ' + escapeHtml(ev.title) + '</h3>' +
+      '<p>📍 ' + escapeHtml(ev.address || '') + '</p>' +
+      '<p>🕐 ' + dateStr + '</p>' +
+      (ev.description ? '<p style="opacity:.9">' + escapeHtml(ev.description) + '</p>' : '') +
+      '<div class="special-actions">' + actions + '</div></div>';
+  }).join('');
+}
+
 function getEventsForSelectedDay(list) {
   const src = list || cachedEvents || [];
   if (!selectedAgendaDay) return src;
@@ -2569,14 +2660,18 @@ function buildEventCardHtml(ev, locked) {
   const typeLabel = typeToLabel(ev.type);
   const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
   const isPaidEv = !!(ev.is_paid && Number(ev.price) > 0);
-  const priceLabel = isPaidEv ? (Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €') : 'Gratuit';
+  const showPrice = isAdmin() || isPaidEv; // users : pas d'affichage tarif free
+  const priceLabel = isPaidEv ? (Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €') : '';
   const visBadge = ev.visibility === 'friends' ? '🤝 Amis' : isSpecial ? '⭐ AUPYGO' : '';
-  const priceBadge = isPaidEv ? (' · 💶 ' + priceLabel) : ' · Gratuit';
+  const priceBadge = showPrice && isPaidEv ? (' · 💶 ' + priceLabel) : '';
   const seatsText = full ? 'Complet' : (remaining + ' place' + (remaining > 1 ? 's' : ''));
   const urgCard = getEventUrgency(ev);
   const roleCard = eventRoleClass(ev);
-  let actionHtml;
-  if (isCreator) {
+  const isPast = urgCard === 'past' || urgCard === 'expired';
+  let actionHtml = '';
+  if (isPast) {
+    actionHtml = '<p class="event-details" style="opacity:.7">Événement terminé</p>';
+  } else if (isCreator) {
     const canEdit = typeof canEditOwnEvent === 'function' && canEditOwnEvent(ev);
     actionHtml = '<div class="event-actions-row">' +
       '<button class="btn btn-secondary" disabled>👑 Toi</button>' +
@@ -2585,22 +2680,22 @@ function buildEventCardHtml(ev, locked) {
   } else if (isJoined) {
     actionHtml = '<div class="event-actions-row">' +
       '<button class="btn btn-secondary" disabled>✅ Inscrit</button>' +
-      '<button type="button" class="btn-icon-delete" onclick="leaveRealEvent(\'' + ev.id + '\')">✖️</button></div>';
+      '<button type="button" class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button></div>';
   } else if (full) {
-    actionHtml = '<button class="btn btn-secondary" disabled>Complet</button>';
+    actionHtml = '<div class="event-actions-row">' +
+      '<button class="btn btn-secondary" disabled>Complet</button>' +
+      '<button type="button" class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button></div>';
+  } else if (locked && !isCreator) {
+    actionHtml = '<button class="btn btn-locked event-upgrade" onclick="go(\'plans\')">🔒 STANDARD</button>' +
+      '<button type="button" class="btn btn-secondary" style="margin-top:6px;width:100%" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button>';
   } else if (isPaidEv) {
-    actionHtml = '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">💶 ' + priceLabel + '</button>';
+    actionHtml = '<div class="event-actions-row">' +
+      '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">💶 ' + priceLabel + '</button>' +
+      '<button type="button" class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️</button></div>';
   } else {
-    actionHtml = '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>';
-  }
-  if (locked && !isCreator) {
-    return '<div class="event ' + roleCard + ' urgency-' + urgCard + '" data-event-id="' + ev.id + '">' +
-      '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
-      '<span class="badge">' + typeLabel + (visBadge ? ' · ' + visBadge : '') + priceBadge + '</span>' +
-      '<h3>' + escapeHtml(ev.title) + '</h3>' +
-      '<p class="event-details locked-text">🔒 STANDARD requis</p>' +
-      '<button class="btn btn-locked event-upgrade" onclick="go(\'' + 'plans' + '\')">Passer à STANDARD</button>' +
-      '</div></div>';
+    actionHtml = '<div class="event-actions-row">' +
+      '<button class="btn btn-primary event-join" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>' +
+      '<button type="button" class="btn btn-secondary" onclick="refuseEvent(\'' + ev.id + '\')">✖️ Refuser</button></div>';
   }
   return '<div class="event ' + roleCard + ' urgency-' + urgCard + '" data-event-id="' + ev.id + '">' +
     '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
@@ -2608,7 +2703,9 @@ function buildEventCardHtml(ev, locked) {
     '<h3>' + escapeHtml(ev.title) + '</h3>' +
     '<p class="event-details">📍 ' + escapeHtml(ev.address || '') + '</p>' +
     '<p class="event-details">🕐 ' + dateStr + ' · 👥 ' + (ev.max_participants || '?') + '</p>' +
-    '<p class="event-seats">' + seatsText + '</p>' + actionHtml +
+    (showPrice && isPaidEv ? '<p class="event-details">💶 ' + priceLabel + '</p>' : '') +
+    (!isPast ? '<p class="event-seats">' + seatsText + '</p>' : '') +
+    actionHtml +
     '</div></div>';
 }
 
@@ -2663,6 +2760,10 @@ async function loadAndRenderEvents() {
       return true;
     });
 
+    // Masquer les sorties refusées par l'utilisateur
+    const declined = getDeclinedEventIds();
+    visible = visible.filter(ev => !declined.has(ev.id));
+
     cachedEvents = visible;
     myEventIds = new Set();
     visible.forEach(ev => {
@@ -2675,73 +2776,10 @@ async function loadAndRenderEvents() {
       grid.innerHTML = '<p class="footer-muted" id="eventGridEmpty" style="grid-column:1/-1;padding:16px">Aucune sortie pour le moment. Organise-en une !</p>';
     } else {
       const locked = currentPlan === 'FREE';
-      grid.innerHTML = toShow.map(ev => {
-        const parts = ev.event_participants || [];
-        const count = parts.length;
-        const remaining = Math.max(0, (ev.max_participants || 0) - count);
-        const isJoined = myEventIds.has(ev.id);
-        const isCreator = !!(currentUser && ev.creator_id === currentUser.id);
-        const full = remaining <= 0;
-        const dateStr = formatEventDate(ev.event_date);
-        const typeLabel = typeToLabel(ev.type);
-        const isSpecial = !!(ev.is_special_aupygo || ev.visibility === 'admin' || ev.visibility === 'admin_only' || ev.type === 'special');
-        const isPaidEv = !!(ev.is_paid && Number(ev.price) > 0);
-        const priceLabel = isPaidEv ? (Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €') : 'Gratuit';
-        const visBadge = ev.visibility === 'friends' ? '🤝 Amis' :
-          isSpecial ? '⭐ AUPYGO' : '';
-        const priceBadge = isPaidEv ? (' · 💶 ' + priceLabel) : ' · Gratuit';
-        const seatsText = full ? 'Complet' : (remaining + ' place' + (remaining > 1 ? 's' : '') + ' restante' + (remaining > 1 ? 's' : ''));
-
-        // Droits : seul le créateur peut supprimer ; un participant peut
-        // annuler sa propre participation à tout moment.
-        let actionHtml;
-        if (isCreator) {
-          const canEdit = canEditOwnEvent(ev);
-          actionHtml =
-            '<div class="event-actions-row">' +
-              '<button class="btn btn-secondary" style="margin-top:0" disabled>👑 Ton événement</button>' +
-              (canEdit
-                ? '<button type="button" class="btn btn-secondary" style="margin-top:0" onclick="editRealEvent(\'' + ev.id + '\')" title="Modifier">✏️</button>'
-                : '') +
-              '<button type="button" class="btn-icon-delete" onclick="deleteRealEvent(\'' + ev.id + '\')" title="Supprimer la sortie" aria-label="Supprimer la sortie">🗑️</button>' +
-            '</div>';
-        } else if (isJoined) {
-          actionHtml =
-            '<div class="event-actions-row">' +
-              '<button class="btn btn-secondary" style="margin-top:0" disabled>✅ Tu participes</button>' +
-              '<button type="button" class="btn-icon-delete" onclick="leaveRealEvent(\'' + ev.id + '\')" title="Annuler ma participation" aria-label="Annuler ma participation">✖️</button>' +
-            '</div>';
-        } else if (full) {
-          actionHtml = '<button class="btn btn-secondary" style="margin-top:10px" disabled>Complet</button>';
-        } else if (isPaidEv) {
-          actionHtml = '<button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRealEvent(\'' + ev.id + '\')">💶 Participer — ' + priceLabel + '</button>';
-        } else {
-          actionHtml = '<button class="btn btn-primary event-join" style="margin-top:10px" onclick="joinRealEvent(\'' + ev.id + '\')">✨ Participer</button>';
-        }
-
-        const urgCard = getEventUrgency(ev);
-        const roleCard = eventRoleClass(ev);
-        return `
-        <div class="event ${roleCard} urgency-${urgCard}" data-event-id="${ev.id}">
-          <div class="event-cover">${ev.emoji || '🎉'}</div>
-          <div class="event-body">
-            <span class="badge">${typeLabel}${visBadge ? ' · ' + visBadge : ''}${priceBadge}</span>
-            <h3 style="margin:8px 0">${escapeHtml(ev.title)}</h3>
-            ${locked && !isCreator ? `
-              <p class="event-details locked-text" data-i18n="events.locked_text">🔒 Lieu et participants réservés au forfait STANDARD</p>
-              <button class="btn btn-locked event-upgrade" onclick="go('plans')">🔒 Passer à STANDARD</button>
-            ` : `
-              <p class="event-details">📍 ${escapeHtml(ev.address || '')}</p>
-              <p class="event-details">🕐 ${dateStr} · 👥 Max ${ev.max_participants || '?'}</p>
-              <p class="event-details">${isPaidEv ? '💶 Tarif : <strong>' + priceLabel + '</strong>' : '🆓 Entrée libre'}</p>
-              <p class="event-seats ${full ? 'full' : ''}">${seatsText}</p>
-              ${actionHtml}
-            `}
-          </div>
-        </div>`;
-      }).join('');
+      grid.innerHTML = toShow.map(ev => buildEventCardHtml(ev, locked)).join('');
     }
 
+    renderSpecialEventsHero(visible);
     renderEventsAgenda(visible);
     renderCommunityAgenda(visible);
     renderPersonalAgenda(visible);
@@ -2922,6 +2960,11 @@ async function joinRealEvent(eventId) {
   if (!currentUser) {
     showToast(t('plans.need_login') || 'Connecte-toi.', 'error');
     go('plans');
+    return;
+  }
+  const evCheck = (cachedEvents || []).find(e => e.id === eventId);
+  if (evCheck && (getEventUrgency(evCheck) === 'past' || getEventUrgency(evCheck) === 'expired')) {
+    showToast('Cet événement est terminé.', 'error');
     return;
   }
   if (currentPlan === 'FREE') {
@@ -3142,12 +3185,28 @@ function applyCreateEventModeUI() {
     const lab = paidInput.closest('label');
     if (lab) lab.style.display = isAdmin() ? '' : 'none';
   }
-  if (!isAdmin()) {
-    const free = document.getElementById('eventPaidFree');
-    if (free) free.checked = true;
-    onEventPaidChange();
+  // Tarif : étape entière réservée à l'admin
+  const priceStep = document.getElementById('wizardStep_price');
+  if (priceStep) {
+    if (!isAdmin()) {
+      priceStep.style.display = 'none';
+      const free = document.getElementById('eventPaidFree');
+      if (free) free.checked = true;
+      onEventPaidChange();
+    } else {
+      priceStep.style.display = '';
+    }
   }
 }
+
+/** Wizard : saute l'étape tarif pour les non-admin */
+function getEventWizardSteps() {
+  if (typeof isAdmin === 'function' && isAdmin()) {
+    return EVENT_WIZARD_STEPS;
+  }
+  return EVENT_WIZARD_STEPS.filter(s => s !== 'price');
+}
+
 
 function renderEventFriendsPick() {
   const list = document.getElementById('eventFriendsPickList');
@@ -5843,6 +5902,81 @@ function injectMessagingNotificationStyles() {
       filter: grayscale(1);
       opacity: 0.72;
     }
+    .aupy-marker.refused {
+      filter: grayscale(1);
+      opacity: 0.45;
+    }
+    .aupy-marker.refused .status-dot { display: none; }
+    .friend-card-refused, .conv-refused {
+      filter: grayscale(1);
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    #specialEventsHero {
+      margin-bottom: 16px;
+    }
+    .special-event-banner {
+      position: relative;
+      overflow: hidden;
+      border-radius: 16px;
+      padding: 20px 16px;
+      margin-bottom: 12px;
+      background: linear-gradient(135deg, #4c1d95, #7c3aed 40%, #db2777);
+      color: #fff;
+      box-shadow: 0 8px 28px rgba(124, 58, 237, 0.35);
+      animation: specialPulse 2s ease-in-out infinite;
+    }
+    @keyframes specialPulse {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.01); }
+    }
+    .special-event-banner .fw {
+      position: absolute;
+      font-size: 22px;
+      animation: fwFloat 2.5s ease-in-out infinite;
+      opacity: 0.9;
+      pointer-events: none;
+    }
+    @keyframes fwFloat {
+      0%, 100% { transform: translateY(0) scale(1); opacity: 0.7; }
+      50% { transform: translateY(-12px) scale(1.2); opacity: 1; }
+    }
+    .special-event-banner h3 {
+      margin: 8px 0 6px;
+      font-size: 22px;
+      position: relative;
+      z-index: 1;
+    }
+    .special-event-banner p {
+      margin: 4px 0;
+      font-size: 14px;
+      position: relative;
+      z-index: 1;
+      opacity: 0.95;
+    }
+    .special-event-banner .special-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 14px;
+      position: relative;
+      z-index: 1;
+    }
+    .special-event-banner .btn {
+      min-width: 120px;
+    }
+    .event.urgency-past,
+    .event.urgency-expired {
+      pointer-events: none;
+      cursor: default;
+    }
+    .event.urgency-past .btn,
+    .event.urgency-expired .btn,
+    .event.urgency-past .btn-icon-delete,
+    .event.urgency-expired .btn-icon-delete {
+      display: none !important;
+    }
+
     #eventDayFilterBar {
       display: flex;
       flex-wrap: wrap;
