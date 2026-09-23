@@ -289,6 +289,13 @@
     }
   };
 
+  function loadStaffScript(src) {
+    if (document.querySelector('script[src*="' + src.replace('js/', '') + '"]')) return;
+    var s = document.createElement('script');
+    s.src = src + '?v=20260923c';
+    document.body.appendChild(s);
+  }
+
   function init() {
     injectAdminButton();
     injectAdminPage();
@@ -297,11 +304,8 @@
       updateAdminButtonVisibility();
       enrichProfilesWithRoles();
     }, 700);
-    if (!document.querySelector('script[src*="staff-messages"]')) {
-      var s = document.createElement('script');
-      s.src = 'js/staff-messages.js?v=20260923b';
-      document.body.appendChild(s);
-    }
+    loadStaffScript('js/staff-messages.js');
+    loadStaffScript('js/staff-events.js');
   }
 
   if (document.readyState === 'loading') {
