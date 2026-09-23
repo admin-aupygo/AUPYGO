@@ -234,8 +234,11 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>AUPYGO est-il gratuit ?</strong><br>Oui, une formule FREE est disponible. Des formules payantes débloquent plus de fonctionnalités.</p><p><strong>Les photos sont-elles visibles ?</strong><br>Non. Tous les profils utilisent des avatars universels. Aucune photo personnelle n’est affichée.</p><p><strong>Ma position est-elle partagée ?</strong><br>Non. Seule une position approximative (~1 km) est utilisée. Ton emplacement exact n’est jamais affiché ni partagé.</p>"
+    {
+    "nav.reconnect": "Se retrouver",
+    "nav.map": "Carte",
     "nav.admin": "Administration",
-    "admin.title": "🛡️ Espace Administration & Modération"
+    "admin.title": "🛡️ Espace Administration & Modération",
     "admin.subtitle": "Gestion des accès, supervision globale et contrôle de conformité",
     "admin.role_management": "👥 Attribution des Rôles (Admin Général)",
     "admin.role_notice": "Seul l'Admin Général (aupygo@protonmail.com) est habilité à assigner ou révoquer des rôles.",
@@ -251,6 +254,7 @@ const I18N = {
     "role.moderator": "Modérateur",
     "role.admin_assistant": "Admin Adjoint",
     "role.admin_general": "Admin Général"
+     },
   },
 
   en: {
@@ -484,10 +488,11 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>Is AUPYGO free?</strong><br>Yes, a FREE plan is available. Paid plans unlock more features.</p><p><strong>Are photos visible?</strong><br>No. All profiles use universal avatars. No personal photos are displayed.</p><p><strong>Is my location shared?</strong><br>No. Only an approximate position (~1 km) is used. Your exact location is never shown or shared.</p>"
-  "nav.reconnect": "Reconnect",
+    {
+    "nav.reconnect": "Reconnect",
     "nav.map": "Map",
     "nav.admin": "Administration",
-    "admin.title": "🛡️ Administration & Moderation Space"
+    "admin.title": "🛡️ Administration & Moderation Space",
     "admin.subtitle": "Access management, global supervision, and compliance control",
     "admin.role_management": "👥 Role Assignment (General Admin)",
     "admin.role_notice": "Only the General Admin (aupygo@protonmail.com) can assign or revoke roles.",
@@ -503,6 +508,7 @@ const I18N = {
     "role.moderator": "Moderator",
     "role.admin_assistant": "Assistant Admin",
     "role.admin_general": "General Admin"
+  },
   },
 
   es: {
@@ -736,10 +742,11 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>¿AUPYGO es gratis?</strong><br>Sí, hay un plan FREE disponible. Los planes de pago desbloquean más funciones.</p><p><strong>¿Se ven las fotos?</strong><br>No. Todos los perfiles usan avatares universales. No se muestran fotos personales.</p><p><strong>¿Se comparte mi ubicación?</strong><br>No. Solo se usa una posición aproximada (~1 km). Tu ubicación exacta nunca se muestra ni se comparte.</p>"
- "nav.reconnect": "Reencontrarse",
+    {
+    "nav.reconnect": "Reencontrarse",
     "nav.map": "Mapa",
     "nav.admin": "Administración",
-    "admin.title": "🛡️ Espacio de Administración y Moderación"
+    "admin.title": "🛡️ Espacio de Administración y Moderación",
     "admin.subtitle": "Gestión de accesos, supervisión global y control de conformidad",
     "admin.role_management": "👥 Asignación de Roles (Admin General)",
     "admin.role_notice": "Solo el Admin General (aupygo@protonmail.com) está autorizado a modificar roles.",
@@ -839,3 +846,8 @@ function applyI18n(lang) {
     try { updateOnlineCount(); } catch (e) {}
   }
 }
+window.t = function(key) {
+  var lang = localStorage.getItem('aupygo_lang') || 'fr';
+  if (!window.I18N[lang]) lang = 'fr';
+  return window.I18N[lang][key] || key;
+};
