@@ -5,214 +5,135 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Aupygo</title>
   
-  <!-- Empêche l'erreur 404 du favicon -->
   <link rel="shortcut icon" href="#">
-
-  <!-- CSS Leaflet pour la carte -->
+  <link rel="stylesheet" href="style.css">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-
-  <style>
-    /* Styles généraux */
-    body { font-family: system-ui, -apple-system, sans-serif; margin: 0; padding: 0; background: #f4f4f5; }
-    .page { display: none; padding: 20px; }
-    .page.active { display: block; }
-    nav { position: fixed; bottom: 0; left: 0; right: 0; display: flex; justify-content: space-around; background: #fff; border-top: 1px solid #e4e4e7; padding: 10px; z-index: 1000; }
-    nav button { display: flex; flex-direction: column; align-items: center; border: none; background: none; cursor: pointer; font-size: 12px; }
-    nav button.active { color: #2563eb; font-weight: bold; }
-    .btn-primary { background: #2563eb; color: #fff; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; }
-    .btn-secondary { background: #e4e4e7; color: #000; border: none; padding: 10px 16px; border-radius: 6px; cursor: pointer; }
-    .card { background: #fff; border-radius: 8px; padding: 16px; margin-bottom: 16px; box-shadow: 0 1px 3px rgba(0,0,0,0.1); }
-    .locked { opacity: 0.5; pointer-events: none; }
-    
-    /* Overlay consent geoloc */
-    .overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 2000; align-items: center; justify-content: center; }
-    .overlay.open { display: flex; }
-    .modal { background: #fff; padding: 24px; border-radius: 12px; max-width: 400px; width: 90%; }
-  </style>
 </head>
 <body>
 
-  <!-- Bandeau visiteur -->
-  <div id="guestBanner" style="background: #fef08a; padding: 10px; text-align: center; display: none;">
-    Mode visiteur : Connecte-toi pour profiter de toutes les fonctionnalités. 
-    <button onclick="goToLogin()" class="btn-primary">Se connecter</button>
-  </div>
+  <!-- HEADER ET NAVIGATION -->
+  <header>
+    <div class="header-inner">
+      <div class="logo-aupygo">
+        <span class="logo-a">A</span><span class="logo-u">u</span><span class="logo-p">p</span><span class="logo-y">y</span><span class="logo-g">g</span><span class="logo-o">o</span>
+        <div class="location-pin"></div>
+      </div>
 
-  <!-- En-tête statut plan -->
-  <header style="padding: 10px 20px; background: #fff; border-bottom: 1px solid #e4e4e7; display: flex; justify-content: space-between;">
-    <div>Aupygo</div>
-    <div>Forfait : <strong id="headerPlan">FREE</strong></div>
+      <nav>
+        <button onclick="go('home')" class="active" title="Accueil">
+          <span class="icon">🏠</span>
+        </button>
+        <button onclick="go('map')" title="Carte">
+          <span class="icon">🗺️</span>
+        </button>
+        <button onclick="go('messages')" title="Messages">
+          <span class="icon">💬</span>
+        </button>
+        <button onclick="go('events')" title="Agenda">
+          <span class="icon">🎉</span>
+        </button>
+        <button onclick="go('plans')" title="Offres">
+          <span class="icon">💎</span>
+          <span class="plan-badge" id="navPlanBadge">FREE</span>
+        </button>
+        <button onclick="go('profile')" title="Profil">
+          <span class="icon">👤</span>
+          <span class="friends-badge" id="friendRequestsBadge">0</span>
+        </button>
+      </nav>
+
+      <select class="lang-select">
+        <option value="fr">🇫🇷 FR</option>
+        <option value="en">🇬🇧 EN</option>
+      </select>
+    </div>
   </header>
 
-  <!-- PAGES -->
-
-  <!-- Page Accueil -->
-  <div id="home" class="page active">
-    <div id="homeLanding">
-      <h1>Bienvenue sur Aupygo</h1>
-      <p>Trouve des activités et des amis autour de toi.</p>
-      <button onclick="goToLogin()" class="btn-primary">Rejoindre la communauté</button>
-    </div>
-
-    <div id="homeDashboard" style="display: none;">
-      <h1>Bonjour, <span id="dashName">Aupy</span> !</h1>
-      <p><span id="onlineCount">0</span> membre(s) en ligne dans ta zone.</p>
-      
-      <button id="homeBtnMap" onclick="go('map')" class="btn-secondary">
-        Voir la carte <span class="home-btn-badge">0</span>
-        <div class="home-btn-online" style="display:none;"></div>
-      </button>
-    </div>
-  </div>
-
-  <!-- Page Carte -->
-  <div id="map" class="page">
-    <h2>Carte des membres</h2>
-    <div id="mapContainer" style="height: 400px; background: #e5e7eb; border-radius: 8px;" onclick="onMapClickForGeo()">
-      <!-- Emplacement carte Leaflet -->
-    </div>
-  </div>
-
-  <!-- Page Messagerie -->
-  <div id="messages" class="page">
-    <h2>Messages</h2>
-    <div id="messagesBox" class="card">
-      <div id="messagesNotice"></div>
-      <p>Tes conversations s'afficheront ici.</p>
-    </div>
-  </div>
-
-  <!-- Page Sortir (Agenda) -->
-  <div id="events" class="page">
-    <h2>Événements & Agenda</h2>
-    <div id="agendaBox" class="card">
-      <div id="agendaNotice"></div>
-      <p>Agenda de la communauté.</p>
-    </div>
-  </div>
-
-  <!-- Page Offres & Connexion -->
-  <div id="plans" class="page">
-    <div id="authLoggedOut">
-      <h2>Connexion / Inscription</h2>
-      <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <button id="tabLogin" onclick="switchAuthTab('login')" class="btn-primary">Connexion</button>
-        <button id="tabSignup" onclick="switchAuthTab('signup')" class="btn-secondary">Inscription</button>
-      </div>
-
-      <!-- Formulaire Connexion -->
-      <form id="loginForm" onsubmit="event.preventDefault(); handleLogin();">
-        <input type="email" id="loginEmail" placeholder="Email" required style="display:block; margin-bottom:10px; width:100%; padding:8px;">
-        <input type="password" id="loginPassword" placeholder="Mot de passe" required style="display:block; margin-bottom:10px; width:100%; padding:8px;">
-        <button type="submit" class="btn-primary">Se connecter</button>
-      </form>
-
-      <!-- Formulaire Inscription -->
-      <form id="signupForm" onsubmit="event.preventDefault(); handleSignup();" style="display: none;">
-        <input type="email" id="signupEmail" placeholder="Email" required style="display:block; margin-bottom:10px; width:100%; padding:8px;">
-        <input type="password" id="signupPassword" placeholder="Mot de passe" required style="display:block; margin-bottom:10px; width:100%; padding:8px;">
-        <button type="submit" class="btn-primary">Créer mon compte</button>
-        <div id="signupPendingNotice" style="display:none; color: green; margin-top: 10px;">Un email de confirmation vous a été envoyé.</div>
-      </form>
-    </div>
-
-    <div id="authLoggedIn" style="display: none;">
-      <h2>Ton compte</h2>
-      <p>Connecté en tant que : <strong id="authUserEmail"></strong></p>
-    </div>
-
-    <h2 style="margin-top: 30px;">Choisis ton forfait</h2>
-    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
-      <div id="plan-FREE" class="card" style="flex:1; min-width: 200px;">
-        <h3>FREE</h3>
-        <span id="badge-FREE" class="btn-secondary" style="display:none;">Actif</span>
-      </div>
-      <div id="plan-STANDARD" class="card" style="flex:1; min-width: 200px;">
-        <h3>STANDARD</h3>
-        <span id="badge-STANDARD" class="btn-secondary" style="display:none;">Actif</span>
-      </div>
-      <div id="plan-PREMIUM" class="card" style="flex:1; min-width: 200px;">
-        <h3>PREMIUM</h3>
-        <span id="badge-PREMIUM" class="btn-secondary" style="display:none;">Actif</span>
-      </div>
-    </div>
-  </div>
-
-  <!-- Page Profil -->
-  <div id="profile" class="page">
-    <h2>Mon Profil</h2>
-    <div class="card">
-      <div style="display:flex; align-items:center; gap: 15px; margin-bottom: 15px;">
-        <div id="profileAvatar" style="font-size: 40px;">👤</div>
+  <!-- CONTENU PRINCIPAL -->
+  <main>
+    
+    <!-- PAGE ACCUEIL -->
+    <div id="home" class="page active">
+      <div class="hero">
         <div>
-          <h3 id="profileName" style="margin:0;">Profil</h3>
-          <p id="profileMeta" style="margin:0; color:#666;"></p>
+          <h1>Rencontre du monde <span class="gradient">autour de toi</span></h1>
+          <p>Trouve des activités, échange des idées et partage des moments avec des membres près de chez toi.</p>
+          <button onclick="go('plans')" class="btn btn-primary">Rejoindre l'aventure</button>
         </div>
       </div>
-
-      <form id="profileForm" onsubmit="event.preventDefault();">
-        <label>Prénom :</label>
-        <input type="text" id="firstName" style="display:block; width:100%; margin-bottom:10px; padding:8px;">
-        
-        <label>Âge :</label>
-        <input type="number" id="age" style="display:block; width:100%; margin-bottom:10px; padding:8px;">
-        
-        <label>Pays :</label>
-        <input type="text" id="country" style="display:block; width:100%; margin-bottom:10px; padding:8px;">
-
-        <label>Ville :</label>
-        <input type="text" id="city" style="display:block; width:100%; margin-bottom:10px; padding:8px;">
-
-        <label>Bio :</label>
-        <textarea id="bio" style="display:block; width:100%; margin-bottom:10px; padding:8px;"></textarea>
-      </form>
-
-      <button id="profileLogoutBtn" onclick="handleLogout()" class="btn-secondary" style="margin-top:15px; display:none;">Se déconnecter</button>
     </div>
 
-    <div id="personalAgendaBox" class="card">
-      <h3>Agenda personnel</h3>
-      <div id="personalAgendaNotice"></div>
-    </div>
-  </div>
-
-  <!-- Modal Géolocalisation -->
-  <div id="geoConsentOverlay" class="overlay">
-    <div class="modal">
-      <h3>Activer la géolocalisation ?</h3>
-      <p>Aupygo utilise une position approximative (~1 km) pour afficher les personnes à proximité sans dévoiler votre adresse exacte.</p>
-      <div style="display:flex; gap:10px; justify-content:flex-end;">
-        <button onclick="declineGeoConsent()" class="btn-secondary">Refuser</button>
-        <button onclick="acceptGeoConsent()" class="btn-primary">Accepter</button>
+    <!-- PAGE CARTE -->
+    <div id="map" class="page">
+      <div class="map-container">
+        <div id="mapCanvas"></div>
       </div>
     </div>
-  </div>
 
-  <!-- NAVIGATION FIXE -->
-  <nav>
-    <button onclick="go('home')" class="active">🏠<span>Accueil</span></button>
-    <button onclick="go('map')">🗺️<span>Carte</span></button>
-    <button onclick="go('messages')">💬<span>Messages</span></button>
-    <button onclick="go('events')">🎉<span>Sortir</span></button>
-    <button onclick="go('plans')">💎<span>Offres</span></button>
-    <button onclick="go('profile')">👤<span>Profil</span></button>
-  </nav>
+    <!-- PAGE MESSAGES -->
+    <div id="messages" class="page">
+      <div class="message-box">
+        <div class="conversations">
+          <div style="padding:15px; font-weight:bold;">Conversations</div>
+        </div>
+        <div class="chat">
+          <div class="chat-messages">
+            <div class="bubble">Bienvenue dans la messagerie Aupygo !</div>
+          </div>
+        </div>
+      </div>
+    </div>
 
-  <!-- Toast Notification Container -->
-  <div id="toastContainer"></div>
+    <!-- PAGE OFFRES -->
+    <div id="plans" class="page">
+      <div class="grid">
+        <div class="card">
+          <h3>FREE</h3>
+          <p>Découverte</p>
+        </div>
+        <div class="card">
+          <h3>STANDARD</h3>
+          <p>Inclus l'accès carte</p>
+        </div>
+        <div class="card">
+          <h3>PREMIUM</h3>
+          <p>Accès illimité</p>
+        </div>
+      </div>
+    </div>
 
-  <!-- SCRIPTS : Ordre de chargement indispensable -->
+    <!-- PAGE PROFIL -->
+    <div id="profile" class="page">
+      <div class="profile-layout">
+        <div class="card profile-card">
+          <h3>Mon Profil</h3>
+        </div>
+        <div class="card">
+          <form>
+            <div class="form-group">
+              <label>Prénom</label>
+              <input type="text" placeholder="Ton prénom">
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
 
-  <!-- 1. Supabase Client Library -->
+  </main>
+
+  <!-- FOOTER -->
+  <footer>
+    <div class="footer-inner">
+      <div>
+        <strong>Aupygo</strong>
+        <p class="footer-muted">Rapprocher les personnes, localement.</p>
+      </div>
+    </div>
+  </footer>
+
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  
-  <!-- 2. Leaflet JS pour la carte -->
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-
-  <!-- 3. Clés de configuration Supabase -->
   <script src="config.js"></script>
-
-  <!-- 4. Script applicatif principal -->
   <script src="app.js"></script>
 
 </body>
