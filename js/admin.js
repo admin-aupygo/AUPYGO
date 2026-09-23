@@ -292,7 +292,7 @@
   function loadStaffScript(src) {
     if (document.querySelector('script[src*="' + src.replace('js/', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=20260923c';
+    s.src = src + '?v=20260923d';
     document.body.appendChild(s);
   }
 
@@ -306,6 +306,7 @@
     }, 700);
     loadStaffScript('js/staff-messages.js');
     loadStaffScript('js/staff-events.js');
+    loadStaffScript('js/staff-profile.js');
   }
 
   if (document.readyState === 'loading') {
