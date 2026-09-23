@@ -234,6 +234,23 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>AUPYGO est-il gratuit ?</strong><br>Oui, une formule FREE est disponible. Des formules payantes débloquent plus de fonctionnalités.</p><p><strong>Les photos sont-elles visibles ?</strong><br>Non. Tous les profils utilisent des avatars universels. Aucune photo personnelle n’est affichée.</p><p><strong>Ma position est-elle partagée ?</strong><br>Non. Seule une position approximative (~1 km) est utilisée. Ton emplacement exact n’est jamais affiché ni partagé.</p>"
+  "nav.admin": "Administration",
+    "admin.title": "🛡️ Espace Administration & Modération",
+    "admin.subtitle": "Gestion des accès, supervision globale et contrôle de conformité",
+    "admin.role_management": "👥 Attribution des Rôles (Admin Général)",
+    "admin.role_notice": "Seul l'Admin Général (aupygo@protonmail.com) est habilité à assigner ou révoquer des rôles.",
+    "admin.email_placeholder": "Adresse email de l'utilisateur...",
+    "admin.apply_role": "Mettre à jour le rôle",
+    "admin.events_supervision": "🔍 Supervision Globale des Événements",
+    "admin.events_notice": "Affichage de tous les événements actifs (publics et privés) pour vérification de conformité.",
+    "admin.access_denied": "Accès réservé aux membres de l'administration et de la modération.",
+    "admin.role_updated": "Rôle attribué avec succès.",
+    "admin.restriction_reconnect": "Les comptes administrateurs et modérateurs n'ont pas accès à la fonctionnalité Se Retrouver.",
+    "admin.restriction_event": "Les administrateurs et modérateurs ne peuvent participer qu'aux événements officiels AupyGo.",
+    "role.user": "Utilisateur standard",
+    "role.moderator": "Modérateur",
+    "role.admin_assistant": "Admin Adjoint",
+    "role.admin_general": "Admin Général"
   },
 
   en: {
@@ -467,6 +484,25 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>Is AUPYGO free?</strong><br>Yes, a FREE plan is available. Paid plans unlock more features.</p><p><strong>Are photos visible?</strong><br>No. All profiles use universal avatars. No personal photos are displayed.</p><p><strong>Is my location shared?</strong><br>No. Only an approximate position (~1 km) is used. Your exact location is never shown or shared.</p>"
+  "nav.reconnect": "Reconnect",
+    "nav.map": "Map",
+    "nav.admin": "Administration",
+    "admin.title": "🛡️ Administration & Moderation Space",
+    "admin.subtitle": "Access management, global supervision, and compliance control",
+    "admin.role_management": "👥 Role Assignment (General Admin)",
+    "admin.role_notice": "Only the General Admin (aupygo@protonmail.com) can assign or revoke roles.",
+    "admin.email_placeholder": "User email address...",
+    "admin.apply_role": "Update role",
+    "admin.events_supervision": "🔍 Global Event Supervision",
+    "admin.events_notice": "Displaying all active events (public and private) for compliance check.",
+    "admin.access_denied": "Access restricted to administration and moderation team.",
+    "admin.role_updated": "Role successfully updated.",
+    "admin.restriction_reconnect": "Admin and moderator accounts cannot access the Reconnect feature.",
+    "admin.restriction_event": "Admins and moderators can only join official AupyGo events.",
+    "role.user": "Standard User",
+    "role.moderator": "Moderator",
+    "role.admin_assistant": "Assistant Admin",
+    "role.admin_general": "General Admin"
   },
 
   es: {
@@ -700,6 +736,25 @@ const I18N = {
     "footer.tagline2":"No personal photos · Privacy first · Real-life connections",
     "footer.for_aupairs":"For au pairs, by au pairs.",
     "footer.faq_content":"<p><strong>¿AUPYGO es gratis?</strong><br>Sí, hay un plan FREE disponible. Los planes de pago desbloquean más funciones.</p><p><strong>¿Se ven las fotos?</strong><br>No. Todos los perfiles usan avatares universales. No se muestran fotos personales.</p><p><strong>¿Se comparte mi ubicación?</strong><br>No. Solo se usa una posición aproximada (~1 km). Tu ubicación exacta nunca se muestra ni se comparte.</p>"
+ "nav.reconnect": "Reencontrarse",
+    "nav.map": "Mapa",
+    "nav.admin": "Administración",
+    "admin.title": "🛡️ Espacio de Administración y Moderación",
+    "admin.subtitle": "Gestión de accesos, supervisión global y control de conformidad",
+    "admin.role_management": "👥 Asignación de Roles (Admin General)",
+    "admin.role_notice": "Solo el Admin General (aupygo@protonmail.com) está autorizado a modificar roles.",
+    "admin.email_placeholder": "Correo electrónico del usuario...",
+    "admin.apply_role": "Actualizar rol",
+    "admin.events_supervision": "🔍 Supervisión Global de Eventos",
+    "admin.events_notice": "Muestra de todos los eventos activos (públicos y privados) para verificación.",
+    "admin.access_denied": "Acceso restringido al equipo de administración y moderación.",
+    "admin.role_updated": "Rol actualizado con éxito.",
+    "admin.restriction_reconnect": "Las cuentas de administración y moderación no tienen acceso a Reencontrarse.",
+    "admin.restriction_event": "Los administradores y moderadores solo pueden unirse a eventos oficiales de AupyGo.",
+    "role.user": "Usuario estándar",
+    "role.moderator": "Moderador",
+    "role.admin_assistant": "Admin Adjunto",
+    "role.admin_general": "Admin General"
   }
 };
 
