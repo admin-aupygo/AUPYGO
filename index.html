@@ -35,6 +35,13 @@
 
     <!-- ICÔNES UNIQUEMENT -->
 
+  <button id="navReconnectBtn" onclick="safeNavigate('reconnect', window.currentUser)">
+  <span>Se retrouver</span>
+</button>
+<button id="navAdminBtn" style="display: none;" onclick="safeNavigate('admin', window.currentUser)">
+  <span>🛡️ Admin</span>
+</button>
+
     <nav>
 
   <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
