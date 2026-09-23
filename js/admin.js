@@ -1,140 +1,111 @@
-window.initAdminNavigation = function(userProfile) {
-  if (!userProfile) return;
+/* =========================
+   AUTHENTIFICATION & ADMIN
+========================= */
+const ADMIN_EMAIL = 'aupygo@protonmail.com';
+let currentUserIsAdmin = false;
 
-  var isStaff = ['moderator', 'admin_assistant', 'admin_general'].includes(userProfile.role);
-  var adminNavBtn = document.getElementById('navAdminBtn');
-  var reconnectNavBtn = document.getElementById('navReconnectBtn');
+/** Vérification stricte des privilèges Administrateur */
+function isAdmin() {
+  if (currentUserIsAdmin) return true;
+  return !!(
+    currentUser && 
+    currentUser.email && 
+    currentUser.email.toLowerCase() === ADMIN_EMAIL
+  );
+}
 
-  if (adminNavBtn) {
-    adminNavBtn.style.display = isStaff ? 'inline-block' : 'none';
-  }
-
-  if (reconnectNavBtn && isStaff) {
-    reconnectNavBtn.style.display = 'none';
-  }
-};
-
-window.safeNavigate = function(pageId, currentUser) {
-  var isStaff = currentUser && ['moderator', 'admin_assistant', 'admin_general'].includes(currentUser.role);
-
-  if (pageId === 'reconnect' && isStaff) {
-    if (typeof showToast === 'function') {
-      showToast(window.t("admin.restriction_reconnect"), "warning");
-    }
-    return;
-  }
-
-  if (pageId === 'admin' && !isStaff) {
-    if (typeof showToast === 'function') {
-      showToast(window.t("admin.access_denied"), "error");
-    }
-    return;
-  }
-
-  document.querySelectorAll('.page').forEach(function(el) {
-    el.classList.remove('active');
-  });
-  
-  var targetPage = document.getElementById(pageId);
-  if (targetPage) {
-    targetPage.classList.add('active');
-    if (pageId === 'admin') {
-      window.loadAdminPanel(currentUser);
-    }
-  }
-};
-
-window.loadAdminPanel = function(currentUser) {
-  var roleCard = document.getElementById('roleManagementCard');
-  
-  if (roleCard) {
-    if (currentUser && currentUser.email === 'aupygo@protonmail.com') {
-      roleCard.style.display = 'block';
-    } else {
-      roleCard.style.display = 'none';
-    }
-  }
-
-  window.loadGlobalEvents();
-};
-
-window.updateUserRole = async function() {
-  var emailInput = document.getElementById('userEmailInput');
-  var roleSelect = document.getElementById('roleSelect');
-  
-  if (!emailInput || !roleSelect) return;
-
-  var email = emailInput.value.trim();
-  var newRole = roleSelect.value;
-
-  if (!email) {
-    if (typeof showToast === 'function') showToast("Veuillez entrer une adresse email valide.", "error");
-    return;
-  }
+/** 
+ * Mise à jour du statut en ligne.
+ * L'administrateur reste en mode incognito/fantôme sur la carte.
+ */
+async function setOnlineStatus(online) {
+  if (!currentUser) return;
+  if (isAdmin()) return; // Incognito Admin : ne met pas à jour last_seen pour rester invisible
 
   try {
-    const { data, error } = await supabase
+    const payload = { is_online: !!online };
+    if (online) payload.last_seen = new Date().toISOString();
+
+    const { error } = await supabaseClient
       .from('profiles')
-      .update({ 
-        role: newRole,
-        is_ghost: (newRole !== 'user')
-      })
-      .eq('email', email);
+      .update(payload)
+      .eq('id', currentUser.id);
 
-    if (error) throw error;
-
-    if (typeof showToast === 'function') showToast(window.t("admin.role_updated"), "success");
-    emailInput.value = '';
-  } catch (err) {
-    if (typeof showToast === 'function') showToast("Erreur lors de la mise à jour : " + err.message, "error");
-  }
-};
-
-window.loadGlobalEvents = async function() {
-  var container = document.getElementById('adminEventsList');
-  if (!container) return;
-
-  container.innerHTML = "<p>Chargement des événements...</p>";
-
-  try {
-    const { data: events, error } = await supabase
-      .from('events')
-      .select('*')
-      .order('created_at', { ascending: false });
-
-    if (error) throw error;
-
-    if (!events || events.length === 0) {
-      container.innerHTML = "<p>Aucun événement enregistré.</p>";
-      return;
+    if (error) {
+      await supabaseClient
+        .from('profiles')
+        .upsert({ id: currentUser.id, ...payload }, { onConflict: 'id' });
     }
 
-    var html = '<table class="admin-table"><thead><tr><th>Titre</th><th>Type</th><th>Visibilité</th><th>Créé le</th><th>Action</th></tr></thead><tbody>';
-    events.forEach(function(ev) {
-      html += `<tr>
-        <td><strong>${ev.title || 'Sans titre'}</strong></td>
-        <td>${ev.is_special_aupygo ? 'Officiel AupyGo' : 'Standard'}</td>
-        <td>${ev.visibility === 'private' ? '🔒 Privé' : '🌐 Public'}</td>
-        <td>${new Date(ev.created_at).toLocaleDateString()}</td>
-        <td><button class="btn-danger" onclick="window.deleteEventByAdmin('${ev.id}')">Supprimer</button></td>
-      </tr>`;
-    });
-    html += '</tbody></table>';
-    container.innerHTML = html;
-  } catch (err) {
-    container.innerHTML = `<p style="color:red;">Erreur de chargement : ${err.message}</p>`;
-  }
-};
+    const me = profiles.find(p => p.id === currentUser.id);
+    if (me) {
+      me.is_online = !!online;
+      if (online) me.last_seen = payload.last_seen;
+    } else if (online) {
+      profiles.push({ id: currentUser.id, is_online: true, last_seen: payload.last_seen });
+    }
 
-window.deleteEventByAdmin = async function(eventId) {
-  if (!confirm("Êtes-vous sûr de vouloir supprimer cet événement ?")) return;
-
-  try {
-    const { error } = await supabase.from('events').delete().eq('id', eventId);
-    if (error) throw error;
-    if (typeof showToast === 'function') showToast("Événement supprimé avec succès.", "success");
-    window.loadGlobalEvents();
-  } catch (err) {
-    if (typeof showToast === 'function') showToast("Erreur de suppression : " + err.message, "error");
+    if (map) renderMarkers();
+    updateOnlineCount();
+  } catch (e) {
+    console.error('Erreur setOnlineStatus:', e);
   }
-};
+}
+
+/** 
+ * Rafraîchissement de l'interface utilisateur lors de la connexion
+ */
+async function refreshAuthUI(redirectPage = 'profile') {
+  const { data: { user } } = await supabaseClient.auth.getUser();
+  const justLoggedIn = !currentUser && !!user;
+  currentUser = user;
+
+  const loggedOut = document.getElementById('authLoggedOut');
+  const loggedIn = document.getElementById('authLoggedIn');
+
+  if (user) {
+    if (loggedOut) loggedOut.style.display = 'none';
+    if (loggedIn) loggedIn.style.display = 'block';
+
+    const authEmail = document.getElementById('authUserEmail');
+    if (authEmail) authEmail.textContent = user.email;
+
+    // Récupération des données du profil avec le flag is_admin
+    const { data: profile } = await supabaseClient
+      .from('profiles')
+      .select('subscription, display_name, age, gender, country, bio, interests, identity_locked, languages, other_language, host_country, stay_end, city, is_admin')
+      .eq('id', user.id)
+      .maybeSingle();
+
+    // Détection Admin via BDD ou email de secours
+    currentUserIsAdmin = !!(profile && profile.is_admin === true) || 
+      !!(user.email && user.email.toLowerCase() === ADMIN_EMAIL);
+
+    if (profile && profile.subscription) {
+      currentPlan = profile.subscription;
+      localStorage.setItem('aupygo_plan', currentPlan);
+      updatePlanUI();
+    }
+
+    // Un administrateur obtient automatiquement l'accès PREMIUM complet
+    if (isAdmin()) {
+      currentPlan = 'PREMIUM';
+      localStorage.setItem('aupygo_plan', 'PREMIUM');
+      updatePlanUI();
+    }
+
+    updateNavVisibility();
+
+    if (justLoggedIn) {
+      const finalRedirect = profileSaved ? redirectPage : 'profile';
+      go(finalRedirect);
+      setOnlineStatus(true);
+    }
+  } else {
+    if (loggedOut) loggedOut.style.display = 'block';
+    if (loggedIn) loggedIn.style.display = 'none';
+    profileSaved = false;
+    unlockIdentityFields();
+    updateNavVisibility();
+  }
+}
