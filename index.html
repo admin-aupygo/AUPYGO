@@ -348,6 +348,35 @@
     </div>
 
   </div>
+  <div id="admin" class="page">
+  <div class="section-title">
+    <h2 data-i18n="admin.title">🛡️ Espace Administration & Modération</h2>
+    <p data-i18n="admin.subtitle">Gestion des accès, supervision globale et contrôle de conformité.</p>
+  </div>
+
+  <div class="card" id="roleManagementCard" style="display: none; margin-bottom: 24px;">
+    <h3 data-i18n="admin.role_management">👥 Attribution des Rôles (Admin Général)</h3>
+    <p data-i18n="admin.role_notice" style="font-size: 13px; color: #666; margin-bottom: 16px;"></p>
+
+    <div style="display: flex; gap: 10px; flex-wrap: wrap;">
+      <input type="email" id="userEmailInput" placeholder="Email de l'utilisateur..." style="flex: 1; min-width: 220px; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+      <select id="roleSelect" style="width: 180px; padding: 10px; border-radius: 6px; border: 1px solid #ccc;">
+        <option value="moderator">Modérateur</option>
+        <option value="admin_assistant">Admin Adjoint</option>
+        <option value="user">Utilisateur standard</option>
+      </select>
+      <button class="btn btn-primary" onclick="updateUserRole()" data-i18n="admin.apply_role">Mettre à jour</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 data-i18n="admin.events_supervision">🔍 Supervision Globale des Événements</h3>
+    <p data-i18n="admin.events_notice" style="font-size: 13px; color: #666; margin-bottom: 16px;"></p>
+    <div id="adminEventsList">
+      <p>Chargement des événements...</p>
+    </div>
+  </div>
+</div>
 
   <!-- Carte seule (id unique pour Leaflet) -->
   <div class="map-container">
