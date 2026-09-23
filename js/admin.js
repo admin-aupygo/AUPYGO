@@ -1,41 +1,36 @@
-// Verification des droits d'accès à la navigation
-function initAdminNavigation(userProfile) {
+window.initAdminNavigation = function(userProfile) {
   if (!userProfile) return;
 
   var isStaff = ['moderator', 'admin_assistant', 'admin_general'].includes(userProfile.role);
   var adminNavBtn = document.getElementById('navAdminBtn');
   var reconnectNavBtn = document.getElementById('navReconnectBtn');
 
-  // Afficher le bouton Admin uniquement pour le Staff
   if (adminNavBtn) {
     adminNavBtn.style.display = isStaff ? 'inline-block' : 'none';
   }
 
-  // Masquer la navigation "Se retrouver" pour le Staff
   if (reconnectNavBtn && isStaff) {
     reconnectNavBtn.style.display = 'none';
   }
-}
+};
 
-// Redirection sécurisée lors de la tentative de navigation
-function safeNavigate(pageId, currentUser) {
+window.safeNavigate = function(pageId, currentUser) {
   var isStaff = currentUser && ['moderator', 'admin_assistant', 'admin_general'].includes(currentUser.role);
 
   if (pageId === 'reconnect' && isStaff) {
     if (typeof showToast === 'function') {
-      showToast(t("admin.restriction_reconnect"), "warning");
+      showToast(window.t("admin.restriction_reconnect"), "warning");
     }
     return;
   }
 
   if (pageId === 'admin' && !isStaff) {
     if (typeof showToast === 'function') {
-      showToast(t("admin.access_denied"), "error");
+      showToast(window.t("admin.access_denied"), "error");
     }
     return;
   }
 
-  // Permuter l'affichage des pages
   document.querySelectorAll('.page').forEach(function(el) {
     el.classList.remove('active');
   });
@@ -44,16 +39,14 @@ function safeNavigate(pageId, currentUser) {
   if (targetPage) {
     targetPage.classList.add('active');
     if (pageId === 'admin') {
-      loadAdminPanel(currentUser);
+      window.loadAdminPanel(currentUser);
     }
   }
-}
+};
 
-// Chargement et préparation du panneau Admin
-function loadAdminPanel(currentUser) {
+window.loadAdminPanel = function(currentUser) {
   var roleCard = document.getElementById('roleManagementCard');
   
-  // Seul l'Admin Général (aupygo@protonmail.com) voit l'interface de gestion des rôles
   if (roleCard) {
     if (currentUser && currentUser.email === 'aupygo@protonmail.com') {
       roleCard.style.display = 'block';
@@ -62,11 +55,10 @@ function loadAdminPanel(currentUser) {
     }
   }
 
-  loadGlobalEvents();
-}
+  window.loadGlobalEvents();
+};
 
-// Attribution du rôle par l'Admin Général
-async function updateUserRole() {
+window.updateUserRole = async function() {
   var emailInput = document.getElementById('userEmailInput');
   var roleSelect = document.getElementById('roleSelect');
   
@@ -76,7 +68,7 @@ async function updateUserRole() {
   var newRole = roleSelect.value;
 
   if (!email) {
-    showToast("Veuillez entrer une adresse email valide.", "error");
+    if (typeof showToast === 'function') showToast("Veuillez entrer une adresse email valide.", "error");
     return;
   }
 
@@ -85,21 +77,20 @@ async function updateUserRole() {
       .from('profiles')
       .update({ 
         role: newRole,
-        is_ghost: (newRole !== 'user') // Activation automatique du mode fantôme pour le staff
+        is_ghost: (newRole !== 'user')
       })
       .eq('email', email);
 
     if (error) throw error;
 
-    showToast(t("admin.role_updated"), "success");
+    if (typeof showToast === 'function') showToast(window.t("admin.role_updated"), "success");
     emailInput.value = '';
   } catch (err) {
-    showToast("Erreur lors de la mise à jour : " + err.message, "error");
+    if (typeof showToast === 'function') showToast("Erreur lors de la mise à jour : " + err.message, "error");
   }
-}
+};
 
-// Chargement de l'ensemble des événements pour supervision
-async function loadGlobalEvents() {
+window.loadGlobalEvents = async function() {
   var container = document.getElementById('adminEventsList');
   if (!container) return;
 
@@ -118,33 +109,32 @@ async function loadGlobalEvents() {
       return;
     }
 
-    var html = '<table class="admin-table"><thead><tr><th>Titre</th><th>Type</th><th>Privé</th><th>Créé le</th><th>Action</th></tr></thead><tbody>';
+    var html = '<table class="admin-table"><thead><tr><th>Titre</th><th>Type</th><th>Visibilité</th><th>Créé le</th><th>Action</th></tr></thead><tbody>';
     events.forEach(function(ev) {
       html += `<tr>
         <td><strong>${ev.title || 'Sans titre'}</strong></td>
-        <td>${ev.is_official ? 'Officiel' : 'Standard'}</td>
-        <td>${ev.is_private ? '🔒 Privé' : '🌐 Public'}</td>
+        <td>${ev.is_special_aupygo ? 'Officiel AupyGo' : 'Standard'}</td>
+        <td>${ev.visibility === 'private' ? '🔒 Privé' : '🌐 Public'}</td>
         <td>${new Date(ev.created_at).toLocaleDateString()}</td>
-        <td><button class="btn-danger" onclick="deleteEventByAdmin('${ev.id}')">Supprimer</button></td>
+        <td><button class="btn-danger" onclick="window.deleteEventByAdmin('${ev.id}')">Supprimer</button></td>
       </tr>`;
     });
-    html += 'tbody></table>';
+    html += '</tbody></table>';
     container.innerHTML = html;
   } catch (err) {
     container.innerHTML = `<p style="color:red;">Erreur de chargement : ${err.message}</p>`;
   }
-}
+};
 
-// Suppression d'un événement non conforme
-async function deleteEventByAdmin(eventId) {
+window.deleteEventByAdmin = async function(eventId) {
   if (!confirm("Êtes-vous sûr de vouloir supprimer cet événement ?")) return;
 
   try {
     const { error } = await supabase.from('events').delete().eq('id', eventId);
     if (error) throw error;
-    showToast("Événement supprimé avec succès.", "success");
-    loadGlobalEvents();
+    if (typeof showToast === 'function') showToast("Événement supprimé avec succès.", "success");
+    window.loadGlobalEvents();
   } catch (err) {
-    showToast("Erreur de suppression : " + err.message, "error");
+    if (typeof showToast === 'function') showToast("Erreur de suppression : " + err.message, "error");
   }
-}
+};
