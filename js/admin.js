@@ -253,7 +253,7 @@
       list = list.filter(function (u) { return [u.display_name, u.city, u.country, u.host_country].filter(Boolean).join(' ').toLowerCase().indexOf(q) !== -1; });
     }
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888">Aucun résultat</td></tr>'; return; }
-    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function esc(s) { return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>'); }
     tbody.innerHTML = list.map(function (u) {
       const name = u.display_name || 'Sans nom';
       const plan = (u.subscription || 'FREE').toUpperCase();
@@ -297,6 +297,11 @@
       updateAdminButtonVisibility();
       enrichProfilesWithRoles();
     }, 700);
+    if (!document.querySelector('script[src*="staff-messages"]')) {
+      var s = document.createElement('script');
+      s.src = 'js/staff-messages.js?v=20260923b';
+      document.body.appendChild(s);
+    }
   }
 
   if (document.readyState === 'loading') {
