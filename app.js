@@ -902,3 +902,125 @@ function t(key) {
   }
   return key;
 }
+/* =========================
+   CRÉATION D'ÉVÉNEMENTS ADMIN & COMMUNAUTÉ
+========================= */
+
+function openCreateEventModal(visibility) {
+  if (!currentUser) {
+    showToast(t('plans.need_login') || 'Connecte-toi pour organiser une sortie.', 'error');
+    go('plans');
+    return;
+  }
+
+  // Contrôle d'accès à la partition Admin
+  if (visibility === 'admin' && !isAdmin()) {
+    showToast('Accès refusé : Réservé à l’administrateur AUPYGO.', 'error');
+    return;
+  }
+
+  if (currentPlan === 'FREE' && visibility !== 'admin') {
+    showToast(t('events.join_locked') || 'Passe à STANDARD pour organiser des sorties.', 'error');
+    go('plans');
+    return;
+  }
+
+  document.getElementById('createEventVisibility').value = visibility;
+  
+  const titles = {
+    public: '🎉 Organiser une sortie (communauté)',
+    friends: '🤝 Sortie entre amis',
+    admin: '⭐ Événement spécial AUPYGO (Admin)'
+  };
+  
+  document.getElementById('createEventTitle').textContent = titles[visibility] || titles.public;
+
+  // Réinitialisation des champs du formulaire
+  document.getElementById('createEventTitleInput').value = '';
+  document.getElementById('createEventAddress').value = '';
+  document.getElementById('createEventDesc').value = '';
+  document.getElementById('createEventMax').value = visibility === 'admin' ? '50' : '8';
+
+  // Affichage des options de prix réservées à l'Admin
+  const priceWrap = document.getElementById('createEventPriceWrap');
+  if (priceWrap) {
+    priceWrap.style.display = isAdmin() ? 'block' : 'none';
+  }
+
+  eventWizardStep = 0;
+  eventWizardRender();
+
+  const ov = document.getElementById('createEventOverlay');
+  if (ov) { 
+    ov.style.display = 'flex'; 
+    document.body.style.overflow = 'hidden'; 
+  }
+}
+
+async function submitCreateEvent() {
+  if (!currentUser) return;
+
+  const title = (document.getElementById('createEventTitleInput').value || '').trim();
+  const address = (document.getElementById('createEventAddress').value || '').trim();
+  const desc = (document.getElementById('createEventDesc').value || '').trim();
+  const maxP = parseInt(document.getElementById('createEventMax').value, 10) || 8;
+  const dateVal = document.getElementById('createEventDate').value;
+  const visibility = document.getElementById('createEventVisibility').value || 'public';
+
+  if (!title || !address || !dateVal) {
+    showToast('Veuillez remplir le nom, la date et l’adresse.', 'error');
+    return;
+  }
+
+  // Sécurité : Seul l'admin peut valider une visibilité "admin"
+  if (visibility === 'admin' && !isAdmin()) {
+    showToast('Création interdite dans la partition Admin.', 'error');
+    return;
+  }
+
+  const paidRadio = document.querySelector('input[name="eventPaid"]:checked');
+  const isPaid = !!(paidRadio && paidRadio.value === 'paid') && isAdmin();
+  const price = isPaid ? (parseFloat((document.getElementById('createEventPrice') || {}).value) || 0) : 0;
+
+  const isSpecial = visibility === 'admin' || selectedEventType === 'special';
+
+  const row = {
+    creator_id: currentUser.id,
+    title: title,
+    type: selectedEventType,
+    emoji: selectedEventEmoji,
+    description: desc || null,
+    address: address,
+    event_date: new Date(dateVal).toISOString(),
+    max_participants: maxP,
+    visibility: isSpecial ? 'admin' : visibility,
+    is_paid: isPaid,
+    price: price,
+    is_special_aupygo: isSpecial
+  };
+
+  try {
+    const { data, error } = await supabaseClient
+      .from('events')
+      .insert(row)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    // Inscription automatique du créateur
+    await supabaseClient.from('event_participants').insert({
+      event_id: data.id,
+      user_id: currentUser.id
+    });
+
+    closeCreateEventModal();
+    showToast('✅ Sortie créée avec succès !', 'success');
+    if (typeof loadAndRenderEvents === 'function') {
+      await loadAndRenderEvents();
+    }
+  } catch (e) {
+    console.error('Erreur lors de la création de l\'événement:', e);
+    showToast('Erreur : ' + (e.message || 'Impossible de créer la sortie'), 'error');
+  }
+}
