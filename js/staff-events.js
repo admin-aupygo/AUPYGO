@@ -1,8 +1,7 @@
 /* AUPYGO staff-events.js
  * - Staff : vue seule sur sorties users
- * - Hôte : zone pays + événements payants → en attente validation Admin
- * - Agenda staff : onglets Contrôle (communautaire) + Équipe (spéciaux)
- * - Spéciaux Aupygo : participation optionnelle
+ * - Hôte : option payant visible, soumis validation Admin
+ * - Agenda staff : Contrôle + Équipe
  */
 (function () {
   'use strict';
@@ -35,7 +34,30 @@
     return ev && ((ev.description || '').indexOf(PENDING_TAG) !== -1);
   }
 
-  // ---------- JOIN bloqué ----------
+  /** Affiche l'option Payant pour Staff (app.js la cache hors admin) */
+  function unlockPaidOptionForStaff() {
+    if (!isStaff()) return;
+    var paidInput = document.getElementById('eventPaidPaid');
+    if (paidInput) {
+      var lab = paidInput.closest('label');
+      if (lab) lab.style.display = '';
+      paidInput.disabled = false;
+    }
+    var priceStep = document.getElementById('eventWizardPriceStep') ||
+      document.querySelector('[data-step="price"]') ||
+      document.getElementById('createEventPrice') && document.getElementById('createEventPrice').closest('.event-wizard-step');
+    if (priceStep) priceStep.style.display = '';
+    var priceWrap = document.getElementById('createEventPriceWrap');
+    if (priceWrap && typeof onEventPaidChange === 'function') {
+      // laisse onEventPaidChange gérer l'affichage montant
+    }
+  }
+
+  setInterval(function () {
+    if (isStaff()) unlockPaidOptionForStaff();
+  }, 1500);
+
+  // ---------- JOIN ----------
   var _origJoin = window.joinRealEvent;
   if (typeof _origJoin === 'function') {
     window.joinRealEvent = async function (eventId) {
@@ -47,7 +69,6 @@
         showToast('Les comptes Staff ne peuvent pas s\'inscrire aux sorties des membres. Vue et contrôle uniquement.', 'error');
         return;
       }
-      // Users : ne pas rejoindre un event encore en attente admin
       var ev2 = getEventById(eventId);
       if (ev2 && isPendingApproval(ev2)) {
         showToast('Cet événement est en attente de validation par l\'administrateur.', 'error');
@@ -68,7 +89,7 @@
         var ev = getEventById(m[1]);
         if (ev && isUserCreatedEvent(ev)) {
           btn.style.display = 'none';
-          if (!btn.parentElement.querySelector('.staff-event-viewonly')) {
+          if (btn.parentElement && !btn.parentElement.querySelector('.staff-event-viewonly')) {
             var span = document.createElement('span');
             span.className = 'staff-event-viewonly';
             span.style.cssText = 'font-size:12px;color:#64748b;font-weight:600;padding:8px 0;display:inline-block';
@@ -80,14 +101,13 @@
     });
   }
 
-  // Masquer events pending pour les users non-admin
   var _origLoadEvents = window.loadAndRenderEvents;
   if (typeof _origLoadEvents === 'function') {
     window.loadAndRenderEvents = async function () {
       var r = await _origLoadEvents.apply(this, arguments);
-      if (!isAdmin() && Array.isArray(window.cachedEvents)) {
-        // Users : filtrer pending (si listés côté client)
-        // Admin / staff voient tout pour modération
+      // Filtrer pending pour les users classiques (pas staff/admin)
+      if (!(typeof isStaff === 'function' && isStaff()) && Array.isArray(window.cachedEvents)) {
+        window.cachedEvents = window.cachedEvents.filter(function (e) { return !isPendingApproval(e); });
       }
       setTimeout(hideJoinButtonsForStaff, 100);
       setTimeout(hideJoinButtonsForStaff, 500);
@@ -104,7 +124,7 @@
     }
   }, 2000);
 
-  // ---------- CRÉATION + payant pending ----------
+  // ---------- CRÉATION ----------
   var _origSubmit = window.submitCreateEvent;
   if (typeof _origSubmit === 'function') {
     window.submitCreateEvent = async function () {
@@ -119,11 +139,10 @@
         } catch (e) {}
         if (hostCountry) {
           var address = (document.getElementById('createEventAddress') || {}).value || '';
-          var okCountry = confirm(
+          if (!confirm(
             '📍 Hôte AUPYGO — zone : « ' + hostCountry + ' ».\n\n' +
-            'Confirmer la publication pour les users de ton pays ?\nAdresse : ' + (address || '(vide)')
-          );
-          if (!okCountry) return;
+            'Confirmer pour les users de ton pays ?\nAdresse : ' + (address || '(vide)')
+          )) return;
         }
         var vis = document.getElementById('createEventVisibility');
         if (vis && vis.value === 'admin') {
@@ -132,18 +151,23 @@
         }
       }
 
-      // Événement payant créé par staff (non admin) → validation admin obligatoire
       var paidRadio = document.querySelector('input[name="eventPaid"]:checked');
       var wantsPaid = !!(paidRadio && paidRadio.value === 'paid');
+      var priceEl = document.getElementById('createEventPrice');
+      var priceVal = priceEl ? parseFloat(priceEl.value) : 0;
+      if (wantsPaid && (!priceVal || priceVal <= 0)) {
+        showToast('Indique un montant valide (€) pour une sortie payante.', 'error');
+        return;
+      }
+
       var staffPaidPending = isStaff() && !(typeof isAdmin === 'function' && isAdmin()) && wantsPaid;
 
       if (staffPaidPending) {
-        var okPay = confirm(
+        if (!confirm(
           '💶 Événement payant (prise en charge Aupygo)\n\n' +
-          'Il sera soumis à validation de l\'Admin Général avant publication et facturation.\n\n' +
-          'Continuer ?'
-        );
-        if (!okPay) return;
+          'Montant : ' + priceVal + ' €\n' +
+          'Soumis à validation de l\'Admin Général avant publication.\n\nContinuer ?'
+        )) return;
       }
 
       var visibility = (document.getElementById('createEventVisibility') || {}).value || 'public';
@@ -152,9 +176,8 @@
 
       if (isStaff() && isSpecial && typeof isAdmin === 'function' && isAdmin()) {
         staffParticipates = confirm(
-          '🛡️ Événement spécial Aupygo\n\n' +
-          'Participer en tant qu\'hôte Aupygo ?\n\n' +
-          'OK = Oui → « Présence d\'un hôte Aupygo »\nAnnuler = organisation seule'
+          '🛡️ Événement spécial Aupygo\n\nParticiper en tant qu\'hôte Aupygo ?\n\n' +
+          'OK = Oui · Annuler = organisation seule'
         );
       }
 
@@ -169,23 +192,30 @@
           });
           if (!newest) {
             var mine = (window.cachedEvents || []).filter(function (e) { return e.creator_id === currentUser.id; });
-            mine.sort(function (a, b) { return new Date(b.created_at || b.event_date) - new Date(a.created_at || a.event_date); });
+            mine.sort(function (a, b) {
+              return new Date(b.created_at || b.event_date) - new Date(a.created_at || a.event_date);
+            });
             newest = mine[0];
           }
           if (!newest) return;
 
           if (staffPaidPending) {
             var desc = (newest.description || '');
-            if (desc.indexOf(PENDING_TAG) === -1) {
-              desc = PENDING_TAG + '\n' + desc;
-            }
+            if (desc.indexOf(PENDING_TAG) === -1) desc = PENDING_TAG + '\n' + desc;
             await supabaseClient.from('events').update({
               description: desc.trim(),
-              visibility: 'admin'
+              visibility: 'admin',
+              is_paid: true,
+              price: priceVal
             }).eq('id', newest.id);
             showToast('Événement payant soumis — en attente de validation Admin.', 'success');
             if (typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
             return;
+          }
+
+          // Admin peut aussi forcer is_paid si le form l'a sélectionné mais submit a filtré
+          if (typeof isAdmin === 'function' && isAdmin() && wantsPaid && !newest.is_paid) {
+            await supabaseClient.from('events').update({ is_paid: true, price: priceVal }).eq('id', newest.id);
           }
 
           if (isStaff() && isSpecial && typeof isAdmin === 'function' && isAdmin()) {
@@ -212,7 +242,6 @@
     };
   }
 
-  // ---------- Validation Admin des pending ----------
   window.adminApproveEvent = async function (eventId) {
     if (!(typeof isAdmin === 'function' && isAdmin())) return;
     try {
@@ -262,26 +291,24 @@
       box.style.cssText = 'background:#fff7ed;border:1px solid #fed7aa;border-radius:14px;padding:14px;margin:12px 0;';
       page.insertBefore(box, page.firstChild);
     }
-    box.innerHTML = '<div style="font-weight:800;margin-bottom:10px">⏳ Événements payants en attente de validation (' + pending.length + ')</div>' +
+    box.innerHTML = '<div style="font-weight:800;margin-bottom:10px">⏳ Événements payants en attente (' + pending.length + ')</div>' +
       pending.map(function (ev) {
         return '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #fed7aa">' +
           '<div style="flex:1;min-width:160px"><strong>' + (ev.title || 'Sans titre') + '</strong><br><span style="font-size:12px;color:#9a3412">' +
-          (ev.is_paid ? (Number(ev.price || 0) + ' € · ') : '') + (ev.event_date ? new Date(ev.event_date).toLocaleString('fr-FR') : '') +
+          (ev.is_paid ? (Number(ev.price || 0) + ' € · ') : '') +
+          (ev.event_date ? new Date(ev.event_date).toLocaleString('fr-FR') : '') +
           '</span></div>' +
           '<button type="button" class="btn btn-primary" style="font-size:12px" onclick="window.adminApproveEvent(\'' + ev.id + '\')">✅ Approuver</button>' +
-          '<button type="button" class="btn btn-secondary" style="font-size:12px" onclick="window.adminRejectEvent(\'' + ev.id + '\')">✖️ Refuser</button>' +
-          '</div>';
+          '<button type="button" class="btn btn-secondary" style="font-size:12px" onclick="window.adminRejectEvent(\'' + ev.id + '\')">✖️ Refuser</button></div>';
       }).join('');
   }
 
-  // ---------- Agenda 2 vues staff ----------
-  var agendaStaffMode = 'control'; // control | team
+  var agendaStaffMode = 'control';
 
   function injectAgendaTabs() {
     if (!isStaff()) return;
     var agendaPage = document.getElementById('agenda');
     if (!agendaPage) return;
-
     if (!document.getElementById('staffAgendaTabs')) {
       var tabs = document.createElement('div');
       tabs.id = 'staffAgendaTabs';
@@ -289,18 +316,15 @@
       tabs.innerHTML =
         '<button type="button" id="staffAgendaTabControl" class="btn btn-secondary" style="font-size:13px">📅 Contrôle (communautaire)</button>' +
         '<button type="button" id="staffAgendaTabTeam" class="btn btn-secondary" style="font-size:13px">🛡️ Agenda Staff (équipe)</button>' +
-        '<button type="button" class="btn btn-primary" style="font-size:13px" onclick="if(typeof go===\'function\')go(\'' + 'events' + '\')">⚡ Événements Spécial Aupygo</button>';
+        '<button type="button" class="btn btn-primary" style="font-size:13px" onclick="go(\'' + 'events' + '\')">⚡ Événements Spécial Aupygo</button>';
       var title = agendaPage.querySelector('.section-title') || agendaPage.firstElementChild;
       if (title && title.nextSibling) agendaPage.insertBefore(tabs, title.nextSibling);
       else agendaPage.insertBefore(tabs, agendaPage.firstChild);
-
       document.getElementById('staffAgendaTabControl').onclick = function () {
-        agendaStaffMode = 'control';
-        applyAgendaStaffFilter();
+        agendaStaffMode = 'control'; applyAgendaStaffFilter();
       };
       document.getElementById('staffAgendaTabTeam').onclick = function () {
-        agendaStaffMode = 'team';
-        applyAgendaStaffFilter();
+        agendaStaffMode = 'team'; applyAgendaStaffFilter();
       };
     }
     applyAgendaStaffFilter();
@@ -313,34 +337,27 @@
     var btnT = document.getElementById('staffAgendaTabTeam');
     if (btnC) btnC.style.opacity = agendaStaffMode === 'control' ? '1' : '0.55';
     if (btnT) btnT.style.opacity = agendaStaffMode === 'team' ? '1' : '0.55';
-
     var all = window.cachedEvents || [];
     var list;
     if (agendaStaffMode === 'team') {
-      // Événements officiels / spéciaux / créés par staff
       list = all.filter(function (e) {
-        if (getEventUrgency && getEventUrgency(e) === 'expired') return false;
+        if (typeof getEventUrgency === 'function' && getEventUrgency(e) === 'expired') return false;
         if (e.is_special_aupygo) return true;
         if (e.visibility === 'admin' || e.visibility === 'admin_only') return true;
         var c = (window.profiles || []).find(function (p) { return p && p.id === e.creator_id; });
         return c && isMemberStaffProfile(c);
       });
     } else {
-      // Contrôle : sorties communautaires publiques (+ pending pour admin)
       list = all.filter(function (e) {
-        if (getEventUrgency && getEventUrgency(e) === 'expired') return false;
+        if (typeof getEventUrgency === 'function' && getEventUrgency(e) === 'expired') return false;
         if (e.visibility === 'friends') return false;
         return true;
       });
     }
-
     if (cal && typeof buildWeekCalendarHtml === 'function') {
       if (!list.length) {
         cal.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:12px">' +
-          (agendaStaffMode === 'team'
-            ? 'Aucun événement d\'équipe pour le moment.'
-            : 'Aucune sortie communautaire à contrôler.') +
-          '</p>';
+          (agendaStaffMode === 'team' ? 'Aucun événement d\'équipe.' : 'Aucune sortie communautaire.') + '</p>';
       } else {
         cal.innerHTML = buildWeekCalendarHtml(list);
       }
@@ -357,6 +374,7 @@
         setTimeout(hideJoinButtonsForStaff, 400);
         setTimeout(injectAgendaTabs, 400);
         setTimeout(injectPendingApprovalsPanel, 500);
+        setTimeout(unlockPaidOptionForStaff, 600);
       }
     };
   }
@@ -365,8 +383,9 @@
     if (isStaff()) {
       injectAgendaTabs();
       injectPendingApprovalsPanel();
+      unlockPaidOptionForStaff();
     }
   }, 1500);
 
-  console.log('[AUPYGO] staff-events.js chargé (agenda + validation payants)');
+  console.log('[AUPYGO] staff-events.js chargé');
 })();
