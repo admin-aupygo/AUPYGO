@@ -1,6 +1,6 @@
 /* AUPYGO staff-ui.js v2
  * Navigation Staff, Premium=AupygoStaff, avatar bouclier,
- * compteur carte (users + staff online), bouton messages header
+ * compteur carte, bouton messages header + charge restrictions
  */
 (function () {
   'use strict';
@@ -56,7 +56,6 @@
     replacePremiumLabels();
   }
 
-  /** Avatar bouclier en haut à droite (remplace Premium) */
   function applyStaffAvatar() {
     if (!isStaff()) return;
     var selectors = [
@@ -69,17 +68,14 @@
         if (/premium|standard|free|plan/i.test(t) || el.id === 'headerPlanBtn') {
           el.innerHTML = '🛡️';
           el.title = 'AupygoStaff';
-          el.style.fontSize = el.style.fontSize || '18px';
         }
       });
     });
-    // Chip texte
     document.querySelectorAll('.plan-label, .subscription-label, #currentPlanLabel').forEach(function (el) {
       if (el) el.textContent = 'AupygoStaff';
     });
   }
 
-  /** Bouton message rapide dans le header */
   function injectHeaderMessageBtn() {
     if (!isStaff()) return;
     var header = document.querySelector('header nav') || document.querySelector('header');
@@ -91,11 +87,9 @@
     btn.setAttribute('aria-label', 'Messages');
     btn.innerHTML = '<span class="icon">💬</span>';
     btn.onclick = function () { if (typeof go === 'function') go('messages'); };
-    // Insérer avant le dernier bouton si possible
     header.appendChild(btn);
   }
 
-  /** Premium → AupygoStaff partout côté staff */
   function replacePremiumLabels() {
     if (!isStaff()) return;
     document.querySelectorAll('span, div, strong, em, p, button, label').forEach(function (el) {
@@ -105,7 +99,6 @@
         el.textContent = t.replace(/PREMIUM|Premium/g, 'AupygoStaff');
       }
     });
-    // Panneau admin badges
     document.querySelectorAll('.admin-badge.PREMIUM').forEach(function (el) {
       el.textContent = 'AupygoStaff';
       el.classList.remove('PREMIUM');
@@ -119,7 +112,6 @@
     try { window.currentPlan = 'PREMIUM'; } catch (e2) {}
   }
 
-  /** Compteur activité carte : users online + staff online */
   async function updateMapActivityCounter() {
     if (!isStaff()) return;
     var mapPage = document.getElementById('map');
@@ -202,7 +194,6 @@
       if (/abonnement|passer en premium|voir les offres/i.test(t)) btn.style.display = 'none';
       if (/mon agenda/i.test(t)) btn.style.display = 'none';
     });
-    // Bloc Mon agenda en bas profil
     document.querySelectorAll('#profile .agenda-block, #profile [id*="agenda"], .profile-agenda').forEach(function (el) {
       el.style.display = 'none';
     });
@@ -217,6 +208,13 @@
       if (getActivePage() === 'map') updateMapActivityCounter();
       if (getActivePage() === 'admin') replacePremiumLabels();
     }
+  }
+
+  // Charger restrictions sorties si pas déjà présent
+  if (!document.querySelector('script[src*="staff-restrictions"]')) {
+    var s = document.createElement('script');
+    s.src = 'js/staff-restrictions.js?v=20260924c';
+    document.body.appendChild(s);
   }
 
   setTimeout(tick, 600);
