@@ -1,7 +1,5 @@
 /* AUPYGO staff-profile.js
- * Profil staff : Prénom, Âge (20-80), Genre, Pays, Ville, Langues
- * Identité TOUJOURS éditable (pas de lock)
- * Pas de bouton supprimer compte (réservé Admin)
+ * Profil staff éditable, pas de suppression, pas de Mon agenda
  */
 (function () {
   'use strict';
@@ -15,6 +13,34 @@
     var g = el.closest('.form-group');
     if (g) return g;
     return el.parentElement;
+  }
+
+  function hidePersonalAgenda() {
+    if (!isStaff()) return;
+    // IDs connus app.js
+    ['personalAgendaBox', 'personalAgendaNotice', 'myAgendaList', 'myAgendaBlock'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.style.display = 'none';
+        el.setAttribute('hidden', 'true');
+        // Masquer aussi le parent section si pertinent
+        var section = el.closest('section, .card, .profile-card, .profile-block, article, .panel');
+        if (section && section.id !== 'profile') {
+          section.style.display = 'none';
+        }
+      }
+    });
+    // Par texte « Mon agenda AUPYGO »
+    document.querySelectorAll('#profile h2, #profile h3, #profile .section-title, #profile strong, #profile div').forEach(function (el) {
+      var t = (el.textContent || '').trim();
+      if (/^mon agenda aupygo/i.test(t) || /mon agenda aupygo/i.test(t) && t.length < 40) {
+        var block = el.closest('section, .card, .profile-card, .profile-block, article, .panel') || el.parentElement;
+        if (block) {
+          block.style.display = 'none';
+          block.setAttribute('hidden', 'true');
+        }
+      }
+    });
   }
 
   function restrictAgeOptions() {
@@ -33,7 +59,6 @@
     });
   }
 
-  /** Débloque les champs d'identité pour le staff */
   function unlockIdentityFields() {
     if (!isStaff()) return;
     ['firstName', 'age', 'country', 'city'].forEach(function (id) {
@@ -45,13 +70,11 @@
         el.removeAttribute('disabled');
       }
     });
-    // Boutons genre
     document.querySelectorAll('[data-gender], .gender-btn, #genderGroup button').forEach(function (btn) {
       btn.disabled = false;
       btn.style.pointerEvents = '';
       btn.style.opacity = '';
     });
-    // Langues
     document.querySelectorAll('.lang-chip, .language-btn, #languageGrid button').forEach(function (btn) {
       btn.disabled = false;
       btn.style.pointerEvents = '';
@@ -63,6 +86,7 @@
 
     restrictAgeOptions();
     unlockIdentityFields();
+    hidePersonalAgenda();
 
     var bio = document.getElementById('bio');
     if (bio) {
@@ -90,16 +114,18 @@
       el.style.display = 'none';
     });
 
-    // Supprimer mon profil / Mon agenda
     document.querySelectorAll('button, a, .btn').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
-      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) {
-        btn.style.display = 'none';
-      }
+      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) btn.style.display = 'none';
       if (/mon agenda/i.test(t)) btn.style.display = 'none';
     });
-    document.querySelectorAll('#profile .agenda-block, .profile-agenda, #myAgendaBlock').forEach(function (el) {
-      el.style.display = 'none';
+
+    // Centres d'intérêt section title
+    document.querySelectorAll('#profile h3, #profile .form-label, #profile label').forEach(function (el) {
+      if (/centres d.intérêt|centres d'intérêt|intérêts/i.test(el.textContent || '')) {
+        var block = el.closest('.form-group, section, .card') || el.parentElement;
+        if (block) block.style.display = 'none';
+      }
     });
 
     if (!document.getElementById('staffProfileBanner')) {
@@ -108,8 +134,11 @@
         var banner = document.createElement('div');
         banner.id = 'staffProfileBanner';
         banner.style.cssText = 'background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#475569;font-weight:600;';
-        banner.textContent = '🛡️ Profil Staff — modifiable à tout moment · Prénom, Âge (20–80), Genre, Pays, Ville, Langues';
-        form.insertBefore(banner, form.firstChild);
+        banner.textContent = '🛡️ Profil Staff — modifiable à tout moment';
+        try {
+          if (form.firstChild) form.insertBefore(banner, form.firstChild);
+          else form.appendChild(banner);
+        } catch (e) { form.appendChild(banner); }
       }
     }
   }
@@ -117,9 +146,7 @@
   var _origSave = window.saveProfile;
   if (typeof _origSave === 'function') {
     window.saveProfile = async function () {
-      if (!isStaff()) {
-        return _origSave.apply(this, arguments);
-      }
+      if (!isStaff()) return _origSave.apply(this, arguments);
 
       var userRes = await supabaseClient.auth.getUser();
       var user = userRes.data && userRes.data.user;
@@ -137,10 +164,7 @@
         ? selectedLanguages.join(',')
         : '';
 
-      if (!name) {
-        showToast('Prénom requis', 'error');
-        return;
-      }
+      if (!name) { showToast('Prénom requis', 'error'); return; }
       if (!ageValue || isNaN(ageNum) || ageNum < STAFF_AGE_MIN || ageNum > STAFF_AGE_MAX) {
         showToast('Âge staff : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
         return;
@@ -167,7 +191,6 @@
         subscription: 'PREMIUM',
         avatar: selectedGender === 'Homme' ? '👨' : '👩'
       };
-
       if (typeof userLocation !== 'undefined') {
         profile.approx_lat = userLocation.lat;
         profile.approx_lng = userLocation.lng;
@@ -177,39 +200,28 @@
 
       var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
       if (result.error) {
-        console.error(result.error);
         showToast('Erreur : ' + result.error.message, 'error');
         return;
       }
 
-      // Ne PAS verrouiller l'identité
       window.profileSaved = true;
-      if (typeof showToast === 'function') showToast('Profil staff enregistré (modifiable à tout moment)', 'success');
+      showToast('Profil staff enregistré', 'success');
       if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
       applyStaffProfileUI();
-      unlockIdentityFields();
     };
   }
 
-  // Empêcher lockIdentityFields pour le staff
   var _origLock = window.lockIdentityFields;
   if (typeof _origLock === 'function') {
     window.lockIdentityFields = function () {
-      if (isStaff()) {
-        unlockIdentityFields();
-        return;
-      }
+      if (isStaff()) { unlockIdentityFields(); return; }
       return _origLock.apply(this, arguments);
     };
   }
 
   function init() { applyStaffProfileUI(); }
-
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 
   var prevGo = window.go;
   if (typeof prevGo === 'function' && !window._staffProfileGoPatched) {
@@ -227,7 +239,7 @@
     if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'profile') {
       applyStaffProfileUI();
     }
-  }, 3000);
+  }, 2000);
 
-  console.log('[AUPYGO] staff-profile.js chargé (identité débloquée)');
+  console.log('[AUPYGO] staff-profile.js chargé');
 })();
