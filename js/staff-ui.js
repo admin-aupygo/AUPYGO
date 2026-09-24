@@ -1,16 +1,17 @@
-/* AUPYGO staff-ui.js v2.3b */
+/* AUPYGO staff-ui.js v2.4 */
 (function () {
   'use strict';
 
-  function loadScriptOnce(src) {
-    if (document.querySelector('script[src*="' + src.replace('js/', '') + '"]')) return;
+  function loadScriptOnce(name) {
+    if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + (src.indexOf('?') >= 0 ? '' : '?v=20260924e');
+    s.src = 'js/' + name + '?v=20260924f';
     document.body.appendChild(s);
   }
 
-  loadScriptOnce('js/staff-realtime-fix.js');
-  loadScriptOnce('js/staff-blink-fix.js');
+  loadScriptOnce('staff-realtime-fix.js');
+  loadScriptOnce('staff-blink-fix.js');
+  loadScriptOnce('staff-visibility.js');
 
   if (typeof isStaff !== 'function') return;
 
@@ -19,6 +20,36 @@
     messages: true, profile: true, more: true, admin: true,
     reconnect: false, plans: false
   };
+
+  function forceMessagesInNav() {
+    // Bouton messages dans la barre d'icônes (pas flottant à droite)
+    var nav = document.querySelector('header nav');
+    var msg = document.getElementById('navMessages');
+    if (msg) {
+      msg.style.display = '';
+      msg.style.visibility = 'visible';
+      msg.style.opacity = '1';
+      msg.style.pointerEvents = 'auto';
+      msg.style.position = '';
+      msg.style.right = '';
+      msg.style.top = '';
+      msg.style.fixed = '';
+      // Replacer dans la nav si détaché
+      if (nav && msg.parentElement !== nav) {
+        try { nav.appendChild(msg); } catch (e) {}
+      }
+    }
+    // Retirer doublon injecté
+    var extra = document.getElementById('navStaffMessages');
+    if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
+
+    // Bottom nav aussi
+    var btm = document.getElementById('bottomNavMessages');
+    if (btm) {
+      btm.style.display = '';
+      btm.style.visibility = 'visible';
+    }
+  }
 
   function applyStaffNav() {
     if (!isStaff()) return;
@@ -29,6 +60,10 @@
       if (STAFF_ALLOWED_NAV[key] === false) {
         el.style.display = 'none';
         el.style.pointerEvents = 'none';
+      } else if (key === 'messages') {
+        el.style.display = '';
+        el.style.pointerEvents = 'auto';
+        el.style.opacity = '1';
       }
     });
 
@@ -59,14 +94,11 @@
       try {
         if (dash.firstChild) dash.insertBefore(b, dash.firstChild);
         else dash.appendChild(b);
-      } catch (e) {
-        dash.appendChild(b);
-      }
+      } catch (e) { dash.appendChild(b); }
     }
 
     applyStaffAvatar();
-    var extra = document.getElementById('navStaffMessages');
-    if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
+    forceMessagesInNav();
     fixAdminPlanLabels();
   }
 
@@ -180,16 +212,17 @@
     if (!isStaff()) return;
     forceStaffPremium();
     applyStaffNav();
+    forceMessagesInNav();
     if (typeof getActivePage === 'function') {
       if (getActivePage() === 'map') updateMapActivityCounter().catch(function () {});
       if (getActivePage() === 'admin') fixAdminPlanLabels();
     }
   }
 
-  loadScriptOnce('js/staff-restrictions.js');
+  loadScriptOnce('staff-restrictions.js');
 
   setTimeout(tick, 600);
-  setInterval(tick, 4000);
+  setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v2.3b');
+  console.log('[AUPYGO] staff-ui.js v2.4');
 })();
