@@ -1,5 +1,7 @@
 /* AUPYGO staff-profile.js
- * Profil staff limité : Prénom, Âge (20-80), Genre, Pays, Ville, Langues
+ * Profil staff : Prénom, Âge (20-80), Genre, Pays, Ville, Langues
+ * Identité TOUJOURS éditable (pas de lock)
+ * Pas de bouton supprimer compte (réservé Admin)
  */
 (function () {
   'use strict';
@@ -18,14 +20,41 @@
   function restrictAgeOptions() {
     var ageEl = document.getElementById('age');
     if (!ageEl || ageEl.tagName !== 'SELECT') return;
-    var opts = ageEl.querySelectorAll('option');
-    opts.forEach(function (opt) {
+    ageEl.querySelectorAll('option').forEach(function (opt) {
       var v = parseInt(opt.value, 10);
       if (!opt.value || isNaN(v)) return;
       if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
         opt.disabled = true;
         opt.hidden = true;
+      } else {
+        opt.disabled = false;
+        opt.hidden = false;
       }
+    });
+  }
+
+  /** Débloque les champs d'identité pour le staff */
+  function unlockIdentityFields() {
+    if (!isStaff()) return;
+    ['firstName', 'age', 'country', 'city'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.disabled = false;
+        el.readOnly = false;
+        el.removeAttribute('readonly');
+        el.removeAttribute('disabled');
+      }
+    });
+    // Boutons genre
+    document.querySelectorAll('[data-gender], .gender-btn, #genderGroup button').forEach(function (btn) {
+      btn.disabled = false;
+      btn.style.pointerEvents = '';
+      btn.style.opacity = '';
+    });
+    // Langues
+    document.querySelectorAll('.lang-chip, .language-btn, #languageGrid button').forEach(function (btn) {
+      btn.disabled = false;
+      btn.style.pointerEvents = '';
     });
   }
 
@@ -33,6 +62,7 @@
     if (!isStaff()) return;
 
     restrictAgeOptions();
+    unlockIdentityFields();
 
     var bio = document.getElementById('bio');
     if (bio) {
@@ -40,9 +70,7 @@
       if (g) g.style.display = 'none';
       else bio.style.display = 'none';
     }
-    document.querySelectorAll('.bio-counter').forEach(function (el) {
-      el.style.display = 'none';
-    });
+    document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
 
     ['hostCountry', 'stayEnd', 'otherLanguage'].forEach(function (id) {
       var el = document.getElementById(id);
@@ -57,12 +85,20 @@
       var section = hobbyGrid.closest('.form-group') || hobbyGrid.parentElement;
       if (section) section.style.display = 'none';
       else hobbyGrid.style.display = 'none';
-      var prev = (section || hobbyGrid).previousElementSibling;
-      if (prev && /hobby|centre|intérêt|interest|passion/i.test(prev.textContent || '')) {
-        prev.style.display = 'none';
-      }
     }
     document.querySelectorAll('#profileCardHobbies, .profile-card-hobbies').forEach(function (el) {
+      el.style.display = 'none';
+    });
+
+    // Supprimer mon profil / Mon agenda
+    document.querySelectorAll('button, a, .btn').forEach(function (btn) {
+      var t = (btn.textContent || '').toLowerCase();
+      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) {
+        btn.style.display = 'none';
+      }
+      if (/mon agenda/i.test(t)) btn.style.display = 'none';
+    });
+    document.querySelectorAll('#profile .agenda-block, .profile-agenda, #myAgendaBlock').forEach(function (el) {
       el.style.display = 'none';
     });
 
@@ -72,7 +108,7 @@
         var banner = document.createElement('div');
         banner.id = 'staffProfileBanner';
         banner.style.cssText = 'background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#475569;font-weight:600;';
-        banner.textContent = '🛡️ Profil Staff — Prénom, Âge (20–80), Genre, Pays, Ville, Langues';
+        banner.textContent = '🛡️ Profil Staff — modifiable à tout moment · Prénom, Âge (20–80), Genre, Pays, Ville, Langues';
         form.insertBefore(banner, form.firstChild);
       }
     }
@@ -88,8 +124,7 @@
       var userRes = await supabaseClient.auth.getUser();
       var user = userRes.data && userRes.data.user;
       if (!user) {
-        showToast(typeof t === 'function' ? t('profile.login_required') : 'Connecte-toi', 'error');
-        if (typeof go === 'function') go('plans');
+        showToast('Connecte-toi', 'error');
         return;
       }
 
@@ -102,54 +137,44 @@
         ? selectedLanguages.join(',')
         : '';
 
-      var alreadySaved = window.profileSaved === true;
-
-      if (!alreadySaved) {
-        if (!name) {
-          showToast(typeof t === 'function' ? t('profile.first_name_error') : 'Prénom requis', 'error');
-          return;
-        }
-        if (!ageValue || isNaN(ageNum) || ageNum < STAFF_AGE_MIN || ageNum > STAFF_AGE_MAX) {
-          showToast('Âge staff : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
-          return;
-        }
-        if (typeof selectedGender === 'undefined' || !selectedGender) {
-          showToast(typeof t === 'function' ? t('profile.gender_error') : 'Genre requis', 'error');
-          return;
-        }
+      if (!name) {
+        showToast('Prénom requis', 'error');
+        return;
+      }
+      if (!ageValue || isNaN(ageNum) || ageNum < STAFF_AGE_MIN || ageNum > STAFF_AGE_MAX) {
+        showToast('Âge staff : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
+        return;
+      }
+      if (typeof selectedGender === 'undefined' || !selectedGender) {
+        showToast('Genre requis', 'error');
+        return;
       }
 
       var profile = {
         id: user.id,
+        display_name: name,
+        age: ageNum,
+        gender: selectedGender,
+        country: country,
+        city: city || ((typeof userLocation !== 'undefined' && userLocation.city) || ''),
+        languages: langs,
+        other_language: '',
+        host_country: country,
+        stay_end: null,
         bio: null,
         interests: null,
-        subscription: 'PREMIUM'
+        identity_locked: false,
+        subscription: 'PREMIUM',
+        avatar: selectedGender === 'Homme' ? '👨' : '👩'
       };
 
-      if (!alreadySaved) {
-        profile.display_name = name;
-        profile.age = ageNum;
-        profile.gender = selectedGender;
-        profile.country = country;
-        profile.city = city || ((typeof userLocation !== 'undefined' && userLocation.city) || '');
-        if (typeof userLocation !== 'undefined') {
-          profile.approx_lat = userLocation.lat;
-          profile.approx_lng = userLocation.lng;
-        }
-        profile.avatar = selectedGender === 'Homme' ? '👨' : '👩';
-        profile.identity_locked = true;
-        profile.languages = langs;
-        profile.other_language = '';
-        profile.host_country = country;
-        profile.stay_end = null;
-        if (typeof isHost === 'function' && isHost()) profile.role = 'host';
-        if (typeof isAdmin === 'function' && isAdmin()) profile.role = 'admin_general';
-      } else {
-        profile.city = city;
-        profile.languages = langs;
+      if (typeof userLocation !== 'undefined') {
+        profile.approx_lat = userLocation.lat;
+        profile.approx_lng = userLocation.lng;
       }
+      if (typeof isHost === 'function' && isHost()) profile.role = 'host';
+      if (typeof isAdmin === 'function' && isAdmin()) profile.role = 'admin_general';
 
-      // Ne pas envoyer is_admin (trigger Supabase)
       var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
       if (result.error) {
         console.error(result.error);
@@ -157,17 +182,28 @@
         return;
       }
 
+      // Ne PAS verrouiller l'identité
       window.profileSaved = true;
-      if (typeof lockIdentityFields === 'function') lockIdentityFields();
-      if (typeof showToast === 'function') showToast('Profil staff enregistré', 'success');
+      if (typeof showToast === 'function') showToast('Profil staff enregistré (modifiable à tout moment)', 'success');
       if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
       applyStaffProfileUI();
+      unlockIdentityFields();
     };
   }
 
-  function init() {
-    applyStaffProfileUI();
+  // Empêcher lockIdentityFields pour le staff
+  var _origLock = window.lockIdentityFields;
+  if (typeof _origLock === 'function') {
+    window.lockIdentityFields = function () {
+      if (isStaff()) {
+        unlockIdentityFields();
+        return;
+      }
+      return _origLock.apply(this, arguments);
+    };
   }
+
+  function init() { applyStaffProfileUI(); }
 
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
@@ -193,5 +229,5 @@
     }
   }, 3000);
 
-  console.log('[AUPYGO] staff-profile.js chargé');
+  console.log('[AUPYGO] staff-profile.js chargé (identité débloquée)');
 })();
