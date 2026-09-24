@@ -6,9 +6,11 @@
 (function () {
   'use strict';
 
-  /* E-mails Staff auto : pattern aupygo-staff-*@... ou whitelist */
+  /* E-mails Staff auto : pattern aupygo-staff-*@... ou whitelist exacte */
   var STAFF_EMAIL_PATTERN = /^aupygo-staff[-.].+@.+$/i;
-  var STAFF_EMAIL_WHITELIST = [];
+  var STAFF_EMAIL_WHITELIST = [
+    'aupygo-staff-fr1@protonmail.com'
+  ];
   var ADMIN_EMAILS = ['aupygo@protonmail.com'];
 
   function emailLooksStaff(email) {
@@ -18,6 +20,17 @@
     if (STAFF_EMAIL_WHITELIST.indexOf(e) !== -1) return 'host';
     if (STAFF_EMAIL_PATTERN.test(e)) return 'host';
     return null;
+  }
+
+  /** E-mail confirmé côté Supabase Auth (anti-piratage) */
+  function isEmailConfirmed(user) {
+    if (!user) return false;
+    // Confirmé si email_confirmed_at présent, ou confirmation désactivée côté projet
+    if (user.email_confirmed_at) return true;
+    if (user.confirmed_at) return true;
+    // Certains clients exposent user_metadata
+    if (user.user_metadata && user.user_metadata.email_verified === true) return true;
+    return false;
   }
 
   window.currentUserRole = window.currentUserRole || 'user';
@@ -40,8 +53,21 @@
 
   async function ensureStaffRoleFromEmail() {
     if (!window.currentUser || !window.currentUser.email) return;
+
     var wanted = emailLooksStaff(window.currentUser.email);
     if (!wanted) return;
+
+    // Sécurité : pas de rôle staff tant que l'e-mail n'est pas validé
+    if (!isEmailConfirmed(window.currentUser)) {
+      console.warn('[Staff] e-mail non validé — rôle staff non appliqué');
+      if (typeof showToast === 'function') {
+        showToast('Confirme d\'abord ton e-mail (lien reçu dans ta boîte) pour activer le compte Staff.', 'error');
+      }
+      window.currentUserRole = 'user';
+      window.currentUserIsAdmin = false;
+      return;
+    }
+
     try {
       var res = await supabaseClient.from('profiles').select('id, role, is_admin').eq('id', window.currentUser.id).maybeSingle();
       var profile = res.data;
@@ -49,12 +75,25 @@
       if (!profile) needUpdate = true;
       else if (wanted === 'admin_general' && profile.role !== 'admin_general') needUpdate = true;
       else if (wanted === 'host' && profile.role !== 'host' && profile.role !== 'admin_general') needUpdate = true;
+
       if (needUpdate) {
-        var payload = { id: window.currentUser.id, role: wanted, is_admin: wanted === 'admin_general', subscription: 'PREMIUM' };
+        // Ne pas toucher is_admin (trigger Supabase) — seul role + subscription
+        var payload = {
+          id: window.currentUser.id,
+          role: wanted,
+          subscription: 'PREMIUM'
+        };
         var up = await supabaseClient.from('profiles').upsert(payload, { onConflict: 'id' });
-        if (up.error) console.warn('[Staff] auto-role', up.error);
-        else console.log('[Staff] rôle auto:', wanted, window.currentUser.email);
+        if (up.error) {
+          // Fallback sans is_admin déjà omis ; log erreur
+          console.warn('[Staff] auto-role', up.error);
+          // Retry update only role
+          await supabaseClient.from('profiles').update({ role: wanted, subscription: 'PREMIUM' }).eq('id', window.currentUser.id);
+        } else {
+          console.log('[Staff] rôle auto:', wanted, window.currentUser.email);
+        }
       }
+
       window.currentUserRole = (profile && profile.role === 'admin_general') ? 'admin_general' : wanted;
       window.currentUserIsAdmin = window.currentUserRole === 'admin_general';
     } catch (e) {
@@ -73,8 +112,14 @@
           var pr = await supabaseClient.from('profiles').select('role, is_admin, subscription').eq('id', window.currentUser.id).maybeSingle();
           var profile = pr.data;
           if (profile) {
-            window.currentUserRole = profile.role || 'user';
-            window.currentUserIsAdmin = !!(profile.is_admin === true || profile.role === 'admin_general');
+            // Si e-mail staff mais non confirmé → forcer user
+            if (emailLooksStaff(window.currentUser.email) && !isEmailConfirmed(window.currentUser)) {
+              window.currentUserRole = 'user';
+              window.currentUserIsAdmin = false;
+            } else {
+              window.currentUserRole = profile.role || 'user';
+              window.currentUserIsAdmin = !!(profile.is_admin === true || profile.role === 'admin_general');
+            }
             if (isStaff()) {
               try { currentPlan = 'PREMIUM'; } catch (e1) {}
               window.currentPlan = 'PREMIUM';
@@ -273,7 +318,7 @@
       list = list.filter(function (u) { return [u.display_name, u.city, u.country, u.host_country].filter(Boolean).join(' ').toLowerCase().indexOf(q) !== -1; });
     }
     if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888">Aucun résultat</td></tr>'; return; }
-    function esc(s) { return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+    function esc(s) { return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>'); }
     tbody.innerHTML = list.map(function (u) {
       var name = u.display_name || 'Sans nom';
       var plan = (u.subscription || 'FREE').toUpperCase();
@@ -281,7 +326,6 @@
       var loc = [u.city, u.country || u.host_country].filter(Boolean).join(', ') || '—';
       var online = u.is_online || (u.last_seen && (now - new Date(u.last_seen).getTime()) < ONLINE);
       var lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-      var icon = u.gender === 'Femme' || u.gender === 'female' ? '👩' : (u.gender === 'Homme' || u.gender === 'male' ? '👨' : '👤');
       var actions = isAdmin() ? '<button onclick="window.adminSetRole(\'' + u.id + '\',\'host\')" style="font-size:11px;margin:2px">→ Hôte</button><button onclick="window.adminSetRole(\'' + u.id + '\',\'user\')" style="font-size:11px;margin:2px">→ User</button><button onclick="window.adminSetRole(\'' + u.id + '\',\'admin_general\')" style="font-size:11px;margin:2px">→ Admin</button>' : '';
       return '<tr><td><strong>' + esc(name) + '</strong></td><td><span class="admin-badge ' + role + '">' + role + '</span></td><td>' + plan + '</td><td>' + esc(loc) + '</td><td>' + (online ? '🟢' : '⚫') + ' ' + lastSeen + '</td><td>' + actions + '</td></tr>';
     }).join('');
@@ -295,12 +339,13 @@
     if (!isAdmin()) return;
     if (!confirm('Changer le rôle en « ' + newRole + ' » ?')) return;
     try {
-      var payload = { role: newRole, is_admin: newRole === 'admin_general' };
+      // Ne pas envoyer is_admin (trigger Supabase)
+      var payload = { role: newRole };
       if (newRole === 'host' || newRole === 'admin_general') payload.subscription = 'PREMIUM';
       var { error } = await supabaseClient.from('profiles').update(payload).eq('id', userId);
       if (error) throw error;
       var u = adminUsersCache.find(function (x) { return x.id === userId; });
-      if (u) { u.role = newRole; u.is_admin = newRole === 'admin_general'; if (payload.subscription) u.subscription = payload.subscription; }
+      if (u) { u.role = newRole; if (payload.subscription) u.subscription = payload.subscription; }
       renderAdminStats();
       renderAdminTable();
       if (typeof showToast === 'function') showToast('Rôle mis à jour', 'success');
@@ -312,7 +357,7 @@
   function loadStaffScript(src) {
     if (document.querySelector('script[src*="' + src.replace('js/', '') + '"]')) return;
     var s = document.createElement('script');
-    s.src = src + '?v=20260924a';
+    s.src = src + '?v=20260924b';
     document.body.appendChild(s);
   }
 
