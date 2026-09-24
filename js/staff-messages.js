@@ -1,8 +1,8 @@
 /* AUPYGO staff-messages.js
- * - Groupe Équipe AUPYGO
- * - Host : onglet DM auto avec Admin Général uniquement
+ * - Groupe Équipe AUPYGO avec noms d'expéditeurs
+ * - Host ↔ Admin sans amitié (collaborateurs)
  * - Pas de DM entre hosts
- * - Affichage prénom expéditeur dans le groupe
+ * - Stop badge messages qui clignote en header
  */
 (function () {
   'use strict';
@@ -26,8 +26,7 @@
         .or('role.eq.admin_general,is_admin.eq.true')
         .limit(5);
       var rows = res.data || [];
-      var admin = rows.find(function (r) { return r.role === 'admin_general'; }) || rows[0];
-      return admin || null;
+      return rows.find(function (r) { return r.role === 'admin_general'; }) || rows[0] || null;
     } catch (e) {
       return null;
     }
@@ -36,19 +35,90 @@
   function canStartDm(targetUserId) {
     if (typeof isAdmin === 'function' && isAdmin()) {
       var target = (window.profiles || []).find(function (p) { return p && p.id === targetUserId; });
-      if (target && isMemberStaffProfile(target)) return true;
-      return false;
+      return !!(target && isMemberStaffProfile(target));
     }
-    // Host : uniquement vers admin_general
     if (typeof isHost === 'function' && isHost()) {
       var t = (window.profiles || []).find(function (p) { return p && p.id === targetUserId; });
-      if (t && (t.role === 'admin_general' || t.is_admin === true)) return true;
-      return false;
+      return !!(t && (t.role === 'admin_general' || t.is_admin === true));
     }
     if (isStaff()) return false;
     var t2 = (window.profiles || []).find(function (p) { return p && p.id === targetUserId; });
     if (t2 && isMemberStaffProfile(t2)) return false;
     return true;
+  }
+
+  async function ensureStaffDmConversation(otherUserId) {
+    if (!window.currentUser || !otherUserId) return null;
+    try {
+      var myRows = await supabaseClient
+        .from('conversation_members')
+        .select('conversation_id')
+        .eq('user_id', currentUser.id);
+      var myIds = ((myRows && myRows.data) || []).map(function (r) { return r.conversation_id; });
+      if (myIds.length) {
+        var otherRows = await supabaseClient
+          .from('conversation_members')
+          .select('conversation_id')
+          .eq('user_id', otherUserId)
+          .in('conversation_id', myIds);
+        var shared = ((otherRows && otherRows.data) || []).map(function (r) { return r.conversation_id; });
+        if (shared.length) {
+          var convs = await supabaseClient
+            .from('conversations')
+            .select('id, type, title')
+            .in('id', shared)
+            .eq('type', 'dm');
+          if (convs.data && convs.data.length) return convs.data[0].id;
+        }
+      }
+      var created = await supabaseClient
+        .from('conversations')
+        .insert({ created_by: currentUser.id, type: 'dm', title: null })
+        .select()
+        .single();
+      if (created.error || !created.data) {
+        console.warn('[Staff] create dm', created.error);
+        return null;
+      }
+      var cid = created.data.id;
+      await supabaseClient.from('conversation_members').insert([
+        { conversation_id: cid, user_id: currentUser.id },
+        { conversation_id: cid, user_id: otherUserId }
+      ]);
+      return cid;
+    } catch (e) {
+      console.warn('[Staff] ensureStaffDm', e);
+      return null;
+    }
+  }
+
+  async function openStaffDm(memberId, name) {
+    try {
+      if (typeof go === 'function') go('messages');
+      var cid = await ensureStaffDmConversation(memberId);
+      if (!cid) {
+        showToast('Impossible d\'ouvrir la conversation (droits / RLS).', 'error');
+        return;
+      }
+      window.activeConversation = {
+        type: 'dm',
+        id: memberId,
+        name: name || 'Staff',
+        conversationId: cid
+      };
+      window._adminBypassDm = true;
+      if (typeof loadConversationHistory === 'function') {
+        await loadConversationHistory(cid);
+      }
+      var titleEl = document.getElementById('chatTitle') || document.querySelector('.chat-title');
+      if (titleEl) titleEl.textContent = name || 'Discussion';
+      window._adminBypassDm = false;
+      applyStaffMessagesUI();
+    } catch (e) {
+      window._adminBypassDm = false;
+      console.warn('[Staff] openStaffDm', e);
+      showToast('Impossible d\'ouvrir la conversation', 'error');
+    }
   }
 
   var _origMessageMember = window.messageMember;
@@ -74,7 +144,7 @@
         return openStaffDm(memberId, (raw2 && raw2.display_name) || 'Admin');
       }
       if (isStaff()) {
-        showToast('Messagerie privée limitée. Utilisez le groupe Équipe AUPYGO.', 'error');
+        showToast('Utilisez le groupe Équipe AUPYGO ou le canal Admin.', 'error');
         if (typeof closeMemberProfile === 'function') closeMemberProfile();
         return;
       }
@@ -87,45 +157,21 @@
     };
   }
 
-  async function openStaffDm(memberId, name) {
-    try {
-      if (typeof go === 'function') go('messages');
-      window._adminBypassDm = true;
-      if (typeof _origGetDm === 'function') {
-        await window.getOrCreateDmConversation(memberId);
-      }
-      if (typeof _origOpenConv === 'function') {
-        await _origOpenConv('dm', memberId, name);
-      }
-      window._adminBypassDm = false;
-    } catch (e) {
-      window._adminBypassDm = false;
-      console.warn('[Staff] DM', e);
-      showToast('Impossible d\'ouvrir la conversation', 'error');
-    }
-  }
-
   var _origOpenConv = window.openConversation;
   if (typeof _origOpenConv === 'function') {
     window.openConversation = async function (type, id, name) {
-      if (type === 'dm') {
-        if (window._adminBypassDm) return _origOpenConv(type, id, name);
-        if (isStaff() && !canStartDm(id)) {
-          showToast('Conversation privée non autorisée.', 'error');
+      if (type === 'dm' && isStaff()) {
+        if (window._adminBypassDm || canStartDm(id)) {
+          return openStaffDm(id, name);
+        }
+        showToast('Conversation privée non autorisée.', 'error');
+        return;
+      }
+      if (type === 'dm' && !isStaff()) {
+        var target = (window.profiles || []).find(function (p) { return p && p.id === id; });
+        if (target && isMemberStaffProfile(target)) {
+          showToast('Ce compte n\'est pas joignable en message privé.', 'error');
           return;
-        }
-        if (canStartDm(id)) {
-          window._adminBypassDm = true;
-          var r = await _origOpenConv(type, id, name);
-          window._adminBypassDm = false;
-          return r;
-        }
-        if (!isStaff()) {
-          var target = (window.profiles || []).find(function (p) { return p && p.id === id; });
-          if (target && isMemberStaffProfile(target)) {
-            showToast('Ce compte n\'est pas joignable en message privé.', 'error');
-            return;
-          }
         }
       }
       return _origOpenConv(type, id, name);
@@ -135,8 +181,8 @@
   var _origGetDm = window.getOrCreateDmConversation;
   if (typeof _origGetDm === 'function') {
     window.getOrCreateDmConversation = async function (friendId) {
-      if (canStartDm(friendId) || window._adminBypassDm) {
-        return _origGetDm(friendId);
+      if (isStaff() && (canStartDm(friendId) || window._adminBypassDm)) {
+        return ensureStaffDmConversation(friendId);
       }
       if (isStaff()) {
         showToast('Conversation privée interdite.', 'error');
@@ -205,27 +251,54 @@
     } catch (e) {}
   }
 
-  /** Affiche le prénom de l'expéditeur dans les bulles du groupe staff */
   function labelGroupSenders() {
     if (!isStaff()) return;
-    var active = window.activeConversation;
-    if (!active || active.type !== 'group') return;
-    document.querySelectorAll('.message, .msg-bubble, .chat-message').forEach(function (msg) {
+    var msgs = document.querySelectorAll(
+      '#chatMessages .message, #messagesList .message, .chat-messages .message, .msg-row, .chat-message, [data-message-id]'
+    );
+    msgs.forEach(function (msg) {
       if (msg.querySelector('.staff-sender-label')) return;
-      var uid = msg.getAttribute('data-user-id') || msg.getAttribute('data-sender');
-      if (!uid) return;
-      var p = (window.profiles || []).find(function (x) { return x && x.id === uid; });
-      var name = (p && p.display_name) || 'Staff';
+      var uid = msg.getAttribute('data-user-id') ||
+        msg.getAttribute('data-sender') ||
+        msg.getAttribute('data-author-id');
+      if (!uid) {
+        var sub = msg.querySelector('[data-user-id], [data-sender]');
+        if (sub) uid = sub.getAttribute('data-user-id') || sub.getAttribute('data-sender');
+      }
+      var name = null;
+      if (uid) {
+        var p = (window.profiles || []).find(function (x) { return x && x.id === uid; });
+        name = (p && p.display_name) || null;
+      }
+      if (!name) return;
       var label = document.createElement('div');
       label.className = 'staff-sender-label';
-      label.style.cssText = 'font-size:11px;font-weight:700;color:#64748b;margin-bottom:2px;';
+      label.style.cssText = 'font-size:11px;font-weight:700;color:#64748b;margin-bottom:3px;padding-left:2px;';
       label.textContent = name;
-      msg.insertBefore(label, msg.firstChild);
+      try { msg.insertBefore(label, msg.firstChild); } catch (e) { msg.appendChild(label); }
+    });
+  }
+
+  function stopMessageBlink() {
+    if (!isStaff()) return;
+    document.querySelectorAll(
+      '#navMessages, #bottomNavMessages, #navStaffMessages, [data-nav="messages"]'
+    ).forEach(function (el) {
+      el.classList.remove('has-unread', 'blink', 'pulse', 'notify', 'badge-active');
+      el.style.animation = 'none';
+      var badge = el.querySelector('.badge, .unread-badge, .notif-dot, .nav-badge');
+      if (badge) { badge.style.display = 'none'; badge.textContent = ''; }
+    });
+    document.querySelectorAll('.header-msg-avatar, #headerMsgBtn, .msg-blink, .header-unread').forEach(function (el) {
+      el.style.animation = 'none';
+      el.classList.remove('blink', 'pulse');
     });
   }
 
   async function applyStaffMessagesUI() {
     if (!isStaff()) return;
+    stopMessageBlink();
+
     var friendsList = document.getElementById('convFriendsList');
     var groupsList = document.getElementById('convGroupsList');
 
@@ -233,7 +306,6 @@
       '#createGroupBtn, [onclick*="openCreateGroup"], [onclick*="CreateGroup"], .messages-create-group'
     ).forEach(function (el) { el.style.display = 'none'; });
 
-    // Liste « privées » : Host → canal Admin ; Admin → info
     if (friendsList) {
       if (typeof isHost === 'function' && isHost() && !(typeof isAdmin === 'function' && isAdmin())) {
         var admin = await findAdminGeneralId();
@@ -244,13 +316,13 @@
             '<div class="conv-avatar" style="background:#7c3aed;color:#fff">🛡️</div>' +
             '<div class="conv-meta"><div class="conv-name">Admin Général</div>' +
             '<div class="conv-preview" style="font-size:11px;color:#888">' +
-            ((admin.display_name || 'Aupygo') + ' — canal direct') +
+            ((admin.display_name || 'Aupygo') + ' — canal direct (sans amitié)') +
             '</div></div></div>';
         } else {
-          friendsList.innerHTML = '<p class="conv-empty" style="opacity:0.7">Canal Admin indisponible pour le moment.</p>';
+          friendsList.innerHTML = '<p class="conv-empty" style="opacity:0.7">Canal Admin indisponible.</p>';
         }
       } else if (typeof isAdmin === 'function' && isAdmin()) {
-        friendsList.innerHTML = '<p class="conv-empty" style="opacity:0.75;font-size:13px">Ouvre un DM avec un Host depuis sa fiche (carte). Groupe officiel ci-dessous.</p>';
+        friendsList.innerHTML = '<p class="conv-empty" style="opacity:0.75;font-size:13px">DM Host depuis la carte (sans amitié). Groupe ci-dessous.</p>';
       } else {
         friendsList.innerHTML = '<p class="conv-empty" style="opacity:0.7">Canal : groupe Équipe AUPYGO.</p>';
       }
@@ -287,9 +359,8 @@
       return;
     }
     if (typeof go === 'function' && typeof getActivePage === 'function' && getActivePage() !== 'messages') go('messages');
-    if (typeof _origOpenConv === 'function') {
-      await _origOpenConv('group', gid, STAFF_GROUP_TITLE);
-    }
+    window.activeConversation = { type: 'group', id: gid, name: STAFF_GROUP_TITLE, conversationId: gid };
+    if (typeof loadConversationHistory === 'function') await loadConversationHistory(gid);
     applyStaffMessagesUI();
     setTimeout(labelGroupSenders, 500);
   };
@@ -302,12 +373,11 @@
     };
   }
 
-  // Après chargement historique messages
   var _origHist = window.loadConversationHistory;
   if (typeof _origHist === 'function') {
     window.loadConversationHistory = async function () {
       var r = await _origHist.apply(this, arguments);
-      setTimeout(labelGroupSenders, 200);
+      setTimeout(labelGroupSenders, 250);
       return r;
     };
   }
@@ -324,12 +394,17 @@
   }
 
   setTimeout(function () {
-    if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'messages') applyStaffMessagesUI();
+    if (isStaff()) {
+      stopMessageBlink();
+      if (typeof getActivePage === 'function' && getActivePage() === 'messages') applyStaffMessagesUI();
+    }
   }, 1500);
 
   setInterval(function () {
-    if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'messages') labelGroupSenders();
-  }, 3000);
+    if (!isStaff()) return;
+    stopMessageBlink();
+    if (typeof getActivePage === 'function' && getActivePage() === 'messages') labelGroupSenders();
+  }, 2500);
 
-  console.log('[AUPYGO] staff-messages.js chargé (canal Admin Host)');
+  console.log('[AUPYGO] staff-messages.js chargé (DM sans amitié)');
 })();
