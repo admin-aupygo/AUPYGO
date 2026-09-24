@@ -1,6 +1,6 @@
-/* AUPYGO staff-ui.js v2
- * Navigation Staff, Premium=AupygoStaff, avatar bouclier,
- * compteur carte, bouton messages header + charge restrictions
+/* AUPYGO staff-ui.js v2.1
+ * Navigation Staff, AupygoStaff, avatar bouclier,
+ * compteur carte (fix DOM), bouton messages header
  */
 (function () {
   'use strict';
@@ -48,7 +48,12 @@
       b.id = 'staffHomeBanner';
       b.style.cssText = 'background:#111;color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-weight:700;font-size:14px;line-height:1.4';
       b.innerHTML = '🛡️ Espace Staff AUPYGO<br><span style="font-weight:500;font-size:12px;opacity:0.9">Agenda · Messages · Carte · Sorties</span>';
-      dash.insertBefore(b, dash.firstChild);
+      try {
+        if (dash.firstChild) dash.insertBefore(b, dash.firstChild);
+        else dash.appendChild(b);
+      } catch (e) {
+        dash.appendChild(b);
+      }
     }
 
     applyStaffAvatar();
@@ -112,6 +117,7 @@
     try { window.currentPlan = 'PREMIUM'; } catch (e2) {}
   }
 
+  /** Compteur activité carte — insertion DOM sécurisée */
   async function updateMapActivityCounter() {
     if (!isStaff()) return;
     var mapPage = document.getElementById('map');
@@ -122,9 +128,24 @@
       box = document.createElement('div');
       box.id = 'staffMapActivity';
       box.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;';
-      var anchor = mapPage.querySelector('.section-title') || mapPage.firstElementChild;
-      if (anchor && anchor.nextSibling) mapPage.insertBefore(box, anchor.nextSibling);
-      else mapPage.insertBefore(box, mapPage.firstChild);
+      // Insertion sûre : prepend via firstChild du mapPage uniquement
+      try {
+        if (mapPage.firstChild && mapPage.firstChild.parentNode === mapPage) {
+          mapPage.insertBefore(box, mapPage.firstChild);
+        } else {
+          mapPage.appendChild(box);
+        }
+      } catch (err) {
+        try { mapPage.appendChild(box); } catch (e2) { return; }
+      }
+    }
+
+    // Si le box a été détaché, le réattacher
+    if (!box.isConnected || box.parentNode !== mapPage) {
+      try {
+        if (box.parentNode) box.parentNode.removeChild(box);
+        mapPage.appendChild(box);
+      } catch (e3) { return; }
     }
 
     var usersOnline = 0;
@@ -153,9 +174,11 @@
       console.warn('[Staff] map counter', e);
     }
 
-    box.innerHTML =
-      '<div style="background:#111;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">👥 Users en ligne : ' + usersOnline + '</div>' +
-      '<div style="background:#334155;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">🛡️ Staff Host en ligne : ' + staffOnline + '</div>';
+    try {
+      box.innerHTML =
+        '<div style="background:#111;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">👥 Users en ligne : ' + usersOnline + '</div>' +
+        '<div style="background:#334155;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">🛡️ Staff Host en ligne : ' + staffOnline + '</div>';
+    } catch (e4) {}
   }
 
   var prevGo = window.go;
@@ -179,7 +202,7 @@
       prevGo(page);
       setTimeout(applyStaffNav, 150);
       forceStaffPremium();
-      if (page === 'map') setTimeout(updateMapActivityCounter, 300);
+      if (page === 'map') setTimeout(function () { updateMapActivityCounter(); }, 300);
     };
   }
 
@@ -205,12 +228,13 @@
     applyStaffNav();
     if (typeof getActivePage === 'function') {
       if (getActivePage() === 'profile') hideProfileExtras();
-      if (getActivePage() === 'map') updateMapActivityCounter();
+      if (getActivePage() === 'map') {
+        updateMapActivityCounter().catch(function () {});
+      }
       if (getActivePage() === 'admin') replacePremiumLabels();
     }
   }
 
-  // Charger restrictions sorties si pas déjà présent
   if (!document.querySelector('script[src*="staff-restrictions"]')) {
     var s = document.createElement('script');
     s.src = 'js/staff-restrictions.js?v=20260924c';
@@ -220,5 +244,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 4000);
 
-  console.log('[AUPYGO] staff-ui.js v2 chargé');
+  console.log('[AUPYGO] staff-ui.js v2.1 chargé');
 })();
