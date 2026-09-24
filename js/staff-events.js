@@ -1,6 +1,7 @@
 /* AUPYGO staff-events.js
- * - Staff : vue seule sur sorties users
- * - Hôte : option payant visible, soumis validation Admin
+ * - Staff : vue seule sorties users
+ * - Hôte : payant → validation Admin + tag pays
+ * - Users : sorties hôte filtrées par pays
  * - Agenda staff : Contrôle + Équipe
  */
 (function () {
@@ -8,6 +9,7 @@
   if (typeof isStaff !== 'function') return;
 
   var PENDING_TAG = '[EN_ATTENTE_VALIDATION_ADMIN]';
+  var COUNTRY_TAG_RE = /\[HOST_COUNTRY:([^\]]+)\]/i;
 
   function isMemberStaffProfile(p) {
     if (!p) return false;
@@ -34,7 +36,49 @@
     return ev && ((ev.description || '').indexOf(PENDING_TAG) !== -1);
   }
 
-  /** Affiche l'option Payant pour Staff (app.js la cache hors admin) */
+  function extractHostCountry(ev) {
+    if (!ev) return null;
+    var m = (ev.description || '').match(COUNTRY_TAG_RE);
+    if (m) return m[1].trim();
+    var creator = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
+    if (creator && isMemberStaffProfile(creator)) {
+      return creator.host_country || creator.country || null;
+    }
+    return null;
+  }
+
+  function normalizeCountry(c) {
+    return String(c || '').trim().toLowerCase();
+  }
+
+  function getViewerCountry() {
+    try {
+      if (window.currentUserProfile) {
+        return window.currentUserProfile.host_country || window.currentUserProfile.country || null;
+      }
+      var me = (window.profiles || []).find(function (p) {
+        return p && window.currentUser && p.id === window.currentUser.id;
+      });
+      if (me) return me.host_country || me.country || null;
+    } catch (e) {}
+    return null;
+  }
+
+  /** User classique : ne voit les sorties d'un hôte que si même pays (admin/staff voient tout) */
+  function filterEventsByHostCountry(list) {
+    if (!Array.isArray(list)) return list;
+    if (typeof isStaff === 'function' && isStaff()) return list;
+    var viewerCountry = normalizeCountry(getViewerCountry());
+    return list.filter(function (ev) {
+      if (isPendingApproval(ev)) return false;
+      var hostC = extractHostCountry(ev);
+      if (!hostC) return true; // pas une sortie hôte taguée → visible
+      // Sortie d'un hôte : visible si même pays OU si le viewer n'a pas encore de pays (profil incomplet)
+      if (!viewerCountry) return true;
+      return normalizeCountry(hostC) === viewerCountry;
+    });
+  }
+
   function unlockPaidOptionForStaff() {
     if (!isStaff()) return;
     var paidInput = document.getElementById('eventPaidPaid');
@@ -44,20 +88,14 @@
       paidInput.disabled = false;
     }
     var priceStep = document.getElementById('eventWizardPriceStep') ||
-      document.querySelector('[data-step="price"]') ||
-      document.getElementById('createEventPrice') && document.getElementById('createEventPrice').closest('.event-wizard-step');
+      document.querySelector('[data-step="price"]');
     if (priceStep) priceStep.style.display = '';
-    var priceWrap = document.getElementById('createEventPriceWrap');
-    if (priceWrap && typeof onEventPaidChange === 'function') {
-      // laisse onEventPaidChange gérer l'affichage montant
-    }
   }
 
   setInterval(function () {
     if (isStaff()) unlockPaidOptionForStaff();
   }, 1500);
 
-  // ---------- JOIN ----------
   var _origJoin = window.joinRealEvent;
   if (typeof _origJoin === 'function') {
     window.joinRealEvent = async function (eventId) {
@@ -73,6 +111,15 @@
       if (ev2 && isPendingApproval(ev2)) {
         showToast('Cet événement est en attente de validation par l\'administrateur.', 'error');
         return;
+      }
+      // Bloquer join si pays différent (sortie hôte)
+      if (ev2) {
+        var hc = extractHostCountry(ev2);
+        var vc = getViewerCountry();
+        if (hc && vc && normalizeCountry(hc) !== normalizeCountry(vc)) {
+          showToast('Cette sortie est réservée aux membres du pays : ' + hc + '.', 'error');
+          return;
+        }
       }
       return _origJoin(eventId);
     };
@@ -105,14 +152,18 @@
   if (typeof _origLoadEvents === 'function') {
     window.loadAndRenderEvents = async function () {
       var r = await _origLoadEvents.apply(this, arguments);
-      // Filtrer pending pour les users classiques (pas staff/admin)
-      if (!(typeof isStaff === 'function' && isStaff()) && Array.isArray(window.cachedEvents)) {
-        window.cachedEvents = window.cachedEvents.filter(function (e) { return !isPendingApproval(e); });
+      if (Array.isArray(window.cachedEvents)) {
+        // Pending + pays hôte
+        window.cachedEvents = filterEventsByHostCountry(window.cachedEvents);
       }
       setTimeout(hideJoinButtonsForStaff, 100);
       setTimeout(hideJoinButtonsForStaff, 500);
       setTimeout(injectAgendaTabs, 300);
       setTimeout(injectPendingApprovalsPanel, 400);
+      // Re-render grid si filtre a retiré des items (best-effort)
+      if (typeof isStaff === 'function' && !isStaff() && typeof renderEventCards === 'function') {
+        try { renderEventCards(window.cachedEvents); } catch (e) {}
+      }
       return r;
     };
   }
@@ -124,24 +175,23 @@
     }
   }, 2000);
 
-  // ---------- CRÉATION ----------
   var _origSubmit = window.submitCreateEvent;
   if (typeof _origSubmit === 'function') {
     window.submitCreateEvent = async function () {
       var isHostOnly = typeof isHost === 'function' && isHost() && !(typeof isAdmin === 'function' && isAdmin());
+      var hostCountry = null;
 
-      if (isHostOnly) {
-        var hostCountry = null;
+      if (isHostOnly || (isStaff() && !(typeof isAdmin === 'function' && isAdmin()))) {
         try {
           var res = await supabaseClient.from('profiles').select('host_country, country, city').eq('id', currentUser.id).maybeSingle();
           var prof = res.data;
           hostCountry = (prof && (prof.host_country || prof.country)) || null;
         } catch (e) {}
-        if (hostCountry) {
+        if (isHostOnly && hostCountry) {
           var address = (document.getElementById('createEventAddress') || {}).value || '';
           if (!confirm(
             '📍 Hôte AUPYGO — zone : « ' + hostCountry + ' ».\n\n' +
-            'Confirmer pour les users de ton pays ?\nAdresse : ' + (address || '(vide)')
+            'La sortie sera proposée aux users de ce pays.\nAdresse : ' + (address || '(vide)')
           )) return;
         }
         var vis = document.getElementById('createEventVisibility');
@@ -166,7 +216,7 @@
         if (!confirm(
           '💶 Événement payant (prise en charge Aupygo)\n\n' +
           'Montant : ' + priceVal + ' €\n' +
-          'Soumis à validation de l\'Admin Général avant publication.\n\nContinuer ?'
+          'Soumis à validation Admin avant publication.\n\nContinuer ?'
         )) return;
       }
 
@@ -176,8 +226,7 @@
 
       if (isStaff() && isSpecial && typeof isAdmin === 'function' && isAdmin()) {
         staffParticipates = confirm(
-          '🛡️ Événement spécial Aupygo\n\nParticiper en tant qu\'hôte Aupygo ?\n\n' +
-          'OK = Oui · Annuler = organisation seule'
+          '🛡️ Événement spécial Aupygo\n\nParticiper en tant qu\'hôte Aupygo ?\nOK = Oui · Annuler = organisation seule'
         );
       }
 
@@ -199,8 +248,13 @@
           }
           if (!newest) return;
 
+          // Tag pays pour filtrage users
+          var desc = newest.description || '';
+          if (hostCountry && !COUNTRY_TAG_RE.test(desc)) {
+            desc = '[HOST_COUNTRY:' + hostCountry + ']\n' + desc;
+          }
+
           if (staffPaidPending) {
-            var desc = (newest.description || '');
             if (desc.indexOf(PENDING_TAG) === -1) desc = PENDING_TAG + '\n' + desc;
             await supabaseClient.from('events').update({
               description: desc.trim(),
@@ -213,7 +267,11 @@
             return;
           }
 
-          // Admin peut aussi forcer is_paid si le form l'a sélectionné mais submit a filtré
+          // Tag pays même si gratuit
+          if (hostCountry && desc !== (newest.description || '')) {
+            await supabaseClient.from('events').update({ description: desc.trim() }).eq('id', newest.id);
+          }
+
           if (typeof isAdmin === 'function' && isAdmin() && wantsPaid && !newest.is_paid) {
             await supabaseClient.from('events').update({ is_paid: true, price: priceVal }).eq('id', newest.id);
           }
@@ -225,7 +283,7 @@
             } else {
               try {
                 await supabaseClient.from('events').update({
-                  description: ((newest.description || '') + '\n\n✨ Présence d\'un hôte Aupygo confirmée.').trim()
+                  description: (desc + '\n\n✨ Présence d\'un hôte Aupygo confirmée.').trim()
                 }).eq('id', newest.id);
               } catch (e) {}
               try {
@@ -233,8 +291,9 @@
               } catch (e3) {}
               showToast('Événement publié — présence hôte signalée.', 'success');
             }
-            if (typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
           }
+
+          if (typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
         } catch (err) {
           console.warn('[Staff events]', err);
         }
@@ -279,7 +338,11 @@
     if (!(typeof isAdmin === 'function' && isAdmin())) return;
     var page = document.getElementById('events') || document.getElementById('agenda');
     if (!page) return;
-    var pending = (window.cachedEvents || []).filter(isPendingApproval);
+    // Admin voit aussi les pending (non filtrés par pays)
+    var all = window.cachedEvents || [];
+    // Recharger bruts si besoin — utiliser ce qui est en cache + tag
+    var pending = all.filter(isPendingApproval);
+    // Si filtrés ailleurs, tenter une lecture légère
     var box = document.getElementById('staffPendingApprovals');
     if (!pending.length) {
       if (box) box.remove();
@@ -293,9 +356,11 @@
     }
     box.innerHTML = '<div style="font-weight:800;margin-bottom:10px">⏳ Événements payants en attente (' + pending.length + ')</div>' +
       pending.map(function (ev) {
+        var hc = extractHostCountry(ev);
         return '<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;padding:8px 0;border-top:1px solid #fed7aa">' +
           '<div style="flex:1;min-width:160px"><strong>' + (ev.title || 'Sans titre') + '</strong><br><span style="font-size:12px;color:#9a3412">' +
           (ev.is_paid ? (Number(ev.price || 0) + ' € · ') : '') +
+          (hc ? ('📍 ' + hc + ' · ') : '') +
           (ev.event_date ? new Date(ev.event_date).toLocaleString('fr-FR') : '') +
           '</span></div>' +
           '<button type="button" class="btn btn-primary" style="font-size:12px" onclick="window.adminApproveEvent(\'' + ev.id + '\')">✅ Approuver</button>' +
@@ -314,9 +379,9 @@
       tabs.id = 'staffAgendaTabs';
       tabs.style.cssText = 'display:flex;gap:8px;flex-wrap:wrap;margin:12px 0 16px';
       tabs.innerHTML =
-        '<button type="button" id="staffAgendaTabControl" class="btn btn-secondary" style="font-size:13px">📅 Contrôle (communautaire)</button>' +
-        '<button type="button" id="staffAgendaTabTeam" class="btn btn-secondary" style="font-size:13px">🛡️ Agenda Staff (équipe)</button>' +
-        '<button type="button" class="btn btn-primary" style="font-size:13px" onclick="go(\'' + 'events' + '\')">⚡ Événements Spécial Aupygo</button>';
+        '<button type="button" id="staffAgendaTabControl" class="btn btn-secondary" style="font-size:13px">📅 Contrôle</button>' +
+        '<button type="button" id="staffAgendaTabTeam" class="btn btn-secondary" style="font-size:13px">🛡️ Agenda Staff</button>' +
+        '<button type="button" class="btn btn-primary" style="font-size:13px" onclick="go(\'events\')">⚡ Spécial Aupygo</button>';
       var title = agendaPage.querySelector('.section-title') || agendaPage.firstElementChild;
       if (title && title.nextSibling) agendaPage.insertBefore(tabs, title.nextSibling);
       else agendaPage.insertBefore(tabs, agendaPage.firstChild);
@@ -356,8 +421,7 @@
     }
     if (cal && typeof buildWeekCalendarHtml === 'function') {
       if (!list.length) {
-        cal.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:12px">' +
-          (agendaStaffMode === 'team' ? 'Aucun événement d\'équipe.' : 'Aucune sortie communautaire.') + '</p>';
+        cal.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:12px">Aucun événement.</p>';
       } else {
         cal.innerHTML = buildWeekCalendarHtml(list);
       }
@@ -387,5 +451,5 @@
     }
   }, 1500);
 
-  console.log('[AUPYGO] staff-events.js chargé');
+  console.log('[AUPYGO] staff-events.js chargé (filtre pays hôte)');
 })();
