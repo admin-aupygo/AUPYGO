@@ -1,23 +1,74 @@
-/* AUPYGO staff-ui.js — Accueil + menu Staff distincts, Premium auto, pas d'abo */
+/* AUPYGO staff-ui.js — Accueil + menu Staff distincts, Premium auto */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
 
+  /** Onglets essentiels Staff : Agenda, Messages, Découvrir (map), Sorties */
+  var STAFF_ALLOWED_NAV = {
+    home: true,
+    map: true,
+    events: true,
+    agenda: true,
+    messages: true,
+    profile: true,
+    more: true,
+    admin: true,
+    reconnect: false,
+    plans: false
+  };
+
   function applyStaffNav() {
     if (!isStaff()) return;
 
-    document.querySelectorAll(
-      '#homeBtnFriends, #homeBtnPlans, .more-sheet-item-plan'
-    ).forEach(function (el) {
-      if (el) el.style.display = 'none';
+    // Header + bottom nav
+    document.querySelectorAll('[data-nav]').forEach(function (el) {
+      var key = el.getAttribute('data-nav');
+      if (!key) return;
+      if (STAFF_ALLOWED_NAV[key] === false) {
+        el.style.display = 'none';
+        el.style.pointerEvents = 'none';
+      }
     });
 
+    // IDs explicites
+    ['#navFriends', '#homeBtnFriends', '#homeBtnPlans', '.more-sheet-item-plan'].forEach(function (sel) {
+      document.querySelectorAll(sel).forEach(function (el) {
+        el.style.display = 'none';
+      });
+    });
+
+    // More sheet : masquer amis / plans
+    document.querySelectorAll('.more-sheet-item').forEach(function (item) {
+      var oc = (item.getAttribute('onclick') || '') + (item.textContent || '');
+      if (/reconnect|plans|amis|abonnement/i.test(oc) && item.id !== 'moreAdminItem') {
+        if (/admin/i.test(oc)) return;
+        if (/reconnect|plans|abonnement|amis/i.test(oc)) item.style.display = 'none';
+      }
+    });
+
+    // Accueil : ne garder que les raccourcis utiles
+    var keepHome = {
+      homeBtnAgenda: true,
+      homeBtnMessages: true,
+      homeBtnMap: true,
+      homeBtnEvents: true,
+      homeBtnProfile: true
+    };
+    document.querySelectorAll('#homeDashboard .home-btn').forEach(function (btn) {
+      if (keepHome[btn.id]) {
+        btn.style.display = '';
+      } else {
+        btn.style.display = 'none';
+      }
+    });
+
+    // Bannière staff
     var dash = document.getElementById('homeDashboard');
     if (dash && !document.getElementById('staffHomeBanner')) {
       var b = document.createElement('div');
       b.id = 'staffHomeBanner';
-      b.style.cssText = 'background:#111;color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-weight:700;font-size:14px;';
-      b.innerHTML = '🛡️ Espace Staff AUPYGO — Agenda · Messages · Carte · Sorties';
+      b.style.cssText = 'background:#111;color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-weight:700;font-size:14px;line-height:1.4';
+      b.innerHTML = '🛡️ Espace Staff AUPYGO<br><span style="font-weight:500;font-size:12px;opacity:0.9">Agenda · Messages · Carte · Sorties — pas d\'amis ni d\'abonnement</span>';
       dash.insertBefore(b, dash.firstChild);
     }
   }
@@ -32,17 +83,25 @@
   if (typeof prevGo === 'function' && !window._staffUiGoPatched) {
     window._staffUiGoPatched = true;
     window.go = function (page) {
-      if (page === 'plans' && isStaff()) {
+      if (!isStaff()) {
+        prevGo(page);
+        return;
+      }
+      if (page === 'plans') {
         if (typeof showToast === 'function') {
           showToast('Les comptes Staff n\'ont pas d\'abonnement — accès Premium inclus.', 'success');
         }
         return prevGo('home');
       }
-      prevGo(page);
-      if (page === 'home' || page === 'profile') {
-        setTimeout(applyStaffNav, 200);
-        forceStaffPremium();
+      if (page === 'reconnect') {
+        if (typeof showToast === 'function') {
+          showToast('La page Amis n\'est pas disponible pour le Staff.', 'error');
+        }
+        return;
       }
+      prevGo(page);
+      setTimeout(applyStaffNav, 150);
+      forceStaffPremium();
     };
   }
 
@@ -54,7 +113,7 @@
       if (/supprimer.*compte|delete.*account|désactiver le compte/i.test(t) || /deleteAccount|delete_account/.test(oc)) {
         btn.style.display = 'none';
       }
-      if (/abonnement|passer en premium|voir les offres/i.test(t) && (oc.indexOf('plans') !== -1 || /subscription/i.test(oc))) {
+      if (/abonnement|passer en premium|voir les offres/i.test(t)) {
         btn.style.display = 'none';
       }
       if (/mon agenda aupygo/i.test(t)) {
@@ -70,7 +129,7 @@
     if (typeof getActivePage === 'function' && getActivePage() === 'profile') hideProfileExtras();
   }
 
-  setTimeout(tick, 800);
+  setTimeout(tick, 600);
   setInterval(tick, 2500);
 
   console.log('[AUPYGO] staff-ui.js chargé');
