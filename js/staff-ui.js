@@ -1,9 +1,14 @@
-/* AUPYGO staff-ui.js v2.1
- * Navigation Staff, AupygoStaff, avatar bouclier,
- * compteur carte (fix DOM), bouton messages header
- */
+/* AUPYGO staff-ui.js v2.2 */
 (function () {
   'use strict';
+
+  // Fix Realtime (tous les comptes) — avant le return staff
+  if (!document.querySelector('script[src*="staff-realtime-fix"]')) {
+    var sRt = document.createElement('script');
+    sRt.src = 'js/staff-realtime-fix.js?v=20260924d';
+    document.body.appendChild(sRt);
+  }
+
   if (typeof isStaff !== 'function') return;
 
   var STAFF_ALLOWED_NAV = {
@@ -63,11 +68,8 @@
 
   function applyStaffAvatar() {
     if (!isStaff()) return;
-    var selectors = [
-      '#headerPlanBtn', '#headerAvatar', '.header-avatar', '.plan-badge',
-      '[data-plan-badge]', '.user-plan-chip', '#headerUserChip'
-    ];
-    selectors.forEach(function (sel) {
+    ['#headerPlanBtn', '#headerAvatar', '.header-avatar', '.plan-badge',
+      '[data-plan-badge]', '.user-plan-chip', '#headerUserChip'].forEach(function (sel) {
       document.querySelectorAll(sel).forEach(function (el) {
         var t = (el.textContent || '').toLowerCase();
         if (/premium|standard|free|plan/i.test(t) || el.id === 'headerPlanBtn') {
@@ -89,7 +91,6 @@
     btn.id = 'navStaffMessages';
     btn.type = 'button';
     btn.title = 'Messages';
-    btn.setAttribute('aria-label', 'Messages');
     btn.innerHTML = '<span class="icon">💬</span>';
     btn.onclick = function () { if (typeof go === 'function') go('messages'); };
     header.appendChild(btn);
@@ -104,11 +105,6 @@
         el.textContent = t.replace(/PREMIUM|Premium/g, 'AupygoStaff');
       }
     });
-    document.querySelectorAll('.admin-badge.PREMIUM').forEach(function (el) {
-      el.textContent = 'AupygoStaff';
-      el.classList.remove('PREMIUM');
-      el.classList.add('host');
-    });
   }
 
   function forceStaffPremium() {
@@ -117,7 +113,6 @@
     try { window.currentPlan = 'PREMIUM'; } catch (e2) {}
   }
 
-  /** Compteur activité carte — insertion DOM sécurisée */
   async function updateMapActivityCounter() {
     if (!isStaff()) return;
     var mapPage = document.getElementById('map');
@@ -128,7 +123,6 @@
       box = document.createElement('div');
       box.id = 'staffMapActivity';
       box.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;';
-      // Insertion sûre : prepend via firstChild du mapPage uniquement
       try {
         if (mapPage.firstChild && mapPage.firstChild.parentNode === mapPage) {
           mapPage.insertBefore(box, mapPage.firstChild);
@@ -140,7 +134,6 @@
       }
     }
 
-    // Si le box a été détaché, le réattacher
     if (!box.isConnected || box.parentNode !== mapPage) {
       try {
         if (box.parentNode) box.parentNode.removeChild(box);
@@ -155,10 +148,7 @@
       var ONLINE_MS = 15 * 60 * 1000;
       var list = window.profiles || [];
       if (!list.length && typeof supabaseClient !== 'undefined') {
-        var res = await supabaseClient
-          .from('profiles')
-          .select('id, role, is_admin, is_online, last_seen')
-          .limit(400);
+        var res = await supabaseClient.from('profiles').select('id, role, is_admin, is_online, last_seen').limit(400);
         list = res.data || [];
       }
       list.forEach(function (p) {
@@ -170,9 +160,7 @@
         if (isS) staffOnline++;
         else usersOnline++;
       });
-    } catch (e) {
-      console.warn('[Staff] map counter', e);
-    }
+    } catch (e) {}
 
     try {
       box.innerHTML =
@@ -190,9 +178,7 @@
         return;
       }
       if (page === 'plans') {
-        if (typeof showToast === 'function') {
-          showToast('Compte AupygoStaff — pas d\'abonnement requis.', 'success');
-        }
+        if (typeof showToast === 'function') showToast('Compte AupygoStaff — pas d\'abonnement requis.', 'success');
         return prevGo('home');
       }
       if (page === 'reconnect') {
@@ -211,14 +197,11 @@
     document.querySelectorAll('button, a, .btn').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       var oc = (btn.getAttribute('onclick') || '');
-      if (/supprimer.*compte|supprimer mon profil|delete.*account|désactiver le compte/i.test(t) || /deleteAccount|delete_account/.test(oc)) {
+      if (/supprimer.*compte|supprimer mon profil|delete.*account/i.test(t) || /deleteAccount/.test(oc)) {
         btn.style.display = 'none';
       }
       if (/abonnement|passer en premium|voir les offres/i.test(t)) btn.style.display = 'none';
       if (/mon agenda/i.test(t)) btn.style.display = 'none';
-    });
-    document.querySelectorAll('#profile .agenda-block, #profile [id*="agenda"], .profile-agenda').forEach(function (el) {
-      el.style.display = 'none';
     });
   }
 
@@ -228,9 +211,7 @@
     applyStaffNav();
     if (typeof getActivePage === 'function') {
       if (getActivePage() === 'profile') hideProfileExtras();
-      if (getActivePage() === 'map') {
-        updateMapActivityCounter().catch(function () {});
-      }
+      if (getActivePage() === 'map') updateMapActivityCounter().catch(function () {});
       if (getActivePage() === 'admin') replacePremiumLabels();
     }
   }
@@ -244,5 +225,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 4000);
 
-  console.log('[AUPYGO] staff-ui.js v2.1 chargé');
+  console.log('[AUPYGO] staff-ui.js v2.2 chargé');
 })();
