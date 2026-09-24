@@ -1,8 +1,7 @@
-/* AUPYGO staff-ui.js v2.2 */
+/* AUPYGO staff-ui.js v2.3 */
 (function () {
   'use strict';
 
-  // Fix Realtime (tous les comptes) — avant le return staff
   if (!document.querySelector('script[src*="staff-realtime-fix"]')) {
     var sRt = document.createElement('script');
     sRt.src = 'js/staff-realtime-fix.js?v=20260924d';
@@ -62,49 +61,44 @@
     }
 
     applyStaffAvatar();
-    injectHeaderMessageBtn();
-    replacePremiumLabels();
+    // Retirer la bulle messages injectée en header (doublon)
+    var extra = document.getElementById('navStaffMessages');
+    if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
+
+    fixAdminPlanLabels();
   }
 
   function applyStaffAvatar() {
     if (!isStaff()) return;
-    ['#headerPlanBtn', '#headerAvatar', '.header-avatar', '.plan-badge',
-      '[data-plan-badge]', '.user-plan-chip', '#headerUserChip'].forEach(function (sel) {
-      document.querySelectorAll(sel).forEach(function (el) {
-        var t = (el.textContent || '').toLowerCase();
-        if (/premium|standard|free|plan/i.test(t) || el.id === 'headerPlanBtn') {
-          el.innerHTML = '🛡️';
-          el.title = 'AupygoStaff';
-        }
-      });
-    });
-    document.querySelectorAll('.plan-label, .subscription-label, #currentPlanLabel').forEach(function (el) {
-      if (el) el.textContent = 'AupygoStaff';
-    });
+    var avatar = document.getElementById('headerPlanAvatar');
+    if (avatar) {
+      avatar.textContent = '🛡️';
+      avatar.title = 'AupygoStaff';
+    }
+    var badge = document.getElementById('headerPlanBadge');
+    if (badge) {
+      badge.textContent = 'STAFF';
+      badge.title = 'AupygoStaff';
+    }
+    var bottomBadge = document.getElementById('bottomNavPlanBadge');
+    if (bottomBadge) bottomBadge.textContent = 'STAFF';
+    var bottomAv = document.getElementById('bottomNavAvatar');
+    if (bottomAv) bottomAv.textContent = '🛡️';
   }
 
-  function injectHeaderMessageBtn() {
-    if (!isStaff()) return;
-    var header = document.querySelector('header nav') || document.querySelector('header');
-    if (!header || document.getElementById('navStaffMessages')) return;
-    var btn = document.createElement('button');
-    btn.id = 'navStaffMessages';
-    btn.type = 'button';
-    btn.title = 'Messages';
-    btn.innerHTML = '<span class="icon">💬</span>';
-    btn.onclick = function () { if (typeof go === 'function') go('messages'); };
-    header.appendChild(btn);
-  }
-
-  function replacePremiumLabels() {
-    if (!isStaff()) return;
-    document.querySelectorAll('span, div, strong, em, p, button, label').forEach(function (el) {
-      if (el.children && el.children.length > 2) return;
-      var t = el.textContent || '';
-      if (t.trim() === 'PREMIUM' || t.trim() === 'Premium') {
-        el.textContent = t.replace(/PREMIUM|Premium/g, 'AupygoStaff');
+  /** Panneau admin : PREMIUM → STAFF pour host / admin_general */
+  function fixAdminPlanLabels() {
+    if (!(typeof isAdmin === 'function' && isAdmin())) return;
+    document.querySelectorAll('#adminTableBody tr').forEach(function (tr) {
+      var cells = tr.cells;
+      if (!cells || cells.length < 3) return;
+      var roleTxt = (cells[1].textContent || '').toLowerCase();
+      if (roleTxt.indexOf('host') !== -1 || roleTxt.indexOf('admin_general') !== -1 || roleTxt.indexOf('admin') !== -1) {
+        cells[2].textContent = 'STAFF';
       }
     });
+    // Stats card label optionnel
+    var premLabel = document.querySelector('#statPremium') && document.getElementById('statPremium').nextElementSibling;
   }
 
   function forceStaffPremium() {
@@ -133,7 +127,6 @@
         try { mapPage.appendChild(box); } catch (e2) { return; }
       }
     }
-
     if (!box.isConnected || box.parentNode !== mapPage) {
       try {
         if (box.parentNode) box.parentNode.removeChild(box);
@@ -189,20 +182,17 @@
       setTimeout(applyStaffNav, 150);
       forceStaffPremium();
       if (page === 'map') setTimeout(function () { updateMapActivityCounter(); }, 300);
+      if (page === 'admin') setTimeout(fixAdminPlanLabels, 400);
     };
   }
 
-  function hideProfileExtras() {
-    if (!isStaff()) return;
-    document.querySelectorAll('button, a, .btn').forEach(function (btn) {
-      var t = (btn.textContent || '').toLowerCase();
-      var oc = (btn.getAttribute('onclick') || '');
-      if (/supprimer.*compte|supprimer mon profil|delete.*account/i.test(t) || /deleteAccount/.test(oc)) {
-        btn.style.display = 'none';
-      }
-      if (/abonnement|passer en premium|voir les offres/i.test(t)) btn.style.display = 'none';
-      if (/mon agenda/i.test(t)) btn.style.display = 'none';
-    });
+  // Après refresh admin
+  var _ar = window.adminRefresh;
+  if (typeof _ar === 'function') {
+    window.adminRefresh = function () {
+      _ar();
+      setTimeout(fixAdminPlanLabels, 500);
+    };
   }
 
   function tick() {
@@ -210,9 +200,8 @@
     forceStaffPremium();
     applyStaffNav();
     if (typeof getActivePage === 'function') {
-      if (getActivePage() === 'profile') hideProfileExtras();
       if (getActivePage() === 'map') updateMapActivityCounter().catch(function () {});
-      if (getActivePage() === 'admin') replacePremiumLabels();
+      if (getActivePage() === 'admin') fixAdminPlanLabels();
     }
   }
 
@@ -225,5 +214,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 4000);
 
-  console.log('[AUPYGO] staff-ui.js v2.2 chargé');
+  console.log('[AUPYGO] staff-ui.js v2.3');
 })();
