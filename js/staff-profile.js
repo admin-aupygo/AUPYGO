@@ -1,10 +1,12 @@
 /* AUPYGO staff-profile.js
- * Profil staff limité : Prénom, Âge, Genre, Pays, Ville, Langues
- * Masque bio, hobbies, pays d'accueil, fin de séjour, etc.
+ * Profil staff limité : Prénom, Âge (20-80), Genre, Pays, Ville, Langues
  */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
+
+  var STAFF_AGE_MIN = 20;
+  var STAFF_AGE_MAX = 80;
 
   function closestFormGroup(el) {
     if (!el) return null;
@@ -13,8 +15,24 @@
     return el.parentElement;
   }
 
+  function restrictAgeOptions() {
+    var ageEl = document.getElementById('age');
+    if (!ageEl || ageEl.tagName !== 'SELECT') return;
+    var opts = ageEl.querySelectorAll('option');
+    opts.forEach(function (opt) {
+      var v = parseInt(opt.value, 10);
+      if (!opt.value || isNaN(v)) return;
+      if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
+        opt.disabled = true;
+        opt.hidden = true;
+      }
+    });
+  }
+
   function applyStaffProfileUI() {
     if (!isStaff()) return;
+
+    restrictAgeOptions();
 
     var bio = document.getElementById('bio');
     if (bio) {
@@ -54,7 +72,7 @@
         var banner = document.createElement('div');
         banner.id = 'staffProfileBanner';
         banner.style.cssText = 'background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#475569;font-weight:600;';
-        banner.textContent = '🛡️ Profil Staff — champs limités : Prénom, Âge, Genre, Pays, Ville, Langues';
+        banner.textContent = '🛡️ Profil Staff — Prénom, Âge (20–80), Genre, Pays, Ville, Langues';
         form.insertBefore(banner, form.firstChild);
       }
     }
@@ -77,6 +95,7 @@
 
       var name = ((document.getElementById('firstName') || {}).value || '').trim();
       var ageValue = (document.getElementById('age') || {}).value;
+      var ageNum = Number(ageValue);
       var country = (document.getElementById('country') || {}).value || '';
       var city = (document.getElementById('city') || {}).value || '';
       var langs = (typeof selectedLanguages !== 'undefined' && selectedLanguages.length)
@@ -90,8 +109,8 @@
           showToast(typeof t === 'function' ? t('profile.first_name_error') : 'Prénom requis', 'error');
           return;
         }
-        if (!ageValue || Number(ageValue) < 18) {
-          showToast(typeof t === 'function' ? t('profile.age_error') : 'Âge requis (18+)', 'error');
+        if (!ageValue || isNaN(ageNum) || ageNum < STAFF_AGE_MIN || ageNum > STAFF_AGE_MAX) {
+          showToast('Âge staff : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
           return;
         }
         if (typeof selectedGender === 'undefined' || !selectedGender) {
@@ -104,12 +123,12 @@
         id: user.id,
         bio: null,
         interests: null,
-        subscription: (typeof currentPlan !== 'undefined' ? currentPlan : 'PREMIUM')
+        subscription: 'PREMIUM'
       };
 
       if (!alreadySaved) {
         profile.display_name = name;
-        profile.age = Number(ageValue);
+        profile.age = ageNum;
         profile.gender = selectedGender;
         profile.country = country;
         profile.city = city || ((typeof userLocation !== 'undefined' && userLocation.city) || '');
@@ -123,19 +142,14 @@
         profile.other_language = '';
         profile.host_country = country;
         profile.stay_end = null;
+        if (typeof isHost === 'function' && isHost()) profile.role = 'host';
+        if (typeof isAdmin === 'function' && isAdmin()) profile.role = 'admin_general';
       } else {
         profile.city = city;
         profile.languages = langs;
       }
 
-      if (typeof isAdmin === 'function' && isAdmin()) {
-        profile.subscription = 'PREMIUM';
-        profile.is_admin = true;
-        profile.role = 'admin_general';
-      } else if (typeof isHost === 'function' && isHost()) {
-        profile.role = 'host';
-      }
-
+      // Ne pas envoyer is_admin (trigger Supabase)
       var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
       if (result.error) {
         console.error(result.error);
