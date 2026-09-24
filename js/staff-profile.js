@@ -1,6 +1,4 @@
-/* AUPYGO staff-profile.js
- * Profil staff éditable, pas de suppression, pas de Mon agenda
- */
+/* AUPYGO staff-profile.js — formulaire intact, sans Mon agenda */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -8,38 +6,39 @@
   var STAFF_AGE_MIN = 20;
   var STAFF_AGE_MAX = 80;
 
-  function closestFormGroup(el) {
-    if (!el) return null;
-    var g = el.closest('.form-group');
-    if (g) return g;
-    return el.parentElement;
+  function hidePersonalAgendaOnly() {
+    if (!isStaff()) return;
+    var box = document.getElementById('personalAgendaBox');
+    if (box) {
+      box.style.display = 'none';
+      box.setAttribute('hidden', 'true');
+    }
+    var notice = document.getElementById('personalAgendaNotice');
+    if (notice) notice.style.display = 'none';
+    var list = document.getElementById('myAgendaList');
+    if (list) list.style.display = 'none';
   }
 
-  function hidePersonalAgenda() {
+  function unlockIdentityFields() {
     if (!isStaff()) return;
-    // IDs connus app.js
-    ['personalAgendaBox', 'personalAgendaNotice', 'myAgendaList', 'myAgendaBlock'].forEach(function (id) {
+    ['firstName', 'age', 'country', 'city'].forEach(function (id) {
       var el = document.getElementById(id);
-      if (el) {
-        el.style.display = 'none';
-        el.setAttribute('hidden', 'true');
-        // Masquer aussi le parent section si pertinent
-        var section = el.closest('section, .card, .profile-card, .profile-block, article, .panel');
-        if (section && section.id !== 'profile') {
-          section.style.display = 'none';
-        }
-      }
+      if (!el) return;
+      el.disabled = false;
+      el.readOnly = false;
+      el.removeAttribute('readonly');
+      el.removeAttribute('disabled');
+      el.style.display = '';
+      var g = el.closest('.form-group');
+      if (g) g.style.display = '';
     });
-    // Par texte « Mon agenda AUPYGO »
-    document.querySelectorAll('#profile h2, #profile h3, #profile .section-title, #profile strong, #profile div').forEach(function (el) {
-      var t = (el.textContent || '').trim();
-      if (/^mon agenda aupygo/i.test(t) || /mon agenda aupygo/i.test(t) && t.length < 40) {
-        var block = el.closest('section, .card, .profile-card, .profile-block, article, .panel') || el.parentElement;
-        if (block) {
-          block.style.display = 'none';
-          block.setAttribute('hidden', 'true');
-        }
-      }
+    // Afficher la carte formulaire
+    var formCard = document.querySelector('#profile .profile-form-card');
+    if (formCard) formCard.style.display = '';
+    document.querySelectorAll('#genderGroup button, .gender-btn, [data-gender]').forEach(function (btn) {
+      btn.disabled = false;
+      btn.style.pointerEvents = '';
+      btn.style.opacity = '';
     });
   }
 
@@ -52,95 +51,41 @@
       if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
         opt.disabled = true;
         opt.hidden = true;
-      } else {
-        opt.disabled = false;
-        opt.hidden = false;
       }
     });
   }
 
-  function unlockIdentityFields() {
+  function hideStaffOnlyExtras() {
     if (!isStaff()) return;
-    ['firstName', 'age', 'country', 'city'].forEach(function (id) {
+    // Bio optionnel
+    var bio = document.getElementById('bio');
+    if (bio) {
+      var g = bio.closest('.form-group');
+      if (g) g.style.display = 'none';
+    }
+    document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
+    // Séjour / autre langue
+    ['stayEnd', 'otherLanguage'].forEach(function (id) {
       var el = document.getElementById(id);
-      if (el) {
-        el.disabled = false;
-        el.readOnly = false;
-        el.removeAttribute('readonly');
-        el.removeAttribute('disabled');
+      if (!el) return;
+      var g = el.closest('.form-group');
+      if (g) g.style.display = 'none';
+    });
+    // Bouton supprimer compte
+    document.querySelectorAll('button, a').forEach(function (btn) {
+      var t = (btn.textContent || '').toLowerCase();
+      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) {
+        btn.style.display = 'none';
       }
-    });
-    document.querySelectorAll('[data-gender], .gender-btn, #genderGroup button').forEach(function (btn) {
-      btn.disabled = false;
-      btn.style.pointerEvents = '';
-      btn.style.opacity = '';
-    });
-    document.querySelectorAll('.lang-chip, .language-btn, #languageGrid button').forEach(function (btn) {
-      btn.disabled = false;
-      btn.style.pointerEvents = '';
     });
   }
 
   function applyStaffProfileUI() {
     if (!isStaff()) return;
-
-    restrictAgeOptions();
+    hidePersonalAgendaOnly();
     unlockIdentityFields();
-    hidePersonalAgenda();
-
-    var bio = document.getElementById('bio');
-    if (bio) {
-      var g = closestFormGroup(bio);
-      if (g) g.style.display = 'none';
-      else bio.style.display = 'none';
-    }
-    document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
-
-    ['hostCountry', 'stayEnd', 'otherLanguage'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var g = closestFormGroup(el);
-      if (g) g.style.display = 'none';
-      else el.style.display = 'none';
-    });
-
-    var hobbyGrid = document.querySelector('.hobby-grid');
-    if (hobbyGrid) {
-      var section = hobbyGrid.closest('.form-group') || hobbyGrid.parentElement;
-      if (section) section.style.display = 'none';
-      else hobbyGrid.style.display = 'none';
-    }
-    document.querySelectorAll('#profileCardHobbies, .profile-card-hobbies').forEach(function (el) {
-      el.style.display = 'none';
-    });
-
-    document.querySelectorAll('button, a, .btn').forEach(function (btn) {
-      var t = (btn.textContent || '').toLowerCase();
-      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) btn.style.display = 'none';
-      if (/mon agenda/i.test(t)) btn.style.display = 'none';
-    });
-
-    // Centres d'intérêt section title
-    document.querySelectorAll('#profile h3, #profile .form-label, #profile label').forEach(function (el) {
-      if (/centres d.intérêt|centres d'intérêt|intérêts/i.test(el.textContent || '')) {
-        var block = el.closest('.form-group, section, .card') || el.parentElement;
-        if (block) block.style.display = 'none';
-      }
-    });
-
-    if (!document.getElementById('staffProfileBanner')) {
-      var form = document.querySelector('.profile-form-card') || document.getElementById('profile');
-      if (form) {
-        var banner = document.createElement('div');
-        banner.id = 'staffProfileBanner';
-        banner.style.cssText = 'background:#f1f5f9;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:13px;color:#475569;font-weight:600;';
-        banner.textContent = '🛡️ Profil Staff — modifiable à tout moment';
-        try {
-          if (form.firstChild) form.insertBefore(banner, form.firstChild);
-          else form.appendChild(banner);
-        } catch (e) { form.appendChild(banner); }
-      }
-    }
+    restrictAgeOptions();
+    hideStaffOnlyExtras();
   }
 
   var _origSave = window.saveProfile;
@@ -182,19 +127,10 @@
         country: country,
         city: city || ((typeof userLocation !== 'undefined' && userLocation.city) || ''),
         languages: langs,
-        other_language: '',
         host_country: country,
-        stay_end: null,
-        bio: null,
-        interests: null,
         identity_locked: false,
-        subscription: 'PREMIUM',
-        avatar: selectedGender === 'Homme' ? '👨' : '👩'
+        subscription: 'PREMIUM'
       };
-      if (typeof userLocation !== 'undefined') {
-        profile.approx_lat = userLocation.lat;
-        profile.approx_lng = userLocation.lng;
-      }
       if (typeof isHost === 'function' && isHost()) profile.role = 'host';
       if (typeof isAdmin === 'function' && isAdmin()) profile.role = 'admin_general';
 
@@ -205,7 +141,7 @@
       }
 
       window.profileSaved = true;
-      showToast('Profil staff enregistré', 'success');
+      showToast('Profil enregistré', 'success');
       if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
       applyStaffProfileUI();
     };
@@ -214,7 +150,10 @@
   var _origLock = window.lockIdentityFields;
   if (typeof _origLock === 'function') {
     window.lockIdentityFields = function () {
-      if (isStaff()) { unlockIdentityFields(); return; }
+      if (isStaff()) {
+        unlockIdentityFields();
+        return;
+      }
       return _origLock.apply(this, arguments);
     };
   }
@@ -229,17 +168,18 @@
     window.go = function (page) {
       prevGo(page);
       if (page === 'profile') {
-        setTimeout(applyStaffProfileUI, 200);
-        setTimeout(applyStaffProfileUI, 800);
+        setTimeout(applyStaffProfileUI, 150);
+        setTimeout(applyStaffProfileUI, 600);
       }
     };
   }
 
   setInterval(function () {
     if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'profile') {
-      applyStaffProfileUI();
+      hidePersonalAgendaOnly();
+      unlockIdentityFields();
     }
-  }, 2000);
+  }, 2500);
 
-  console.log('[AUPYGO] staff-profile.js chargé');
+  console.log('[AUPYGO] staff-profile.js (formulaire restauré)');
 })();
