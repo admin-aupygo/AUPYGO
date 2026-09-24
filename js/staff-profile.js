@@ -1,4 +1,4 @@
-/* AUPYGO staff-profile.js — formulaire intact, sans Mon agenda */
+/* AUPYGO staff-profile.js — formulaire OK, âge 20-80, sans Mon agenda */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -32,7 +32,6 @@
       var g = el.closest('.form-group');
       if (g) g.style.display = '';
     });
-    // Afficher la carte formulaire
     var formCard = document.querySelector('#profile .profile-form-card');
     if (formCard) formCard.style.display = '';
     document.querySelectorAll('#genderGroup button, .gender-btn, [data-gender]').forEach(function (btn) {
@@ -42,36 +41,78 @@
     });
   }
 
-  function restrictAgeOptions() {
+  /** Âge 20–80 uniquement pour Staff / Admin */
+  function enforceStaffAgeRange() {
+    if (!isStaff()) return;
     var ageEl = document.getElementById('age');
-    if (!ageEl || ageEl.tagName !== 'SELECT') return;
-    ageEl.querySelectorAll('option').forEach(function (opt) {
-      var v = parseInt(opt.value, 10);
-      if (!opt.value || isNaN(v)) return;
-      if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
-        opt.disabled = true;
-        opt.hidden = true;
+    if (!ageEl) return;
+
+    if (ageEl.tagName === 'SELECT') {
+      var current = ageEl.value;
+      var opts = ageEl.querySelectorAll('option');
+      var hasRange = false;
+      opts.forEach(function (opt) {
+        var v = parseInt(opt.value, 10);
+        if (!opt.value || isNaN(v)) return;
+        if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
+          opt.disabled = true;
+          opt.hidden = true;
+          opt.style.display = 'none';
+        } else {
+          opt.disabled = false;
+          opt.hidden = false;
+          opt.style.display = '';
+          hasRange = true;
+        }
+      });
+      // Si aucune option valide, reconstruire
+      if (!hasRange) {
+        var keepFirst = ageEl.querySelector('option[value=""]');
+        ageEl.innerHTML = '';
+        if (keepFirst) ageEl.appendChild(keepFirst);
+        else {
+          var ph = document.createElement('option');
+          ph.value = '';
+          ph.textContent = 'Âge';
+          ageEl.appendChild(ph);
+        }
+        for (var a = STAFF_AGE_MIN; a <= STAFF_AGE_MAX; a++) {
+          var o = document.createElement('option');
+          o.value = String(a);
+          o.textContent = String(a);
+          ageEl.appendChild(o);
+        }
       }
-    });
+      var curNum = parseInt(current, 10);
+      if (curNum >= STAFF_AGE_MIN && curNum <= STAFF_AGE_MAX) {
+        ageEl.value = String(curNum);
+      }
+    } else {
+      // input number / text
+      ageEl.setAttribute('min', String(STAFF_AGE_MIN));
+      ageEl.setAttribute('max', String(STAFF_AGE_MAX));
+      ageEl.setAttribute('type', 'number');
+      var n = parseInt(ageEl.value, 10);
+      if (!isNaN(n) && (n < STAFF_AGE_MIN || n > STAFF_AGE_MAX)) {
+        ageEl.value = '';
+      }
+    }
   }
 
   function hideStaffOnlyExtras() {
     if (!isStaff()) return;
-    // Bio optionnel
     var bio = document.getElementById('bio');
     if (bio) {
       var g = bio.closest('.form-group');
       if (g) g.style.display = 'none';
     }
     document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
-    // Séjour / autre langue
     ['stayEnd', 'otherLanguage'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
       var g = el.closest('.form-group');
       if (g) g.style.display = 'none';
     });
-    // Bouton supprimer compte
     document.querySelectorAll('button, a').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) {
@@ -84,7 +125,7 @@
     if (!isStaff()) return;
     hidePersonalAgendaOnly();
     unlockIdentityFields();
-    restrictAgeOptions();
+    enforceStaffAgeRange();
     hideStaffOnlyExtras();
   }
 
@@ -111,7 +152,7 @@
 
       if (!name) { showToast('Prénom requis', 'error'); return; }
       if (!ageValue || isNaN(ageNum) || ageNum < STAFF_AGE_MIN || ageNum > STAFF_AGE_MAX) {
-        showToast('Âge staff : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
+        showToast('Âge Staff / Admin : entre ' + STAFF_AGE_MIN + ' et ' + STAFF_AGE_MAX + ' ans.', 'error');
         return;
       }
       if (typeof selectedGender === 'undefined' || !selectedGender) {
@@ -178,8 +219,9 @@
     if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'profile') {
       hidePersonalAgendaOnly();
       unlockIdentityFields();
+      enforceStaffAgeRange();
     }
   }, 2500);
 
-  console.log('[AUPYGO] staff-profile.js (formulaire restauré)');
+  console.log('[AUPYGO] staff-profile.js (âge 20-80)');
 })();
