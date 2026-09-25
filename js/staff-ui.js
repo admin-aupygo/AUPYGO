@@ -1,11 +1,11 @@
-/* AUPYGO staff-ui.js v2.4 */
+/* AUPYGO staff-ui.js v3 — menu, pop-up centrée, nav Messages */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260924f';
+    s.src = 'js/' + name + '?v=20260925a';
     document.body.appendChild(s);
   }
 
@@ -21,34 +21,84 @@
     reconnect: false, plans: false
   };
 
-  function forceMessagesInNav() {
-    // Bouton messages dans la barre d'icônes (pas flottant à droite)
+  function forceMessagesBetweenAgendaAndProfile() {
     var nav = document.querySelector('header nav');
     var msg = document.getElementById('navMessages');
-    if (msg) {
-      msg.style.display = '';
-      msg.style.visibility = 'visible';
-      msg.style.opacity = '1';
-      msg.style.pointerEvents = 'auto';
-      msg.style.position = '';
-      msg.style.right = '';
-      msg.style.top = '';
-      msg.style.fixed = '';
-      // Replacer dans la nav si détaché
-      if (nav && msg.parentElement !== nav) {
-        try { nav.appendChild(msg); } catch (e) {}
+    if (!nav || !msg) return;
+
+    msg.style.display = '';
+    msg.style.visibility = 'visible';
+    msg.style.opacity = '1';
+    msg.style.pointerEvents = 'auto';
+    msg.style.position = '';
+    msg.style.right = '';
+    msg.style.top = '';
+
+    // Ordre souhaité : … agenda → messages → profile …
+    var agenda = nav.querySelector('[data-nav="agenda"]');
+    var profile = nav.querySelector('[data-nav="profile"]');
+    try {
+      if (agenda && agenda.nextSibling !== msg) {
+        if (agenda.nextSibling) nav.insertBefore(msg, agenda.nextSibling);
+        else nav.appendChild(msg);
+      } else if (profile && msg.nextSibling !== profile) {
+        nav.insertBefore(msg, profile);
       }
-    }
-    // Retirer doublon injecté
+    } catch (e) {}
+
     var extra = document.getElementById('navStaffMessages');
     if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
 
-    // Bottom nav aussi
     var btm = document.getElementById('bottomNavMessages');
-    if (btm) {
-      btm.style.display = '';
-      btm.style.visibility = 'visible';
-    }
+    if (btm) { btm.style.display = ''; btm.style.visibility = 'visible'; }
+  }
+
+  function filterMoreMenu() {
+    if (!isStaff()) return;
+    var allowStaff = /agenda|messag|sortie|événement|evenement|carte|map|découvrir|decouvrir/i;
+    var allowAdmin = /admin|administration/i;
+
+    document.querySelectorAll('.more-sheet-item, .more-menu-item, #moreSheet button, .more-sheet button').forEach(function (item) {
+      if (item.id === 'moreAdminItem') {
+        item.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
+        return;
+      }
+      var t = ((item.textContent || '') + ' ' + (item.getAttribute('onclick') || '')).toLowerCase();
+      if (/reconnect|amis|plan|abonnement|premium|friend/i.test(t)) {
+        item.style.display = 'none';
+        return;
+      }
+      if (allowAdmin.test(t)) {
+        item.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
+        return;
+      }
+      if (allowStaff.test(t) || /profil|profile|home|accueil/i.test(t)) {
+        item.style.display = '';
+        return;
+      }
+      // Par défaut pour staff : masquer le reste non listé
+      if (!/param|régl|deconnect|déconnect|langue|language/i.test(t)) {
+        // garder déconnexion / langue
+      }
+    });
+  }
+
+  function centerMorePopup() {
+    if (!isStaff()) return;
+    var sheet = document.getElementById('moreSheet') ||
+      document.querySelector('.more-sheet') ||
+      document.querySelector('.more-menu') ||
+      document.querySelector('[class*="more-sheet"]');
+    if (!sheet) return;
+    sheet.style.position = 'fixed';
+    sheet.style.left = '50%';
+    sheet.style.top = '50%';
+    sheet.style.transform = 'translate(-50%, -50%)';
+    sheet.style.right = 'auto';
+    sheet.style.bottom = 'auto';
+    sheet.style.maxHeight = '80vh';
+    sheet.style.overflowY = 'auto';
+    sheet.style.zIndex = '9999';
   }
 
   function applyStaffNav() {
@@ -69,12 +119,6 @@
 
     ['#navFriends', '#homeBtnFriends', '#homeBtnPlans', '.more-sheet-item-plan'].forEach(function (sel) {
       document.querySelectorAll(sel).forEach(function (el) { el.style.display = 'none'; });
-    });
-
-    document.querySelectorAll('.more-sheet-item').forEach(function (item) {
-      if (item.id === 'moreAdminItem') return;
-      var oc = (item.getAttribute('onclick') || '') + (item.textContent || '');
-      if (/reconnect|plans|abonnement|amis/i.test(oc)) item.style.display = 'none';
     });
 
     var keepHome = {
@@ -98,7 +142,9 @@
     }
 
     applyStaffAvatar();
-    forceMessagesInNav();
+    forceMessagesBetweenAgendaAndProfile();
+    filterMoreMenu();
+    centerMorePopup();
     fixAdminPlanLabels();
   }
 
@@ -179,6 +225,19 @@
     } catch (e4) {}
   }
 
+  // Patch toggleMoreMenu pour centrer
+  var _origToggle = window.toggleMoreMenu;
+  if (typeof _origToggle === 'function' && !window._staffMoreCentered) {
+    window._staffMoreCentered = true;
+    window.toggleMoreMenu = function () {
+      _origToggle.apply(this, arguments);
+      setTimeout(function () {
+        filterMoreMenu();
+        centerMorePopup();
+      }, 50);
+    };
+  }
+
   var prevGo = window.go;
   if (typeof prevGo === 'function' && !window._staffUiGoPatched) {
     window._staffUiGoPatched = true;
@@ -212,7 +271,6 @@
     if (!isStaff()) return;
     forceStaffPremium();
     applyStaffNav();
-    forceMessagesInNav();
     if (typeof getActivePage === 'function') {
       if (getActivePage() === 'map') updateMapActivityCounter().catch(function () {});
       if (getActivePage() === 'admin') fixAdminPlanLabels();
@@ -224,5 +282,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v2.4');
+  console.log('[AUPYGO] staff-ui.js v3');
 })();
