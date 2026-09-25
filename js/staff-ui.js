@@ -1,11 +1,11 @@
-/* AUPYGO staff-ui.js v4.1 — un seul bouton Admin (noir, à droite) */
+/* AUPYGO staff-ui.js v4.2 — Admin-Amiral + un seul bouton header */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260925ac';
+    s.src = 'js/' + name + '?v=20260925ad';
     document.body.appendChild(s);
   }
 
@@ -45,26 +45,18 @@
     if (friends) { friends.style.display = 'none'; }
   }
 
-  /** Supprime le doublon Admin (nav gauche / badge plan) — garde uniquement le bouton noir à droite */
   function removeDuplicateAdminButtons() {
-    // Bouton bouclier dans la nav (souvent à gauche du profil)
     var navAdmin = document.getElementById('navAdminBtn');
     if (navAdmin) {
       navAdmin.style.display = 'none';
       navAdmin.style.visibility = 'hidden';
     }
-
-    // Pour Admin : masquer le badge plan "Admin/STAFF" du header-plan-btn
-    // (le menu noir adminHeaderBtn le remplace)
     if (typeof isAdmin === 'function' && isAdmin()) {
       var planBtn = document.getElementById('headerPlanBtn');
-      if (planBtn) {
-        planBtn.style.display = 'none';
-      }
+      if (planBtn) planBtn.style.display = 'none';
     }
   }
 
-  /** Badge Admin noir à côté de la langue + menu accès rapide */
   function injectAdminHeaderMenu() {
     if (!(typeof isAdmin === 'function' && isAdmin())) {
       var old = document.getElementById('adminHeaderWrap');
@@ -87,7 +79,7 @@
       btn.type = 'button';
       btn.id = 'adminHeaderBtn';
       btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid #1e293b;background:#111;color:#fff;font-weight:700;font-size:12px;cursor:pointer;';
-      btn.innerHTML = '🛡️ Admin <span style="font-size:10px">▾</span>';
+      btn.innerHTML = '🛡️ Admin-Amiral <span style="font-size:10px">▾</span>';
       btn.onclick = function (e) {
         e.stopPropagation();
         var m = document.getElementById('adminQuickMenu');
@@ -133,6 +125,10 @@
       });
     } else {
       wrap.style.display = '';
+      var b = document.getElementById('adminHeaderBtn');
+      if (b && b.innerHTML.indexOf('Admin-Amiral') === -1) {
+        b.innerHTML = '🛡️ Admin-Amiral <span style="font-size:10px">▾</span>';
+      }
     }
   }
 
@@ -160,7 +156,6 @@
     removeDuplicateAdminButtons();
     injectAdminHeaderMenu();
 
-    // Host : badge Staff simple
     if (!(typeof isAdmin === 'function' && isAdmin())) {
       var badge = document.getElementById('headerPlanBadge');
       if (badge) badge.textContent = 'Staff';
@@ -206,5 +201,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v4.1');
+  console.log('[AUPYGO] staff-ui.js v4.2');
 })();
