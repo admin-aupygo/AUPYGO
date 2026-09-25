@@ -1,4 +1,4 @@
-/* AUPYGO staff-messages.js v5.1 — fix syntax error */
+/* AUPYGO staff-messages.js v6 — Staff tab + groupes Admin */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -8,6 +8,7 @@
   var staffMembersCache = [];
   var STAFF_COLORS = ['#7c3aed', '#2563eb', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#c026d3', '#0d9488'];
   var ADMIN_COLOR = '#16a34a';
+  var selectedStaffForGroup = {};
 
   function isMemberStaffProfile(p) {
     if (!p) return false;
@@ -152,22 +153,6 @@
     } catch (e) {}
   }
 
-  async function adminJoinAllGroups() {
-    if (!(typeof isAdmin === 'function' && isAdmin()) || !window.currentUser) return;
-    try {
-      var groups = await supabaseClient.from('conversations').select('id').eq('type', 'group');
-      var ids = (groups.data || []).map(function (g) { return g.id; });
-      if (!ids.length) return;
-      var existing = await supabaseClient.from('conversation_members')
-        .select('conversation_id').eq('user_id', currentUser.id).in('conversation_id', ids);
-      var have = new Set(((existing && existing.data) || []).map(function (r) { return r.conversation_id; }));
-      var toAdd = ids.filter(function (id) { return !have.has(id); }).map(function (id) {
-        return { conversation_id: id, user_id: currentUser.id };
-      });
-      if (toAdd.length) await supabaseClient.from('conversation_members').insert(toAdd);
-    } catch (e) {}
-  }
-
   async function renderStaffChat(convId, isGroup) {
     var box = document.getElementById('chatMessages');
     if (!box || !convId) return;
@@ -195,7 +180,7 @@
       if (!data.length) {
         var empty = document.createElement('div');
         empty.className = 'chat-placeholder';
-        empty.innerHTML = '<p>Aucun message. Ecris le premier !</p>';
+        empty.innerHTML = '<p>Aucun message.</p>';
         box.appendChild(empty);
         return;
       }
@@ -212,7 +197,7 @@
           box.appendChild(sep);
           lastDate = dk;
         }
-        appendNamedBubble(m.content, m.sender_id, m.created_at);
+        appendNamedBubble(m.content, m.sender_id);
       });
       box.scrollTop = box.scrollHeight;
     } catch (e) {
@@ -220,7 +205,7 @@
     }
   }
 
-  function appendNamedBubble(text, senderId, createdAt) {
+  function appendNamedBubble(text, senderId) {
     var box = document.getElementById('chatMessages');
     if (!box) return;
     var isMe = window.currentUser && senderId === window.currentUser.id;
@@ -231,7 +216,6 @@
 
     var wrap = document.createElement('div');
     wrap.className = 'staff-msg-wrap';
-    wrap.setAttribute('data-user-id', senderId || '');
     wrap.style.cssText = 'display:flex;flex-direction:column;margin:6px 0;' +
       (isMe ? 'align-items:flex-end;' : 'align-items:flex-start;');
 
@@ -243,7 +227,6 @@
     var bubble = document.createElement('div');
     bubble.className = 'bubble' + (isMe ? ' me' : '');
     bubble.textContent = text;
-    bubble.setAttribute('data-user-id', senderId || '');
     if (!isMe) bubble.style.borderLeft = '3px solid ' + col;
 
     wrap.appendChild(label);
@@ -311,22 +294,160 @@
     return html;
   }
 
+  /* ---- Création de groupe Admin (membres Staff uniquement) ---- */
+  window.openAdminStaffGroupModal = async function () {
+    if (!(typeof isAdmin === 'function' && isAdmin())) return;
+    selectedStaffForGroup = {};
+    var list = await loadStaffMembers();
+    var me = window.currentUser && window.currentUser.id;
+    var others = list.filter(function (p) { return p && p.id !== me; });
+
+    var overlay = document.getElementById('adminStaffGroupOverlay');
+    if (!overlay) {
+      overlay = document.createElement('div');
+      overlay.id = 'adminStaffGroupOverlay';
+      overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:10050;display:flex;align-items:center;justify-content:center;padding:16px';
+      overlay.onclick = function (e) { if (e.target === overlay) overlay.style.display = 'none'; };
+      overlay.innerHTML =
+        '<div style="background:#fff;border-radius:18px;padding:22px;max-width:420px;width:100%;max-height:85vh;overflow:auto;box-shadow:0 20px 60px rgba(0,0,0,.2)">' +
+        '<h3 style="margin:0 0 6px;text-align:center">Créer un groupe Staff</h3>' +
+        '<p style="font-size:13px;color:#64748b;text-align:center;margin:0 0 14px">Choisis les membres Staff à inclure</p>' +
+        '<label style="font-size:13px;font-weight:700">Titre du groupe</label>' +
+        '<input id="adminGroupTitleInput" type="text" maxlength="40" placeholder="Ex : Équipe France" ' +
+        'style="width:100%;padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;margin:6px 0 14px;font-size:14px;box-sizing:border-box">' +
+        '<label style="font-size:13px;font-weight:700">Membres Staff <span id="adminGroupPickCount" style="color:#94a3b8;font-weight:400">(0)</span></label>' +
+        '<div id="adminGroupPickList" style="margin:8px 0 16px;max-height:240px;overflow:auto;border:1px solid #e2e8f0;border-radius:12px;padding:8px"></div>' +
+        '<button type="button" class="btn btn-primary" style="width:100%;margin-bottom:8px" onclick="window.createAdminStaffGroup()">Créer le groupe</button>' +
+        '<button type="button" class="btn btn-secondary" style="width:100%" onclick="document.getElementById(\'adminStaffGroupOverlay\').style.display=\'none\'">Annuler</button>' +
+        '</div>';
+      document.body.appendChild(overlay);
+    }
+
+    var pickList = document.getElementById('adminGroupPickList');
+    if (!others.length) {
+      pickList.innerHTML = '<p style="padding:12px;color:#94a3b8;font-size:13px">Aucun membre Staff disponible.</p>';
+    } else {
+      pickList.innerHTML = others.map(function (p) {
+        var isAdm = p.role === 'admin_general' || p.is_admin === true;
+        var name = p.display_name || (isAdm ? 'Admin' : 'Host');
+        return '<label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer">' +
+          '<input type="checkbox" data-staff-id="' + p.id + '" onchange="window.toggleStaffGroupPick(\'' + p.id + '\', this.checked)" style="width:18px;height:18px">' +
+          '<span style="font-weight:600;font-size:13px">' + name +
+          ' <span style="font-size:11px;color:#64748b">' + (isAdm ? 'Admin' : 'Host') + '</span></span></label>';
+      }).join('');
+    }
+
+    var titleIn = document.getElementById('adminGroupTitleInput');
+    if (titleIn) titleIn.value = '';
+    var cnt = document.getElementById('adminGroupPickCount');
+    if (cnt) cnt.textContent = '(0)';
+    overlay.style.display = 'flex';
+  };
+
+  window.toggleStaffGroupPick = function (id, checked) {
+    if (checked) selectedStaffForGroup[id] = true;
+    else delete selectedStaffForGroup[id];
+    var cnt = document.getElementById('adminGroupPickCount');
+    if (cnt) cnt.textContent = '(' + Object.keys(selectedStaffForGroup).length + ')';
+  };
+
+  window.createAdminStaffGroup = async function () {
+    if (!(typeof isAdmin === 'function' && isAdmin())) return;
+    var titleIn = document.getElementById('adminGroupTitleInput');
+    var title = (titleIn && titleIn.value || '').trim();
+    if (!title) { showToast('Titre du groupe requis', 'error'); return; }
+    var ids = Object.keys(selectedStaffForGroup);
+    if (!ids.length) { showToast('Sélectionne au moins un membre Staff', 'error'); return; }
+
+    try {
+      var created = await supabaseClient.from('conversations').insert({
+        created_by: currentUser.id,
+        type: 'group',
+        title: title
+      }).select().single();
+      if (created.error || !created.data) {
+        showToast('Erreur création: ' + ((created.error && created.error.message) || ''), 'error');
+        return;
+      }
+      var cid = created.data.id;
+      var members = [{ conversation_id: cid, user_id: currentUser.id }];
+      ids.forEach(function (uid) {
+        members.push({ conversation_id: cid, user_id: uid });
+      });
+      var ins = await supabaseClient.from('conversation_members').insert(members);
+      if (ins.error) {
+        showToast('Groupe créé mais membres partiels: ' + ins.error.message, 'error');
+      } else {
+        showToast('Groupe « ' + title + ' » créé', 'success');
+      }
+      var ov = document.getElementById('adminStaffGroupOverlay');
+      if (ov) ov.style.display = 'none';
+      await applyStaffMessagesUI();
+      window.activeConversation = { type: 'group', id: cid, name: title, conversationId: cid };
+      await renderStaffChat(cid, true);
+    } catch (e) {
+      showToast('Erreur: ' + (e.message || e), 'error');
+    }
+  };
+
+  // Intercepter le bouton + Groupe natif pour Admin
+  var _origOpenCreate = window.openCreateGroupModal;
+  if (typeof _origOpenCreate === 'function') {
+    window.openCreateGroupModal = function () {
+      if (typeof isAdmin === 'function' && isAdmin()) {
+        return window.openAdminStaffGroupModal();
+      }
+      if (isStaff()) {
+        showToast('Seul l Admin peut créer des groupes.', 'error');
+        return;
+      }
+      return _origOpenCreate.apply(this, arguments);
+    };
+  } else {
+    window.openCreateGroupModal = function () {
+      if (typeof isAdmin === 'function' && isAdmin()) return window.openAdminStaffGroupModal();
+      if (isStaff()) showToast('Seul l Admin peut créer des groupes.', 'error');
+    };
+  }
+
   async function applyStaffMessagesUI() {
     if (!isStaff()) return;
 
-    document.querySelectorAll('#messages h2, #messages h3, #messages h4, #messages .section-title, .messages-sidebar h3, .messages-sidebar h4, #messages .conv-section-title').forEach(function (el) {
+    // 1) Onglet Amis → Staff
+    document.querySelectorAll(
+      '#messages .conv-section-label, #messages h2, #messages h3, #messages h4, ' +
+      '#messages .section-title, .messages-sidebar h3, .messages-sidebar h4'
+    ).forEach(function (el) {
       var t = (el.textContent || '').trim();
-      if (/^amis$/i.test(t) || /mes amis/i.test(t)) el.textContent = 'ÉQUIPE';
-      if (/amis/i.test(t) && t.length < 30) el.textContent = t.replace(/amis/ig, 'Équipe');
+      if (/^amis$/i.test(t) || /mes amis/i.test(t) || /^équipe$/i.test(t) || /^equipe$/i.test(t)) {
+        el.textContent = 'Staff';
+      }
     });
+
+    // 2) Supprimer sous-titre "Échange avec..."
+    document.querySelectorAll('#messages .section-title p, #messages > .section-title p, #messages p[data-i18n]').forEach(function (el) {
+      var t = (el.textContent || '').toLowerCase();
+      if (/échange|echange|membres aupygo|tes amis aupygo/i.test(t)) {
+        el.style.display = 'none';
+      }
+    });
+
+    // Texte vide amis
     document.querySelectorAll('#messages p, #messages .conv-empty').forEach(function (el) {
       if (/Aucun ami|ajoute des amis/i.test(el.textContent || '')) el.style.display = 'none';
     });
 
-    document.querySelectorAll('#createGroupBtn, [onclick*="openCreateGroup"], [onclick*="CreateGroup"], .messages-create-group, button').forEach(function (el) {
-      var t = (el.textContent || '').trim();
-      if (/^\+?\s*groupe$/i.test(t) || /créer un groupe|nouveau groupe/i.test(t)) {
-        el.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
+    // 3) Bouton + Groupe : Admin seulement → ouvre modal Staff
+    document.querySelectorAll('.btn-create-group, #createGroupBtn, [onclick*="openCreateGroup"]').forEach(function (el) {
+      if (typeof isAdmin === 'function' && isAdmin()) {
+        el.style.display = '';
+        el.onclick = function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.openAdminStaffGroupModal();
+        };
+      } else {
+        el.style.display = 'none';
       }
     });
 
@@ -340,7 +461,7 @@
         var others = list.filter(function (p) { return p && p.id !== me; });
         friendsList.innerHTML = others.length
           ? others.map(buildMemberRow).join('')
-          : '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff pour l instant.</p>';
+          : '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff.</p>';
       } else if (typeof isHost === 'function' && isHost()) {
         var admin = list.find(function (p) { return p.role === 'admin_general' || p.is_admin === true; });
         friendsList.innerHTML = admin
@@ -352,7 +473,6 @@
     }
 
     var gid = await ensureStaffGroup();
-    if (typeof isAdmin === 'function' && isAdmin()) await adminJoinAllGroups();
 
     if (groupsList) {
       var active = window.activeConversation && window.activeConversation.conversationId === gid ? ' active' : '';
@@ -384,7 +504,6 @@
       groupsList.innerHTML = html;
     }
 
-    // Personne ne peut quitter le groupe Équipe (sauf suppression Admin)
     document.querySelectorAll('#messages button, .chat-header-actions button').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       if (/quitter/i.test(t)) btn.style.display = 'none';
@@ -411,25 +530,6 @@
     applyStaffMessagesUI();
   };
 
-  var _origSend = window.sendMessage;
-  if (typeof _origSend === 'function' && !window._staffSendNamed) {
-    window._staffSendNamed = true;
-    var prevSend = window.sendMessage;
-    window.sendMessage = async function () {
-      if (!isStaff()) return prevSend.apply(this, arguments);
-      var r = await prevSend.apply(this, arguments);
-      if (window.activeConversation && window.activeConversation.conversationId) {
-        setTimeout(function () {
-          renderStaffChat(
-            window.activeConversation.conversationId,
-            window.activeConversation.type === 'group'
-          );
-        }, 400);
-      }
-      return r;
-    };
-  }
-
   var _origSidebar = window.renderConversationSidebar;
   if (typeof _origSidebar === 'function') {
     window.renderConversationSidebar = function () {
@@ -452,24 +552,6 @@
     };
   }
 
-  var _origMessageMember = window.messageMember;
-  if (typeof _origMessageMember === 'function') {
-    window.messageMember = function (memberId) {
-      if (isStaff()) {
-        if (!canStartDm(memberId)) {
-          showToast(typeof isAdmin === 'function' && isAdmin()
-            ? 'DM uniquement vers un membre Staff.'
-            : 'Uniquement avec l Admin Général.', 'error');
-          return;
-        }
-        if (typeof closeMemberProfile === 'function') closeMemberProfile();
-        var raw = profileById(memberId);
-        return openStaffDm(memberId, (raw && raw.display_name) || 'Staff');
-      }
-      return _origMessageMember(memberId);
-    };
-  }
-
   var prevGo = window.go;
   if (typeof prevGo === 'function') {
     window.go = function (page) {
@@ -477,7 +559,6 @@
       if (page === 'messages' && isStaff()) {
         setTimeout(applyStaffMessagesUI, 250);
         setTimeout(applyStaffMessagesUI, 1000);
-        if (typeof isAdmin === 'function' && isAdmin()) setTimeout(adminJoinAllGroups, 1200);
       }
     };
   }
@@ -489,11 +570,13 @@
   setInterval(function () {
     if (!isStaff()) return;
     if (typeof getActivePage === 'function' && getActivePage() === 'messages') {
-      document.querySelectorAll('#messages h3, #messages h4, .messages-sidebar h3').forEach(function (el) {
-        if (/^amis$/i.test((el.textContent || '').trim())) el.textContent = 'ÉQUIPE';
+      document.querySelectorAll('#messages .conv-section-label').forEach(function (el) {
+        if (/^amis$/i.test((el.textContent || '').trim()) || /^équipe$/i.test((el.textContent || '').trim())) {
+          el.textContent = 'Staff';
+        }
       });
     }
   }, 2000);
 
-  console.log('[AUPYGO] staff-messages.js v5.1');
+  console.log('[AUPYGO] staff-messages.js v6');
 })();
