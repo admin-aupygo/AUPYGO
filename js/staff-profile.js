@@ -1,4 +1,4 @@
-/* AUPYGO staff-profile.js v3 — fix affichage formulaire + champs limités */
+/* AUPYGO staff-profile.js v3.1 — identity_locked true (debloque l app) */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -72,7 +72,6 @@
       btn.style.display = '';
     });
 
-    // Bouton Enregistrer
     document.querySelectorAll('#profile button').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       var oc = btn.getAttribute('onclick') || '';
@@ -129,7 +128,6 @@
     }
   }
 
-  /** Masque UNIQUEMENT les form-group ciblés — jamais le .profile-form-card entier */
   function hideStaffOnlyExtras() {
     if (!isStaff()) return;
 
@@ -141,16 +139,13 @@
       }
     }
 
-    // Bio
     hideGroupOf(document.getElementById('bio'));
     document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
 
-    // Pays d'accueil, séjour, autre langue
     ['hostCountry', 'stayEnd', 'otherLanguage'].forEach(function (id) {
       hideGroupOf(document.getElementById(id));
     });
 
-    // Hobbies : uniquement le form-group, pas le card parent
     var hobbyGrid = document.querySelector('#profile .hobby-grid');
     if (hobbyGrid) hideGroupOf(hobbyGrid);
     var otherHobby = document.getElementById('otherHobby');
@@ -160,7 +155,6 @@
       el.style.display = 'none';
     });
 
-    // Labels hobbies / centres d'intérêt → form-group seulement
     document.querySelectorAll('#profile .form-group label, #profile .form-group .form-label').forEach(function (el) {
       var t = (el.textContent || '').toLowerCase();
       if (/hobbies|centres d.intérêt|centres d'intérêt|intérêts|pays d.accueil|à propos de moi/i.test(t)) {
@@ -169,7 +163,6 @@
       }
     });
 
-    // Boutons secondaires
     document.querySelectorAll('#profile button, #profile a').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       var oc = (btn.getAttribute('onclick') || '');
@@ -188,8 +181,10 @@
     enforceStaffAgeRange();
     hideStaffOnlyExtras();
     hidePersonalAgendaOnly();
-    // Re-afficher le formulaire après les hides (sécurité)
     showFormCard();
+    // Débloque navigation / dashboard
+    try { profileSaved = true; } catch (e) {}
+    try { window.profileSaved = true; } catch (e2) {}
   }
 
   var _origSave = window.saveProfile;
@@ -228,7 +223,7 @@
         city: city || ((typeof userLocation !== 'undefined' && userLocation.city) || ''),
         languages: langs,
         host_country: null,
-        identity_locked: false,
+        identity_locked: true,
         subscription: 'PREMIUM',
         bio: null,
         interests: null
@@ -243,8 +238,9 @@
       }
 
       window.profileSaved = true;
+      try { profileSaved = true; } catch (e0) {}
       showToast('Profil enregistré', 'success');
-      if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
+      if (typeof refreshAuthUI === 'function') await refreshAuthUI('home');
       setTimeout(applyStaffProfileUI, 200);
     };
   }
@@ -279,6 +275,7 @@
 
   setInterval(function () {
     if (!isStaff()) return;
+    try { profileSaved = true; } catch (e) {}
     if (typeof getActivePage === 'function' && getActivePage() === 'profile') {
       showFormCard();
       unlockIdentityFields();
@@ -288,5 +285,5 @@
     }
   }, 2500);
 
-  console.log('[AUPYGO] staff-profile.js v3');
+  console.log('[AUPYGO] staff-profile.js v3.1');
 })();
