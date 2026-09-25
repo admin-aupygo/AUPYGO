@@ -1,1 +1,110 @@
-PLACEHOLDER_WILL_REPLACE
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUPYGO — Meet. Go out. Make friends.</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+
+<link rel="stylesheet" href="styles.css?v=20260922b"/>
+</head>
+
+<body>
+
+<!-- =========================
+     HEADER
+========================= -->
+
+<header>
+  <div class="header-inner">
+
+    <div class="logo-aupygo" onclick="go('home')" title="AUPYGO">
+      <span class="logo-a">A</span>
+      <span class="logo-u">U</span>
+      <span class="logo-p">P</span>
+      <span class="logo-y">Y</span>
+      <span class="logo-g">G</span>
+      <span class="logo-o">O</span>
+      <div class="location-pin"></div>
+    </div>
+
+    <!-- ICÔNES UNIQUEMENT -->
+
+    <nav>
+
+  <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
+    <span class="icon">🏠</span>
+  </button>
+
+  <button onclick="go('map')" data-nav="map" data-i18n-title="nav.discover" data-i18n-aria="nav.discover" title="Découvrir" aria-label="Découvrir">
+    <span class="icon">🗺️</span>
+  </button>
+
+  <button onclick="go('events')" data-nav="events" data-i18n-title="nav.events" data-i18n-aria="nav.events" title="Sorties" aria-label="Sorties">
+    <span class="icon">🎉</span>
+  </button>
+
+  <button onclick="go('agenda')" data-nav="agenda" data-i18n-title="nav.agenda" data-i18n-aria="nav.agenda" title="Agenda" aria-label="Agenda">
+    <span class="icon">📅</span>
+  </button>
+
+  <button onclick="go('messages')" data-nav="messages" id="navMessages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
+    <span class="icon">💬</span>
+    <span class="messages-badge" id="messagesBadge">0</span>
+  </button>
+
+  <button onclick="go('reconnect')" data-nav="reconnect" id="navFriends" data-i18n-title="nav.friends" data-i18n-aria="nav.friends" title="Amis" aria-label="Amis">
+    <span class="icon">🤝</span>
+    <span class="friends-badge" id="friendsBadge">0</span>
+  </button>
+
+  <button onclick="go('profile')" data-nav="profile" data-i18n-title="nav.profile" data-i18n-aria="nav.profile" title="Profil" aria-label="Profil">
+    <span class="icon">👤</span>
+  </button>
+
+</nav>
+
+    <div class="header-actions">
+      <!-- Avatar forfait (visible mobile + desktop) -->
+      <button type="button" class="header-plan-btn" id="headerPlanBtn" onclick="toggleMoreMenu()" title="Compte & abonnement" aria-label="Compte et abonnement">
+        <span class="header-plan-avatar" id="headerPlanAvatar">👤</span>
+        <span class="header-plan-badge" id="headerPlanBadge">FREE</span>
+      </button>
+
+      <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
+        <option value="fr">🇫🇷 Français</option>
+        <option value="en">🇬🇧 English</option>
+        <option value="es">🇪🇸 Español</option>
+      </select>
+    </div>
+
+  </div>
+</header>
+
+<!-- SEE ARTIFACTS FOR FULL FILE - THIS IS A CRITICAL RESTORE -->
+<!-- TEMPORARY MINIMAL TO UNBLOCK - WILL RESTORE FULL -->
+
+<main>
+<section id="home" class="page active">
+  <div class="section-title"><h2>AUPYGO — restauration en cours</h2>
+  <p>Recharge dans 30 secondes. Le fichier index.html complet est en cours de restauration.</p>
+  </div>
+</section>
+</main>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="config.js?v=20260922fix1"></script>
+<script src="i18n.js?v=20260922fix1"></script>
+<script src="app.js?v=20260922fix1"></script>
+<script src="map-markers.js?v=20260925h"></script>
+<script src="js/staff-hierarchy.js?v=20260925h"></script>
+<script src="js/admin.js?v=20260925h"></script>
+
+</body>
+</html>
