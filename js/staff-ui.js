@@ -1,11 +1,11 @@
-/* AUPYGO staff-ui.js v3.3 — badge ADMIN / STAFF */
+/* AUPYGO staff-ui.js v4 — Header Admin + menu accès rapide */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260925d';
+    s.src = 'js/' + name + '?v=20260925z';
     document.body.appendChild(s);
   }
 
@@ -25,7 +25,6 @@
   function forceMessagesBetweenAgendaAndProfile() {
     var nav = document.querySelector('header nav');
     if (!nav) return;
-
     var msg = document.getElementById('navMessages');
     if (!msg) {
       msg = document.createElement('button');
@@ -34,73 +33,96 @@
       msg.setAttribute('data-nav', 'messages');
       msg.setAttribute('onclick', "go('messages')");
       msg.title = 'Messages';
-      msg.setAttribute('aria-label', 'Messages');
       msg.innerHTML = '<span class="icon">💬</span><span class="messages-badge" id="messagesBadge">0</span>';
       nav.appendChild(msg);
     }
-
     msg.style.cssText = 'display:inline-flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;position:relative !important;align-items:center;justify-content:center;';
-    msg.classList.remove('hidden');
-    msg.removeAttribute('hidden');
-
     var profile = nav.querySelector('[data-nav="profile"]');
     try {
       if (profile) nav.insertBefore(msg, profile);
-      else nav.appendChild(msg);
-    } catch (e) {
-      try { nav.appendChild(msg); } catch (e2) {}
+    } catch (e) {}
+    var friends = document.getElementById('navFriends');
+    if (friends) { friends.style.display = 'none'; }
+  }
+
+  /** Badge Admin à côté de la langue + menu déroulant accès rapide */
+  function injectAdminHeaderMenu() {
+    if (!(typeof isAdmin === 'function' && isAdmin())) {
+      var old = document.getElementById('adminHeaderWrap');
+      if (old) old.remove();
+      return;
     }
 
-    var friends = document.getElementById('navFriends');
-    if (friends) { friends.style.display = 'none'; friends.style.visibility = 'hidden'; }
+    var actions = document.querySelector('.header-actions');
+    if (!actions) return;
 
-    var extra = document.getElementById('navStaffMessages');
-    if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
+    // Badge plan = Admin
+    var badge = document.getElementById('headerPlanBadge');
+    if (badge) {
+      badge.textContent = 'Admin';
+      badge.title = 'Administrateur';
+    }
+    var avatar = document.getElementById('headerPlanAvatar');
+    if (avatar) avatar.textContent = '🛡️';
 
-    var btm = document.getElementById('bottomNavMessages');
-    if (btm) { btm.style.display = ''; btm.style.visibility = 'visible'; }
-  }
+    var wrap = document.getElementById('adminHeaderWrap');
+    if (!wrap) {
+      wrap = document.createElement('div');
+      wrap.id = 'adminHeaderWrap';
+      wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center;margin-right:8px;';
 
-  function filterMoreMenu() {
-    if (!isStaff()) return;
-    var allowStaff = /agenda|messag|sortie|événement|evenement|carte|map|découvrir|decouvrir/i;
-    var allowAdmin = /admin|administration/i;
+      var btn = document.createElement('button');
+      btn.type = 'button';
+      btn.id = 'adminHeaderBtn';
+      btn.style.cssText = 'display:inline-flex;align-items:center;gap:6px;padding:6px 12px;border-radius:999px;border:1px solid #e2e8f0;background:#111;color:#fff;font-weight:700;font-size:12px;cursor:pointer;';
+      btn.innerHTML = '🛡️ Admin <span style="font-size:10px">▾</span>';
+      btn.onclick = function (e) {
+        e.stopPropagation();
+        var m = document.getElementById('adminQuickMenu');
+        if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
+      };
 
-    document.querySelectorAll('.more-sheet-item, .more-menu-item, #moreSheet button, .more-sheet button').forEach(function (item) {
-      if (item.id === 'moreAdminItem') {
-        item.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
-        return;
+      var menu = document.createElement('div');
+      menu.id = 'adminQuickMenu';
+      menu.style.cssText = 'display:none;position:absolute;top:110%;right:0;min-width:180px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.12);padding:8px;z-index:10000;';
+      menu.innerHTML =
+        '<button type="button" class="admin-qitem" data-go="agenda">📅 Agenda</button>' +
+        '<button type="button" class="admin-qitem" data-go="admin">🛡️ Administration</button>' +
+        '<button type="button" class="admin-qitem" data-go="events">🎉 Sorties</button>' +
+        '<button type="button" class="admin-qitem" data-go="messages">💬 Messages</button>';
+
+      if (!document.getElementById('adminQuickMenuStyle')) {
+        var st = document.createElement('style');
+        st.id = 'adminQuickMenuStyle';
+        st.textContent =
+          '.admin-qitem{display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:transparent;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;color:#1e293b}' +
+          '.admin-qitem:hover{background:#f1f5f9}';
+        document.head.appendChild(st);
       }
-      var t = ((item.textContent || '') + ' ' + (item.getAttribute('onclick') || '')).toLowerCase();
-      if (/reconnect|amis|plan|abonnement|premium|friend/i.test(t)) {
-        item.style.display = 'none';
-        return;
-      }
-      if (allowAdmin.test(t)) {
-        item.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
-        return;
-      }
-      if (allowStaff.test(t) || /profil|profile|home|accueil/i.test(t)) {
-        item.style.display = '';
-      }
-    });
-  }
 
-  function centerMorePopup() {
-    if (!isStaff()) return;
-    var sheet = document.getElementById('moreSheet') ||
-      document.querySelector('.more-sheet') ||
-      document.querySelector('.more-menu');
-    if (!sheet) return;
-    sheet.style.position = 'fixed';
-    sheet.style.left = '50%';
-    sheet.style.top = '50%';
-    sheet.style.transform = 'translate(-50%, -50%)';
-    sheet.style.right = 'auto';
-    sheet.style.bottom = 'auto';
-    sheet.style.maxHeight = '80vh';
-    sheet.style.overflowY = 'auto';
-    sheet.style.zIndex = '9999';
+      menu.querySelectorAll('.admin-qitem').forEach(function (item) {
+        item.onclick = function () {
+          menu.style.display = 'none';
+          var page = item.getAttribute('data-go');
+          if (typeof go === 'function') go(page);
+        };
+      });
+
+      wrap.appendChild(btn);
+      wrap.appendChild(menu);
+
+      // Insérer avant le sélecteur de langue
+      var lang = actions.querySelector('.lang-select') || actions.querySelector('#language');
+      if (lang) actions.insertBefore(wrap, lang);
+      else actions.appendChild(wrap);
+
+      document.addEventListener('click', function () {
+        var m = document.getElementById('adminQuickMenu');
+        if (m) m.style.display = 'none';
+      });
+    } else {
+      wrap.style.display = '';
+    }
   }
 
   function applyStaffNav() {
@@ -114,67 +136,25 @@
         el.style.pointerEvents = 'none';
       } else if (key === 'messages') {
         el.style.display = 'inline-flex';
-        el.style.pointerEvents = 'auto';
-        el.style.opacity = '1';
         el.style.visibility = 'visible';
+        el.style.opacity = '1';
       }
     });
 
-    ['#navFriends', '#homeBtnFriends', '#homeBtnPlans', '.more-sheet-item-plan'].forEach(function (sel) {
+    ['#navFriends', '#homeBtnFriends', '#homeBtnPlans'].forEach(function (sel) {
       document.querySelectorAll(sel).forEach(function (el) { el.style.display = 'none'; });
     });
 
-    var keepHome = {
-      homeBtnAgenda: true, homeBtnMessages: true, homeBtnMap: true,
-      homeBtnEvents: true, homeBtnProfile: true
-    };
-    document.querySelectorAll('#homeDashboard .home-btn').forEach(function (btn) {
-      btn.style.display = keepHome[btn.id] ? '' : 'none';
-    });
-
-    var dash = document.getElementById('homeDashboard');
-    if (dash && !document.getElementById('staffHomeBanner')) {
-      var b = document.createElement('div');
-      b.id = 'staffHomeBanner';
-      b.style.cssText = 'background:#111;color:#fff;border-radius:14px;padding:14px 16px;margin-bottom:16px;font-weight:700;font-size:14px;line-height:1.4';
-      b.innerHTML = '🛡️ Espace Staff AUPYGO<br><span style="font-weight:500;font-size:12px;opacity:0.9">Agenda · Messages · Carte · Sorties</span>';
-      try {
-        if (dash.firstChild) dash.insertBefore(b, dash.firstChild);
-        else dash.appendChild(b);
-      } catch (e) { dash.appendChild(b); }
-    }
-
-    applyStaffAvatar();
     forceMessagesBetweenAgendaAndProfile();
-    filterMoreMenu();
-    centerMorePopup();
-    fixAdminPlanLabels();
-  }
+    injectAdminHeaderMenu();
 
-  function applyStaffAvatar() {
-    if (!isStaff()) return;
-    var isAdm = typeof isAdmin === 'function' && isAdmin();
-    var label = isAdm ? 'ADMIN' : 'STAFF';
-    var avatar = document.getElementById('headerPlanAvatar');
-    if (avatar) { avatar.textContent = '🛡️'; avatar.title = label; }
-    var badge = document.getElementById('headerPlanBadge');
-    if (badge) { badge.textContent = label; badge.title = label; }
-    var bottomBadge = document.getElementById('bottomNavPlanBadge');
-    if (bottomBadge) bottomBadge.textContent = label;
-    var bottomAv = document.getElementById('bottomNavAvatar');
-    if (bottomAv) bottomAv.textContent = '🛡️';
-  }
-
-  function fixAdminPlanLabels() {
-    if (!(typeof isAdmin === 'function' && isAdmin())) return;
-    document.querySelectorAll('#adminTableBody tr').forEach(function (tr) {
-      var cells = tr.cells;
-      if (!cells || cells.length < 3) return;
-      var roleTxt = (cells[1].textContent || '').toLowerCase();
-      if (roleTxt.indexOf('host') !== -1 || roleTxt.indexOf('admin_general') !== -1) {
-        cells[2].textContent = roleTxt.indexOf('admin') !== -1 ? 'ADMIN' : 'STAFF';
-      }
-    });
+    // Host badge
+    if (!(typeof isAdmin === 'function' && isAdmin())) {
+      var badge = document.getElementById('headerPlanBadge');
+      if (badge) badge.textContent = 'Staff';
+      var avatar = document.getElementById('headerPlanAvatar');
+      if (avatar) avatar.textContent = '🛡️';
+    }
   }
 
   function forceStaffPremium() {
@@ -184,72 +164,13 @@
     try { localStorage.setItem('aupygo_plan', 'PREMIUM'); } catch (e3) {}
   }
 
-  async function updateMapActivityCounter() {
-    if (!isStaff()) return;
-    var mapPage = document.getElementById('map');
-    if (!mapPage) return;
-    var box = document.getElementById('staffMapActivity');
-    if (!box) {
-      box = document.createElement('div');
-      box.id = 'staffMapActivity';
-      box.style.cssText = 'display:flex;gap:10px;flex-wrap:wrap;margin:10px 0 14px;';
-      try {
-        if (mapPage.firstChild && mapPage.firstChild.parentNode === mapPage) mapPage.insertBefore(box, mapPage.firstChild);
-        else mapPage.appendChild(box);
-      } catch (err) {
-        try { mapPage.appendChild(box); } catch (e2) { return; }
-      }
-    }
-    if (!box.isConnected || box.parentNode !== mapPage) {
-      try {
-        if (box.parentNode) box.parentNode.removeChild(box);
-        mapPage.appendChild(box);
-      } catch (e3) { return; }
-    }
-    var usersOnline = 0, staffOnline = 0;
-    try {
-      var now = Date.now();
-      var ONLINE_MS = 15 * 60 * 1000;
-      var list = window.profiles || [];
-      if (!list.length && typeof supabaseClient !== 'undefined') {
-        var res = await supabaseClient.from('profiles').select('id, role, is_admin, is_online, last_seen').limit(400);
-        list = res.data || [];
-      }
-      list.forEach(function (p) {
-        if (!p) return;
-        var on = p.is_online === true || (p.last_seen && (now - new Date(p.last_seen).getTime()) < ONLINE_MS);
-        if (!on) return;
-        var r = (p.role || '').toLowerCase();
-        var isS = p.is_admin === true || r === 'admin_general' || r === 'host' || r === 'moderator';
-        if (isS) staffOnline++; else usersOnline++;
-      });
-    } catch (e) {}
-    try {
-      box.innerHTML =
-        '<div style="background:#111;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">👥 Users en ligne : ' + usersOnline + '</div>' +
-        '<div style="background:#334155;color:#fff;border-radius:12px;padding:10px 14px;font-weight:700;font-size:13px">🛡️ Staff Host en ligne : ' + staffOnline + '</div>';
-    } catch (e4) {}
-  }
-
-  var _origToggle = window.toggleMoreMenu;
-  if (typeof _origToggle === 'function' && !window._staffMoreCentered) {
-    window._staffMoreCentered = true;
-    window.toggleMoreMenu = function () {
-      _origToggle.apply(this, arguments);
-      setTimeout(function () {
-        filterMoreMenu();
-        centerMorePopup();
-      }, 50);
-    };
-  }
-
   var prevGo = window.go;
   if (typeof prevGo === 'function' && !window._staffUiGoPatched) {
     window._staffUiGoPatched = true;
     window.go = function (page) {
       if (!isStaff()) { prevGo(page); return; }
       if (page === 'plans') {
-        if (typeof showToast === 'function') showToast('Compte AupygoStaff — pas d\'abonnement requis.', 'success');
+        if (typeof showToast === 'function') showToast('Compte Admin/Staff — pas d\'abonnement requis.', 'success');
         return prevGo('home');
       }
       if (page === 'reconnect') {
@@ -259,16 +180,6 @@
       prevGo(page);
       setTimeout(applyStaffNav, 150);
       forceStaffPremium();
-      if (page === 'map') setTimeout(function () { updateMapActivityCounter(); }, 300);
-      if (page === 'admin') setTimeout(fixAdminPlanLabels, 400);
-    };
-  }
-
-  var _ar = window.adminRefresh;
-  if (typeof _ar === 'function') {
-    window.adminRefresh = function () {
-      _ar();
-      setTimeout(fixAdminPlanLabels, 500);
     };
   }
 
@@ -276,10 +187,6 @@
     if (!isStaff()) return;
     forceStaffPremium();
     applyStaffNav();
-    if (typeof getActivePage === 'function') {
-      if (getActivePage() === 'map') updateMapActivityCounter().catch(function () {});
-      if (getActivePage() === 'admin') fixAdminPlanLabels();
-    }
   }
 
   loadScriptOnce('staff-restrictions.js');
@@ -287,5 +194,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v3.3');
+  console.log('[AUPYGO] staff-ui.js v4');
 })();
