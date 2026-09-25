@@ -1,17 +1,18 @@
-/* AUPYGO staff-ui.js v3 — menu, pop-up centrée, nav Messages */
+/* AUPYGO staff-ui.js v3.1 — menu, pop-up centrée, nav Messages, unlock msg */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260925a';
+    s.src = 'js/' + name + '?v=20260925b';
     document.body.appendChild(s);
   }
 
   loadScriptOnce('staff-realtime-fix.js');
   loadScriptOnce('staff-blink-fix.js');
   loadScriptOnce('staff-visibility.js');
+  loadScriptOnce('staff-msg-unlock.js');
 
   if (typeof isStaff !== 'function') return;
 
@@ -34,7 +35,6 @@
     msg.style.right = '';
     msg.style.top = '';
 
-    // Ordre souhaité : … agenda → messages → profile …
     var agenda = nav.querySelector('[data-nav="agenda"]');
     var profile = nav.querySelector('[data-nav="profile"]');
     try {
@@ -75,10 +75,6 @@
       if (allowStaff.test(t) || /profil|profile|home|accueil/i.test(t)) {
         item.style.display = '';
         return;
-      }
-      // Par défaut pour staff : masquer le reste non listé
-      if (!/param|régl|deconnect|déconnect|langue|language/i.test(t)) {
-        // garder déconnexion / langue
       }
     });
   }
@@ -176,6 +172,7 @@
     if (!isStaff()) return;
     try { currentPlan = 'PREMIUM'; } catch (e) {}
     try { window.currentPlan = 'PREMIUM'; } catch (e2) {}
+    try { localStorage.setItem('aupygo_plan', 'PREMIUM'); } catch (e3) {}
   }
 
   async function updateMapActivityCounter() {
@@ -225,7 +222,6 @@
     } catch (e4) {}
   }
 
-  // Patch toggleMoreMenu pour centrer
   var _origToggle = window.toggleMoreMenu;
   if (typeof _origToggle === 'function' && !window._staffMoreCentered) {
     window._staffMoreCentered = true;
@@ -282,5 +278,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v3');
+  console.log('[AUPYGO] staff-ui.js v3.1');
 })();
