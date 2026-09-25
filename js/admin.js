@@ -1,5 +1,5 @@
 /* =========================
-   AUPYGO — Rôles & Panneau Staff (Admin + Hôte)
+   AUPYGO — Rôles & Panneau Staff (Admin-Amiral + Staff)
    Chargé APRÈS app.js
 ========================= */
 
@@ -223,7 +223,7 @@
       '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;padding:14px;background:#fff;border:1px solid #e8e4ef;border-radius:16px">' +
         '<input type="search" id="adminSearchInput" placeholder="🔍 Rechercher un membre…" oninput="window.adminOnSearch(this.value)" style="flex:1;min-width:180px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px">' +
         '<select id="adminFilterSelect" onchange="window.adminOnFilter(this.value)" style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:13px">' +
-          '<option value="all">Tous</option><option value="online">En ligne</option><option value="host">Staff</option><option value="admin">Admins</option>' +
+          '<option value="all">Tous</option><option value="online">En ligne</option><option value="host">Staff</option><option value="admin">Admin-Amiral</option>' +
         '</select>' +
         '<button class="btn btn-secondary" onclick="window.adminRefresh()" style="border-radius:12px">🔄 Actualiser</button>' +
       '</div>' +
@@ -332,9 +332,9 @@
         roleClass = 'host';
         plan = 'STAFF';
       } else if (rawRole === 'admin_general' || u.is_admin) {
-        roleLabel = 'Admin';
+        roleLabel = 'Admin-Amiral';
         roleClass = 'admin_general';
-        plan = 'ADMIN';
+        plan = 'ADMIN-AMIRAL';
       }
       var loc = [u.city, u.country || u.host_country].filter(Boolean).join(', ') || '—';
       var online = u.is_online || (u.last_seen && (now - new Date(u.last_seen).getTime()) < ONLINE);
@@ -345,7 +345,7 @@
         '<div class="admin-actions-frozen" title="Actions temporairement désactivées">' +
         '<button type="button" disabled class="admin-act-btn" data-action="staff" data-uid="' + u.id + '">→ STAFF</button>' +
         '<button type="button" disabled class="admin-act-btn" data-action="user" data-uid="' + u.id + '">→ User</button>' +
-        '<button type="button" disabled class="admin-act-btn" data-action="admin" data-uid="' + u.id + '">→ Admin</button>' +
+        '<button type="button" disabled class="admin-act-btn" data-action="admin" data-uid="' + u.id + '">→ Admin-Amiral</button>' +
         '</div>';
       return '<tr><td><strong>' + esc(name) + '</strong></td>' +
         '<td><span class="admin-badge ' + roleClass + '">' + roleLabel + '</span></td>' +
@@ -358,7 +358,6 @@
   window.adminOnFilter = function (v) { adminFilter = v || 'all'; renderAdminTable(); };
   window.adminRefresh = function () { loadAdminData(); if (typeof showToast === 'function') showToast('Actualisé', 'success'); };
 
-  // Conservé pour usage futur (actions gelées dans le tableau)
   window.adminSetRole = async function (userId, newRole) {
     if (!isAdmin()) return;
     if (!confirm('Changer le rôle en « ' + newRole + ' » ?')) return;
@@ -383,7 +382,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260925ac';
+    s.src = src + '?v=20260925ad';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -411,5 +410,5 @@
   setInterval(updateAdminButtonVisibility, 4000);
   setInterval(applyStaffRestrictions, 5000);
 
-  console.log('[AUPYGO] admin.js v20260925ac');
+  console.log('[AUPYGO] admin.js v20260925ad');
 })();
