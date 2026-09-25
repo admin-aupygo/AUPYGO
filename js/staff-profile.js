@@ -1,4 +1,4 @@
-/* AUPYGO staff-profile.js v2 — profil Admin/Staff débloqué */
+/* AUPYGO staff-profile.js v3 — fix affichage formulaire + champs limités */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -8,31 +8,39 @@
 
   function hidePersonalAgendaOnly() {
     if (!isStaff()) return;
-    ['personalAgendaBox', 'personalAgendaNotice', 'myAgendaList'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (el) { el.style.display = 'none'; el.setAttribute('hidden', 'true'); }
-    });
-    // Bloc "Mon agenda" en bas profil
-    document.querySelectorAll('#profile .card, #profile section').forEach(function (card) {
-      var t = (card.textContent || '').toLowerCase();
-      if (/mon agenda aupygo|agenda privé aupygo/i.test(t) && card.querySelector('#personalCalendar, #myAgendaList, #personalAgendaBox')) {
-        card.style.display = 'none';
-      }
-    });
+    var box = document.getElementById('personalAgendaBox');
+    if (box) {
+      box.style.display = 'none';
+      box.setAttribute('hidden', 'true');
+    }
+    var notice = document.getElementById('personalAgendaNotice');
+    if (notice) notice.style.display = 'none';
+  }
+
+  function showFormCard() {
+    var formCard = document.querySelector('#profile .profile-form-card');
+    if (formCard) {
+      formCard.style.display = '';
+      formCard.style.visibility = 'visible';
+      formCard.removeAttribute('hidden');
+    }
+    var layout = document.querySelector('#profile .profile-layout');
+    if (layout) {
+      layout.style.display = '';
+      layout.style.visibility = 'visible';
+    }
+    var page = document.getElementById('profile');
+    if (page) {
+      page.style.display = '';
+      page.classList.add('active');
+    }
   }
 
   function unlockIdentityFields() {
     if (!isStaff()) return;
+    showFormCard();
 
-    // Afficher le formulaire principal
-    document.querySelectorAll('#profile .profile-form-card, #profile form, #profile .card').forEach(function (el) {
-      if (el.id === 'personalAgendaBox') return;
-      el.style.display = '';
-      el.removeAttribute('hidden');
-    });
-
-    // Champs autorisés
-    ['firstName', 'age', 'country', 'city', 'gender'].forEach(function (id) {
+    ['firstName', 'age', 'country', 'city'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
       el.disabled = false;
@@ -40,7 +48,7 @@
       el.removeAttribute('readonly');
       el.removeAttribute('disabled');
       el.style.display = '';
-      el.style.pointerEvents = '';
+      el.style.pointerEvents = 'auto';
       el.style.opacity = '1';
       var g = el.closest('.form-group');
       if (g) {
@@ -50,30 +58,25 @@
       }
     });
 
-    // Genre (boutons)
     var genderGroup = document.getElementById('genderGroup');
     if (genderGroup) {
       genderGroup.style.display = '';
       genderGroup.style.visibility = 'visible';
+      var gg = genderGroup.closest('.form-group');
+      if (gg) gg.style.display = '';
     }
-    document.querySelectorAll('#genderGroup button, .gender-btn, [data-gender]').forEach(function (btn) {
+    document.querySelectorAll('#genderGroup button, .gender-option, .gender-btn, [data-gender]').forEach(function (btn) {
       btn.disabled = false;
       btn.style.pointerEvents = 'auto';
       btn.style.opacity = '1';
       btn.style.display = '';
     });
 
-    // Langues si présentes
-    var langBox = document.getElementById('languageSelect') || document.querySelector('#profile .lang-chips, #profile #langs');
-    if (langBox) {
-      var lg = langBox.closest('.form-group');
-      if (lg) lg.style.display = '';
-    }
-
-    // Bouton enregistrer
-    document.querySelectorAll('#profile button[onclick*="saveProfile"], #saveProfileBtn, #profile .btn-primary').forEach(function (btn) {
+    // Bouton Enregistrer
+    document.querySelectorAll('#profile button').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
-      if (/enregistrer|sauvegarder|save|valider/i.test(t) || (btn.getAttribute('onclick') || '').indexOf('saveProfile') !== -1) {
+      var oc = btn.getAttribute('onclick') || '';
+      if (/enregistrer|sauvegarder/i.test(t) || oc.indexOf('saveProfile') !== -1) {
         btn.style.display = '';
         btn.disabled = false;
         btn.style.pointerEvents = 'auto';
@@ -123,62 +126,70 @@
     } else {
       ageEl.setAttribute('min', String(STAFF_AGE_MIN));
       ageEl.setAttribute('max', String(STAFF_AGE_MAX));
-      ageEl.setAttribute('type', 'number');
     }
   }
 
+  /** Masque UNIQUEMENT les form-group ciblés — jamais le .profile-form-card entier */
   function hideStaffOnlyExtras() {
     if (!isStaff()) return;
 
-    // Bio
-    var bio = document.getElementById('bio');
-    if (bio) {
-      var g = bio.closest('.form-group');
-      if (g) g.style.display = 'none';
+    function hideGroupOf(el) {
+      if (!el) return;
+      var g = el.closest('.form-group');
+      if (g && !g.classList.contains('profile-form-card')) {
+        g.style.display = 'none';
+      }
     }
+
+    // Bio
+    hideGroupOf(document.getElementById('bio'));
     document.querySelectorAll('.bio-counter').forEach(function (el) { el.style.display = 'none'; });
 
     // Pays d'accueil, séjour, autre langue
     ['hostCountry', 'stayEnd', 'otherLanguage'].forEach(function (id) {
-      var el = document.getElementById(id);
-      if (!el) return;
-      var g = el.closest('.form-group');
-      if (g) g.style.display = 'none';
-      else el.style.display = 'none';
+      hideGroupOf(document.getElementById(id));
     });
 
-    // Centres d'intérêt
-    var hobbyGrid = document.querySelector('.hobby-grid');
-    if (hobbyGrid) {
-      var section = hobbyGrid.closest('.form-group') || hobbyGrid.parentElement;
-      if (section) section.style.display = 'none';
-      else hobbyGrid.style.display = 'none';
-    }
+    // Hobbies : uniquement le form-group, pas le card parent
+    var hobbyGrid = document.querySelector('#profile .hobby-grid');
+    if (hobbyGrid) hideGroupOf(hobbyGrid);
+    var otherHobby = document.getElementById('otherHobby');
+    if (otherHobby) hideGroupOf(otherHobby);
+
     document.querySelectorAll('#profileCardHobbies, .profile-card-hobbies').forEach(function (el) {
       el.style.display = 'none';
     });
-    document.querySelectorAll('#profile h3, #profile .form-label, #profile label, #profile .section-title').forEach(function (el) {
-      if (/centres d.intérêt|centres d'intérêt|intérêts|pays d.accueil/i.test(el.textContent || '')) {
-        var block = el.closest('.form-group, section, .card') || el.parentElement;
-        if (block && block.id !== 'profile') block.style.display = 'none';
+
+    // Labels hobbies / centres d'intérêt → form-group seulement
+    document.querySelectorAll('#profile .form-group label, #profile .form-group .form-label').forEach(function (el) {
+      var t = (el.textContent || '').toLowerCase();
+      if (/hobbies|centres d.intérêt|centres d'intérêt|intérêts|pays d.accueil|à propos de moi/i.test(t)) {
+        var g = el.closest('.form-group');
+        if (g) g.style.display = 'none';
       }
     });
 
-    // Boutons supprimer / abonnements / mon agenda
-    document.querySelectorAll('#profile button, #profile a, #profile .btn').forEach(function (btn) {
+    // Boutons secondaires
+    document.querySelectorAll('#profile button, #profile a').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
-      if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) btn.style.display = 'none';
-      if (/voir les abonnements|abonnement|passer en premium|voir les offres/i.test(t)) btn.style.display = 'none';
+      var oc = (btn.getAttribute('onclick') || '');
+      if (/supprimer mon profil|supprimer.*compte/i.test(t)) btn.style.display = 'none';
+      if (/voir les abonnements|abonnement|passer en premium|voir les offres/i.test(t) || oc.indexOf("go('plans')") !== -1) {
+        btn.style.display = 'none';
+      }
       if (/mon agenda/i.test(t)) btn.style.display = 'none';
     });
   }
 
   function applyStaffProfileUI() {
     if (!isStaff()) return;
-    hidePersonalAgendaOnly();
+    showFormCard();
     unlockIdentityFields();
     enforceStaffAgeRange();
     hideStaffOnlyExtras();
+    hidePersonalAgendaOnly();
+    // Re-afficher le formulaire après les hides (sécurité)
+    showFormCard();
   }
 
   var _origSave = window.saveProfile;
@@ -234,14 +245,17 @@
       window.profileSaved = true;
       showToast('Profil enregistré', 'success');
       if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
-      applyStaffProfileUI();
+      setTimeout(applyStaffProfileUI, 200);
     };
   }
 
   var _origLock = window.lockIdentityFields;
   if (typeof _origLock === 'function') {
     window.lockIdentityFields = function () {
-      if (isStaff()) { unlockIdentityFields(); return; }
+      if (isStaff()) {
+        unlockIdentityFields();
+        return;
+      }
       return _origLock.apply(this, arguments);
     };
   }
@@ -256,21 +270,23 @@
     window.go = function (page) {
       prevGo(page);
       if (page === 'profile') {
-        setTimeout(applyStaffProfileUI, 150);
-        setTimeout(applyStaffProfileUI, 500);
-        setTimeout(applyStaffProfileUI, 1200);
+        setTimeout(applyStaffProfileUI, 100);
+        setTimeout(applyStaffProfileUI, 400);
+        setTimeout(applyStaffProfileUI, 1000);
       }
     };
   }
 
   setInterval(function () {
-    if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'profile') {
-      hidePersonalAgendaOnly();
+    if (!isStaff()) return;
+    if (typeof getActivePage === 'function' && getActivePage() === 'profile') {
+      showFormCard();
       unlockIdentityFields();
-      enforceStaffAgeRange();
       hideStaffOnlyExtras();
+      hidePersonalAgendaOnly();
+      showFormCard();
     }
-  }, 2000);
+  }, 2500);
 
-  console.log('[AUPYGO] staff-profile.js v2');
+  console.log('[AUPYGO] staff-profile.js v3');
 })();
