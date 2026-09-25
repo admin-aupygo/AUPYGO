@@ -1,4 +1,4 @@
-/* AUPYGO staff-messages.js v5 — Admin messaging complet */
+/* AUPYGO staff-messages.js v5.1 — fix syntax error */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -90,24 +90,22 @@
     try {
       if (typeof go === 'function') go('messages');
       var cid = await ensureStaffDmConversation(memberId);
-      if (!cid) { showToast('Impossible d\'ouvrir la conversation (RLS).', 'error'); return; }
+      if (!cid) { showToast('Impossible d ouvrir la conversation (RLS).', 'error'); return; }
       window.activeConversation = { type: 'dm', id: memberId, name: name || 'Staff', conversationId: cid };
       await renderStaffChat(cid, false);
       markRead(cid);
       applyStaffMessagesUI();
     } catch (e) {
-      showToast('Impossible d\'ouvrir la conversation', 'error');
+      showToast('Impossible d ouvrir la conversation', 'error');
     }
   }
 
   window.openStaffMemberDm = function (id, name) { return openStaffDm(id, name); };
 
-  // ---- Groupe unique Équipe ----
   async function ensureStaffGroup() {
     if (!isStaff() || !window.currentUser) return null;
     if (staffGroupIdCache) return staffGroupIdCache;
     try {
-      // Chercher TOUS les groupes Équipe (dédupliquer)
       var all = await supabaseClient.from('conversations')
         .select('id, title, created_at')
         .eq('type', 'group')
@@ -116,7 +114,6 @@
       var rows = all.data || [];
       if (rows.length) {
         staffGroupIdCache = rows[0].id;
-        // Supprimer les doublons (admin only)
         if (typeof isAdmin === 'function' && isAdmin() && rows.length > 1) {
           for (var i = 1; i < rows.length; i++) {
             try {
@@ -134,7 +131,6 @@
         staffGroupIdCache = created.data.id;
       }
       await syncStaffMembers(staffGroupIdCache);
-      // S'assurer que l'utilisateur courant est membre
       try {
         await supabaseClient.from('conversation_members')
           .insert({ conversation_id: staffGroupIdCache, user_id: currentUser.id });
@@ -156,7 +152,6 @@
     } catch (e) {}
   }
 
-  /** Admin auto-membre de tous les groupes */
   async function adminJoinAllGroups() {
     if (!(typeof isAdmin === 'function' && isAdmin()) || !window.currentUser) return;
     try {
@@ -173,12 +168,10 @@
     } catch (e) {}
   }
 
-  // ---- Rendu chat avec prénoms ----
   async function renderStaffChat(convId, isGroup) {
     var box = document.getElementById('chatMessages');
     if (!box || !convId) return;
     await loadStaffMembers();
-
     try {
       var res = await supabaseClient.from('messages')
         .select('id, content, sender_id, created_at')
@@ -202,7 +195,7 @@
       if (!data.length) {
         var empty = document.createElement('div');
         empty.className = 'chat-placeholder';
-        empty.innerHTML = '<p>Aucun message. Écris le premier !</p>';
+        empty.innerHTML = '<p>Aucun message. Ecris le premier !</p>';
         box.appendChild(empty);
         return;
       }
@@ -283,11 +276,8 @@
     if (!convId || !window.currentUser) return;
     try {
       if (typeof markConversationRead === 'function') markConversationRead(convId, null);
-      if (window.unreadByConversation) {
-        window.unreadByConversation[convId] = 0;
-      }
+      if (window.unreadByConversation) window.unreadByConversation[convId] = 0;
       if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
-      // Stop clignotement nav
       document.querySelectorAll('#navMessages, #bottomNavMessages, [data-nav="messages"]').forEach(function (el) {
         el.classList.remove('has-unread-messages', 'nav-blink', 'blink', 'pulse');
         var b = el.querySelector('.messages-badge, .badge');
@@ -296,7 +286,10 @@
     } catch (e) {}
   }
 
-  // ---- Sidebar ----
+  function escAttr(s) {
+    return String(s || '').split("'").join("\\'");
+  }
+
   function buildMemberRow(p) {
     if (!p) return '';
     var isAdm = p.role === 'admin_general' || p.is_admin === true;
@@ -304,36 +297,32 @@
     var col = colorForUser(p.id, isAdm);
     var name = p.display_name || (isAdm ? 'Admin' : 'Host');
     var loc = [p.city, p.country].filter(Boolean).join(', ');
-    return (
-      '<div class="conversation" style="cursor:pointer" onclick="window.openStaffMemberDm(\'' + p.id + '\',\'' +
-      String(name).replace(/'/g, '\\'') + '\')">' +
-      '<div class="conv-avatar" style="background:' + col + ';color:#fff;position:relative">' +
-      (isAdm ? '🛡️' : '👤') +
-      '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:' +
-      (on ? '#22c55e' : '#94a3b8') + '"></span></div>' +
-      '<div class="conv-meta"><div class="conv-name">' + name +
-      ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + (isAdm ? 'Admin' : 'Host') + '</span></div>' +
-      '<div class="conv-preview" style="font-size:11px;color:#888">' +
-      (on ? '🟢 En ligne' : '⚫ Hors ligne') + (loc ? ' · ' + loc : '') +
-      '</div></div></div>'
-    );
+    var safeName = escAttr(name);
+    var html = '';
+    html += '<div class="conversation" style="cursor:pointer" onclick="window.openStaffMemberDm(\'' + p.id + '\',\'' + safeName + '\')">';
+    html += '<div class="conv-avatar" style="background:' + col + ';color:#fff;position:relative">';
+    html += isAdm ? '🛡️' : '👤';
+    html += '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:' + (on ? '#22c55e' : '#94a3b8') + '"></span></div>';
+    html += '<div class="conv-meta"><div class="conv-name">' + name;
+    html += ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + (isAdm ? 'Admin' : 'Host') + '</span></div>';
+    html += '<div class="conv-preview" style="font-size:11px;color:#888">';
+    html += (on ? '🟢 En ligne' : '⚫ Hors ligne') + (loc ? ' · ' + loc : '');
+    html += '</div></div></div>';
+    return html;
   }
 
   async function applyStaffMessagesUI() {
     if (!isStaff()) return;
 
-    // Renommer AMIS → ÉQUIPE partout
     document.querySelectorAll('#messages h2, #messages h3, #messages h4, #messages .section-title, .messages-sidebar h3, .messages-sidebar h4, #messages .conv-section-title').forEach(function (el) {
       var t = (el.textContent || '').trim();
       if (/^amis$/i.test(t) || /mes amis/i.test(t)) el.textContent = 'ÉQUIPE';
       if (/amis/i.test(t) && t.length < 30) el.textContent = t.replace(/amis/ig, 'Équipe');
     });
-    // Texte vide amis
     document.querySelectorAll('#messages p, #messages .conv-empty').forEach(function (el) {
       if (/Aucun ami|ajoute des amis/i.test(el.textContent || '')) el.style.display = 'none';
     });
 
-    // + Groupe : Admin seulement
     document.querySelectorAll('#createGroupBtn, [onclick*="openCreateGroup"], [onclick*="CreateGroup"], .messages-create-group, button').forEach(function (el) {
       var t = (el.textContent || '').trim();
       if (/^\+?\s*groupe$/i.test(t) || /créer un groupe|nouveau groupe/i.test(t)) {
@@ -346,13 +335,12 @@
     var friendsList = document.getElementById('convFriendsList');
     var groupsList = document.getElementById('convGroupsList');
 
-    // ---- ÉQUIPE (ex-Amis) ----
     if (friendsList) {
       if (typeof isAdmin === 'function' && isAdmin()) {
         var others = list.filter(function (p) { return p && p.id !== me; });
         friendsList.innerHTML = others.length
           ? others.map(buildMemberRow).join('')
-          : '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff pour l\'instant.</p>';
+          : '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff pour l instant.</p>';
       } else if (typeof isHost === 'function' && isHost()) {
         var admin = list.find(function (p) { return p.role === 'admin_general' || p.is_admin === true; });
         friendsList.innerHTML = admin
@@ -363,7 +351,6 @@
       }
     }
 
-    // ---- GROUPES : un seul Équipe AUPYGO ----
     var gid = await ensureStaffGroup();
     if (typeof isAdmin === 'function' && isAdmin()) await adminJoinAllGroups();
 
@@ -376,7 +363,6 @@
         '<div class="conv-preview" style="font-size:11px;color:#888">Canal officiel · ' +
         list.length + ' membre(s)</div></div></div>';
 
-      // Admin : autres groupes (hors doublons Équipe)
       if (typeof isAdmin === 'function' && isAdmin()) {
         try {
           var myM = await supabaseClient.from('conversation_members').select('conversation_id').eq('user_id', currentUser.id);
@@ -388,7 +374,7 @@
               if ((g.title || '').indexOf('Équipe AUPYGO') !== -1) return;
               html +=
                 '<div class="conversation" onclick="window.openStaffAnyGroup(\'' + g.id + '\',\'' +
-                String(g.title || 'Groupe').replace(/'/g, '\\'') + '\')">' +
+                escAttr(g.title || 'Groupe') + '\')">' +
                 '<div class="conv-avatar" style="background:#6366f1;color:#fff">👥</div>' +
                 '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div></div></div>';
             });
@@ -398,19 +384,18 @@
       groupsList.innerHTML = html;
     }
 
-    // Masquer Quitter/Supprimer pour Host (Admin garde)
-    if (!(typeof isAdmin === 'function' && isAdmin())) {
-      document.querySelectorAll('#messages button, .chat-header-actions button').forEach(function (btn) {
-        var t = (btn.textContent || '').toLowerCase();
-        if (/quitter|supprimer/i.test(t)) btn.style.display = 'none';
-      });
-    }
+    // Personne ne peut quitter le groupe Équipe (sauf suppression Admin)
+    document.querySelectorAll('#messages button, .chat-header-actions button').forEach(function (btn) {
+      var t = (btn.textContent || '').toLowerCase();
+      if (/quitter/i.test(t)) btn.style.display = 'none';
+      if (/supprimer/i.test(t) && !(typeof isAdmin === 'function' && isAdmin())) btn.style.display = 'none';
+    });
   }
 
   window.openStaffGroup = async function () {
     if (!isStaff()) return;
     var gid = await ensureStaffGroup();
-    if (!gid) { showToast('Impossible d\'ouvrir le groupe', 'error'); return; }
+    if (!gid) { showToast('Impossible d ouvrir le groupe', 'error'); return; }
     if (typeof go === 'function' && typeof getActivePage === 'function' && getActivePage() !== 'messages') go('messages');
     window.activeConversation = { type: 'group', id: gid, name: STAFF_GROUP_TITLE, conversationId: gid };
     await renderStaffChat(gid, true);
@@ -426,18 +411,14 @@
     applyStaffMessagesUI();
   };
 
-  // Intercepter envoi pour afficher prénom
   var _origSend = window.sendMessage;
   if (typeof _origSend === 'function' && !window._staffSendNamed) {
     window._staffSendNamed = true;
     var prevSend = window.sendMessage;
     window.sendMessage = async function () {
       if (!isStaff()) return prevSend.apply(this, arguments);
-      var input = document.getElementById('messageInput');
-      var body = input && input.value ? input.value.trim() : '';
       var r = await prevSend.apply(this, arguments);
-      // Recharger le chat pour afficher les labels
-      if (window.activeConversation && window.activeConversation.conversationId && body) {
+      if (window.activeConversation && window.activeConversation.conversationId) {
         setTimeout(function () {
           renderStaffChat(
             window.activeConversation.conversationId,
@@ -449,7 +430,6 @@
     };
   }
 
-  // Bloquer sidebar native
   var _origSidebar = window.renderConversationSidebar;
   if (typeof _origSidebar === 'function') {
     window.renderConversationSidebar = function () {
@@ -479,7 +459,7 @@
         if (!canStartDm(memberId)) {
           showToast(typeof isAdmin === 'function' && isAdmin()
             ? 'DM uniquement vers un membre Staff.'
-            : 'Uniquement avec l\'Admin Général.', 'error');
+            : 'Uniquement avec l Admin Général.', 'error');
           return;
         }
         if (typeof closeMemberProfile === 'function') closeMemberProfile();
@@ -509,12 +489,11 @@
   setInterval(function () {
     if (!isStaff()) return;
     if (typeof getActivePage === 'function' && getActivePage() === 'messages') {
-      // Maintenir le renommage AMIS → ÉQUIPE
       document.querySelectorAll('#messages h3, #messages h4, .messages-sidebar h3').forEach(function (el) {
         if (/^amis$/i.test((el.textContent || '').trim())) el.textContent = 'ÉQUIPE';
       });
     }
   }, 2000);
 
-  console.log('[AUPYGO] staff-messages.js v5');
+  console.log('[AUPYGO] staff-messages.js v5.1');
 })();
