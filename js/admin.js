@@ -103,6 +103,17 @@
       } catch (e) {
         console.warn('[Staff] role fetch', e);
       }
+
+      // FIX CRITIQUE : Staff/Admin ne doivent pas rester bloqués sur la landing inscription
+      // (app.js exige profileSaved=true basé sur identity_locked)
+      if (isStaff()) {
+        try { profileSaved = true; } catch (e) {}
+        try { window.profileSaved = true; } catch (e2) {}
+        try {
+          if (typeof updateHomeView === 'function') updateHomeView();
+        } catch (e3) {}
+      }
+
       applyStaffRestrictions();
       updateAdminButtonVisibility();
       if (typeof renderMarkers === 'function') renderMarkers();
@@ -382,7 +393,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260925ad';
+    s.src = src + '?v=20260925ae';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -395,6 +406,11 @@
       updateAdminButtonVisibility();
       enrichProfilesWithRoles();
       if (window.currentUser) ensureStaffRoleFromEmail();
+      if (isStaff()) {
+        try { profileSaved = true; } catch (e) {}
+        try { window.profileSaved = true; } catch (e2) {}
+        try { if (typeof updateHomeView === 'function') updateHomeView(); } catch (e3) {}
+      }
     }, 700);
     loadStaffScript('js/staff-ui.js');
     loadStaffScript('js/staff-messages.js');
@@ -410,5 +426,5 @@
   setInterval(updateAdminButtonVisibility, 4000);
   setInterval(applyStaffRestrictions, 5000);
 
-  console.log('[AUPYGO] admin.js v20260925ad');
+  console.log('[AUPYGO] admin.js v20260925ae');
 })();
