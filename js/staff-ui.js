@@ -1,11 +1,11 @@
-/* AUPYGO staff-ui.js v3.2 — Messages forcé entre Agenda et Profil */
+/* AUPYGO staff-ui.js v3.3 — badge ADMIN / STAFF */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260925c';
+    s.src = 'js/' + name + '?v=20260925d';
     document.body.appendChild(s);
   }
 
@@ -28,7 +28,6 @@
 
     var msg = document.getElementById('navMessages');
     if (!msg) {
-      // Créer le bouton s'il a été retiré du DOM
       msg = document.createElement('button');
       msg.type = 'button';
       msg.id = 'navMessages';
@@ -40,42 +39,26 @@
       nav.appendChild(msg);
     }
 
-    // Styles forcés (contre CSS qui masque)
     msg.style.cssText = 'display:inline-flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;position:relative !important;align-items:center;justify-content:center;';
     msg.classList.remove('hidden');
     msg.removeAttribute('hidden');
 
-    var agenda = nav.querySelector('[data-nav="agenda"]');
     var profile = nav.querySelector('[data-nav="profile"]');
-
     try {
-      // Ordre : agenda → messages → profile
-      if (profile) {
-        nav.insertBefore(msg, profile);
-      } else if (agenda && agenda.nextSibling) {
-        nav.insertBefore(msg, agenda.nextSibling);
-      } else {
-        nav.appendChild(msg);
-      }
+      if (profile) nav.insertBefore(msg, profile);
+      else nav.appendChild(msg);
     } catch (e) {
       try { nav.appendChild(msg); } catch (e2) {}
     }
 
-    // Masquer Amis
     var friends = document.getElementById('navFriends');
-    if (friends) {
-      friends.style.display = 'none';
-      friends.style.visibility = 'hidden';
-    }
+    if (friends) { friends.style.display = 'none'; friends.style.visibility = 'hidden'; }
 
     var extra = document.getElementById('navStaffMessages');
     if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
 
     var btm = document.getElementById('bottomNavMessages');
-    if (btm) {
-      btm.style.display = '';
-      btm.style.visibility = 'visible';
-    }
+    if (btm) { btm.style.display = ''; btm.style.visibility = 'visible'; }
   }
 
   function filterMoreMenu() {
@@ -170,12 +153,14 @@
 
   function applyStaffAvatar() {
     if (!isStaff()) return;
+    var isAdm = typeof isAdmin === 'function' && isAdmin();
+    var label = isAdm ? 'ADMIN' : 'STAFF';
     var avatar = document.getElementById('headerPlanAvatar');
-    if (avatar) { avatar.textContent = '🛡️'; avatar.title = 'AupygoStaff'; }
+    if (avatar) { avatar.textContent = '🛡️'; avatar.title = label; }
     var badge = document.getElementById('headerPlanBadge');
-    if (badge) { badge.textContent = 'STAFF'; badge.title = 'AupygoStaff'; }
+    if (badge) { badge.textContent = label; badge.title = label; }
     var bottomBadge = document.getElementById('bottomNavPlanBadge');
-    if (bottomBadge) bottomBadge.textContent = 'STAFF';
+    if (bottomBadge) bottomBadge.textContent = label;
     var bottomAv = document.getElementById('bottomNavAvatar');
     if (bottomAv) bottomAv.textContent = '🛡️';
   }
@@ -187,7 +172,7 @@
       if (!cells || cells.length < 3) return;
       var roleTxt = (cells[1].textContent || '').toLowerCase();
       if (roleTxt.indexOf('host') !== -1 || roleTxt.indexOf('admin_general') !== -1) {
-        cells[2].textContent = 'STAFF';
+        cells[2].textContent = roleTxt.indexOf('admin') !== -1 ? 'ADMIN' : 'STAFF';
       }
     });
   }
@@ -302,5 +287,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v3.2');
+  console.log('[AUPYGO] staff-ui.js v3.3');
 })();
