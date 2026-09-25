@@ -1,17 +1,11 @@
-/* AUPYGO staff-messages.js v4
- * - Liste membres sous Équipe (Admin + Hosts, online/offline)
- * - Prénom + couleur sur chaque message du groupe
- * - VERT = Admin Général
- */
+/* AUPYGO staff-messages.js v5 — Admin messaging complet */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
 
   var STAFF_GROUP_TITLE = '🛡️ Équipe AUPYGO';
   var staffGroupIdCache = null;
-  var adminDmCache = null;
   var staffMembersCache = [];
-
   var STAFF_COLORS = ['#7c3aed', '#2563eb', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#c026d3', '#0d9488'];
   var ADMIN_COLOR = '#16a34a';
 
@@ -25,8 +19,7 @@
   function colorForUser(uid, isAdminUser) {
     if (isAdminUser) return ADMIN_COLOR;
     if (!uid) return '#64748b';
-    var h = 0;
-    var s = String(uid);
+    var h = 0, s = String(uid);
     for (var i = 0; i < s.length; i++) h = ((h << 5) - h) + s.charCodeAt(i);
     return STAFF_COLORS[Math.abs(h) % STAFF_COLORS.length];
   }
@@ -53,24 +46,17 @@
         .limit(100);
       staffMembersCache = res.data || [];
       return staffMembersCache;
-    } catch (e) {
-      return staffMembersCache;
-    }
-  }
-
-  async function findAdminGeneralId() {
-    var list = staffMembersCache.length ? staffMembersCache : await loadStaffMembers();
-    return list.find(function (r) { return r.role === 'admin_general' || r.is_admin === true; }) || null;
+    } catch (e) { return staffMembersCache; }
   }
 
   function canStartDm(targetUserId) {
     if (typeof isAdmin === 'function' && isAdmin()) {
-      var target = profileById(targetUserId);
-      return !!(target && isMemberStaffProfile(target));
+      var t = profileById(targetUserId);
+      return !!(t && isMemberStaffProfile(t) && t.id !== (window.currentUser && window.currentUser.id));
     }
     if (typeof isHost === 'function' && isHost()) {
-      var t = profileById(targetUserId);
-      return !!(t && (t.role === 'admin_general' || t.is_admin === true));
+      var t2 = profileById(targetUserId);
+      return !!(t2 && (t2.role === 'admin_general' || t2.is_admin === true));
     }
     return false;
   }
@@ -88,47 +74,403 @@
           if (convs.data && convs.data.length) return convs.data[0].id;
         }
       }
-      var created = await supabaseClient.from('conversations').insert({ created_by: currentUser.id, type: 'dm', title: null }).select().single();
-      if (created.error || !created.data) {
-        console.warn('[Staff] create dm', created.error);
-        return null;
-      }
+      var created = await supabaseClient.from('conversations')
+        .insert({ created_by: currentUser.id, type: 'dm', title: null }).select().single();
+      if (created.error || !created.data) return null;
       var cid = created.data.id;
       await supabaseClient.from('conversation_members').insert([
         { conversation_id: cid, user_id: currentUser.id },
         { conversation_id: cid, user_id: otherUserId }
       ]);
       return cid;
-    } catch (e) {
-      console.warn('[Staff] ensureStaffDm', e);
-      return null;
-    }
+    } catch (e) { return null; }
   }
 
   async function openStaffDm(memberId, name) {
     try {
       if (typeof go === 'function') go('messages');
       var cid = await ensureStaffDmConversation(memberId);
-      if (!cid) {
-        showToast('Impossible d\'ouvrir la conversation (droits / RLS).', 'error');
-        return;
-      }
+      if (!cid) { showToast('Impossible d\'ouvrir la conversation (RLS).', 'error'); return; }
       window.activeConversation = { type: 'dm', id: memberId, name: name || 'Staff', conversationId: cid };
-      window._adminBypassDm = true;
-      if (typeof loadConversationHistory === 'function') await loadConversationHistory(cid);
-      var titleEl = document.getElementById('chatTitle') || document.querySelector('.chat-header-title');
-      if (titleEl) titleEl.textContent = '💬 ' + (name || 'Discussion');
-      window._adminBypassDm = false;
+      await renderStaffChat(cid, false);
+      markRead(cid);
       applyStaffMessagesUI();
     } catch (e) {
-      window._adminBypassDm = false;
       showToast('Impossible d\'ouvrir la conversation', 'error');
     }
   }
 
-  window.openStaffMemberDm = function (memberId, name) {
-    return openStaffDm(memberId, name);
+  window.openStaffMemberDm = function (id, name) { return openStaffDm(id, name); };
+
+  // ---- Groupe unique Équipe ----
+  async function ensureStaffGroup() {
+    if (!isStaff() || !window.currentUser) return null;
+    if (staffGroupIdCache) return staffGroupIdCache;
+    try {
+      // Chercher TOUS les groupes Équipe (dédupliquer)
+      var all = await supabaseClient.from('conversations')
+        .select('id, title, created_at')
+        .eq('type', 'group')
+        .ilike('title', '%Équipe AUPYGO%')
+        .order('created_at', { ascending: true });
+      var rows = all.data || [];
+      if (rows.length) {
+        staffGroupIdCache = rows[0].id;
+        // Supprimer les doublons (admin only)
+        if (typeof isAdmin === 'function' && isAdmin() && rows.length > 1) {
+          for (var i = 1; i < rows.length; i++) {
+            try {
+              await supabaseClient.from('conversation_members').delete().eq('conversation_id', rows[i].id);
+              await supabaseClient.from('messages').delete().eq('conversation_id', rows[i].id);
+              await supabaseClient.from('conversations').delete().eq('id', rows[i].id);
+            } catch (e) {}
+          }
+        }
+      } else {
+        var created = await supabaseClient.from('conversations').insert({
+          created_by: currentUser.id, type: 'group', title: STAFF_GROUP_TITLE
+        }).select().single();
+        if (created.error || !created.data) return null;
+        staffGroupIdCache = created.data.id;
+      }
+      await syncStaffMembers(staffGroupIdCache);
+      // S'assurer que l'utilisateur courant est membre
+      try {
+        await supabaseClient.from('conversation_members')
+          .insert({ conversation_id: staffGroupIdCache, user_id: currentUser.id });
+      } catch (e) {}
+      return staffGroupIdCache;
+    } catch (e) { return null; }
+  }
+
+  async function syncStaffMembers(convId) {
+    if (!convId) return;
+    try {
+      var list = await loadStaffMembers();
+      var existing = await supabaseClient.from('conversation_members').select('user_id').eq('conversation_id', convId);
+      var have = new Set(((existing && existing.data) || []).map(function (r) { return r.user_id; }));
+      var toAdd = list.filter(function (s) { return !have.has(s.id); }).map(function (s) {
+        return { conversation_id: convId, user_id: s.id };
+      });
+      if (toAdd.length) await supabaseClient.from('conversation_members').insert(toAdd);
+    } catch (e) {}
+  }
+
+  /** Admin auto-membre de tous les groupes */
+  async function adminJoinAllGroups() {
+    if (!(typeof isAdmin === 'function' && isAdmin()) || !window.currentUser) return;
+    try {
+      var groups = await supabaseClient.from('conversations').select('id').eq('type', 'group');
+      var ids = (groups.data || []).map(function (g) { return g.id; });
+      if (!ids.length) return;
+      var existing = await supabaseClient.from('conversation_members')
+        .select('conversation_id').eq('user_id', currentUser.id).in('conversation_id', ids);
+      var have = new Set(((existing && existing.data) || []).map(function (r) { return r.conversation_id; }));
+      var toAdd = ids.filter(function (id) { return !have.has(id); }).map(function (id) {
+        return { conversation_id: id, user_id: currentUser.id };
+      });
+      if (toAdd.length) await supabaseClient.from('conversation_members').insert(toAdd);
+    } catch (e) {}
+  }
+
+  // ---- Rendu chat avec prénoms ----
+  async function renderStaffChat(convId, isGroup) {
+    var box = document.getElementById('chatMessages');
+    if (!box || !convId) return;
+    await loadStaffMembers();
+
+    try {
+      var res = await supabaseClient.from('messages')
+        .select('id, content, sender_id, created_at')
+        .eq('conversation_id', convId)
+        .order('created_at', { ascending: true })
+        .limit(300);
+      var data = res.data || [];
+      box.innerHTML = '';
+
+      if (isGroup) {
+        var parts = await getParticipantsHtml(convId);
+        if (parts) {
+          var bar = document.createElement('div');
+          bar.id = 'staffParticipantsBar';
+          bar.style.cssText = 'padding:8px 12px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:12px;margin-bottom:8px;';
+          bar.innerHTML = parts;
+          box.appendChild(bar);
+        }
+      }
+
+      if (!data.length) {
+        var empty = document.createElement('div');
+        empty.className = 'chat-placeholder';
+        empty.innerHTML = '<p>Aucun message. Écris le premier !</p>';
+        box.appendChild(empty);
+        return;
+      }
+
+      var lastDate = null;
+      data.forEach(function (m) {
+        var dk = m.created_at ? String(m.created_at).slice(0, 10) : null;
+        if (dk && dk !== lastDate) {
+          var sep = document.createElement('div');
+          sep.className = 'chat-date-separator';
+          try {
+            sep.innerHTML = '<span>' + new Date(m.created_at).toLocaleDateString('fr-FR') + '</span>';
+          } catch (e) { sep.innerHTML = '<span>' + dk + '</span>'; }
+          box.appendChild(sep);
+          lastDate = dk;
+        }
+        appendNamedBubble(m.content, m.sender_id, m.created_at);
+      });
+      box.scrollTop = box.scrollHeight;
+    } catch (e) {
+      console.warn('[Staff] renderStaffChat', e);
+    }
+  }
+
+  function appendNamedBubble(text, senderId, createdAt) {
+    var box = document.getElementById('chatMessages');
+    if (!box) return;
+    var isMe = window.currentUser && senderId === window.currentUser.id;
+    var p = profileById(senderId);
+    var name = (p && p.display_name) || (isMe ? 'Moi' : 'Staff');
+    var isAdm = p && (p.role === 'admin_general' || p.is_admin === true);
+    var col = colorForUser(senderId, isAdm);
+
+    var wrap = document.createElement('div');
+    wrap.className = 'staff-msg-wrap';
+    wrap.setAttribute('data-user-id', senderId || '');
+    wrap.style.cssText = 'display:flex;flex-direction:column;margin:6px 0;' +
+      (isMe ? 'align-items:flex-end;' : 'align-items:flex-start;');
+
+    var label = document.createElement('div');
+    label.className = 'staff-sender-label';
+    label.style.cssText = 'font-size:11px;font-weight:800;color:' + col + ';margin:0 6px 2px;';
+    label.textContent = name + (isAdm ? ' · Admin' : '');
+
+    var bubble = document.createElement('div');
+    bubble.className = 'bubble' + (isMe ? ' me' : '');
+    bubble.textContent = text;
+    bubble.setAttribute('data-user-id', senderId || '');
+    if (!isMe) bubble.style.borderLeft = '3px solid ' + col;
+
+    wrap.appendChild(label);
+    wrap.appendChild(bubble);
+    box.appendChild(wrap);
+  }
+
+  async function getParticipantsHtml(convId) {
+    try {
+      var mem = await supabaseClient.from('conversation_members')
+        .select('user_id').eq('conversation_id', convId);
+      var ids = ((mem && mem.data) || []).map(function (r) { return r.user_id; });
+      if (!ids.length) return '';
+      await loadStaffMembers();
+      var names = ids.map(function (id) {
+        var p = profileById(id);
+        var n = (p && p.display_name) || 'Membre';
+        var isAdm = p && (p.role === 'admin_general' || p.is_admin === true);
+        var on = isOnline(p);
+        return '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 6px 2px 0;padding:2px 8px;background:#fff;border-radius:999px;border:1px solid #e2e8f0">' +
+          '<span style="width:8px;height:8px;border-radius:50%;background:' + (on ? '#22c55e' : '#94a3b8') + '"></span>' +
+          n + (isAdm ? ' <strong style="color:' + ADMIN_COLOR + '">Admin</strong>' : '') +
+          '</span>';
+      }).join('');
+      return '<strong style="margin-right:8px">Participants (' + ids.length + ') :</strong> ' + names;
+    } catch (e) { return ''; }
+  }
+
+  function markRead(convId) {
+    if (!convId || !window.currentUser) return;
+    try {
+      if (typeof markConversationRead === 'function') markConversationRead(convId, null);
+      if (window.unreadByConversation) {
+        window.unreadByConversation[convId] = 0;
+      }
+      if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
+      // Stop clignotement nav
+      document.querySelectorAll('#navMessages, #bottomNavMessages, [data-nav="messages"]').forEach(function (el) {
+        el.classList.remove('has-unread-messages', 'nav-blink', 'blink', 'pulse');
+        var b = el.querySelector('.messages-badge, .badge');
+        if (b) { b.textContent = '0'; b.style.display = 'none'; }
+      });
+    } catch (e) {}
+  }
+
+  // ---- Sidebar ----
+  function buildMemberRow(p) {
+    if (!p) return '';
+    var isAdm = p.role === 'admin_general' || p.is_admin === true;
+    var on = isOnline(p);
+    var col = colorForUser(p.id, isAdm);
+    var name = p.display_name || (isAdm ? 'Admin' : 'Host');
+    var loc = [p.city, p.country].filter(Boolean).join(', ');
+    return (
+      '<div class="conversation" style="cursor:pointer" onclick="window.openStaffMemberDm(\'' + p.id + '\',\'' +
+      String(name).replace(/'/g, '\\'') + '\')">' +
+      '<div class="conv-avatar" style="background:' + col + ';color:#fff;position:relative">' +
+      (isAdm ? '🛡️' : '👤') +
+      '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:' +
+      (on ? '#22c55e' : '#94a3b8') + '"></span></div>' +
+      '<div class="conv-meta"><div class="conv-name">' + name +
+      ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + (isAdm ? 'Admin' : 'Host') + '</span></div>' +
+      '<div class="conv-preview" style="font-size:11px;color:#888">' +
+      (on ? '🟢 En ligne' : '⚫ Hors ligne') + (loc ? ' · ' + loc : '') +
+      '</div></div></div>'
+    );
+  }
+
+  async function applyStaffMessagesUI() {
+    if (!isStaff()) return;
+
+    // Renommer AMIS → ÉQUIPE partout
+    document.querySelectorAll('#messages h2, #messages h3, #messages h4, #messages .section-title, .messages-sidebar h3, .messages-sidebar h4, #messages .conv-section-title').forEach(function (el) {
+      var t = (el.textContent || '').trim();
+      if (/^amis$/i.test(t) || /mes amis/i.test(t)) el.textContent = 'ÉQUIPE';
+      if (/amis/i.test(t) && t.length < 30) el.textContent = t.replace(/amis/ig, 'Équipe');
+    });
+    // Texte vide amis
+    document.querySelectorAll('#messages p, #messages .conv-empty').forEach(function (el) {
+      if (/Aucun ami|ajoute des amis/i.test(el.textContent || '')) el.style.display = 'none';
+    });
+
+    // + Groupe : Admin seulement
+    document.querySelectorAll('#createGroupBtn, [onclick*="openCreateGroup"], [onclick*="CreateGroup"], .messages-create-group, button').forEach(function (el) {
+      var t = (el.textContent || '').trim();
+      if (/^\+?\s*groupe$/i.test(t) || /créer un groupe|nouveau groupe/i.test(t)) {
+        el.style.display = (typeof isAdmin === 'function' && isAdmin()) ? '' : 'none';
+      }
+    });
+
+    var list = await loadStaffMembers();
+    var me = window.currentUser && window.currentUser.id;
+    var friendsList = document.getElementById('convFriendsList');
+    var groupsList = document.getElementById('convGroupsList');
+
+    // ---- ÉQUIPE (ex-Amis) ----
+    if (friendsList) {
+      if (typeof isAdmin === 'function' && isAdmin()) {
+        var others = list.filter(function (p) { return p && p.id !== me; });
+        friendsList.innerHTML = others.length
+          ? others.map(buildMemberRow).join('')
+          : '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff pour l\'instant.</p>';
+      } else if (typeof isHost === 'function' && isHost()) {
+        var admin = list.find(function (p) { return p.role === 'admin_general' || p.is_admin === true; });
+        friendsList.innerHTML = admin
+          ? buildMemberRow(admin)
+          : '<p class="conv-empty" style="opacity:0.7">Admin introuvable.</p>';
+      } else {
+        friendsList.innerHTML = '';
+      }
+    }
+
+    // ---- GROUPES : un seul Équipe AUPYGO ----
+    var gid = await ensureStaffGroup();
+    if (typeof isAdmin === 'function' && isAdmin()) await adminJoinAllGroups();
+
+    if (groupsList) {
+      var active = window.activeConversation && window.activeConversation.conversationId === gid ? ' active' : '';
+      var html =
+        '<div class="conversation' + active + '" onclick="window.openStaffGroup()">' +
+        '<div class="conv-avatar" style="background:#111;color:#fff">🛡️</div>' +
+        '<div class="conv-meta"><div class="conv-name">' + STAFF_GROUP_TITLE + '</div>' +
+        '<div class="conv-preview" style="font-size:11px;color:#888">Canal officiel · ' +
+        list.length + ' membre(s)</div></div></div>';
+
+      // Admin : autres groupes (hors doublons Équipe)
+      if (typeof isAdmin === 'function' && isAdmin()) {
+        try {
+          var myM = await supabaseClient.from('conversation_members').select('conversation_id').eq('user_id', currentUser.id);
+          var myIds = ((myM && myM.data) || []).map(function (r) { return r.conversation_id; });
+          if (myIds.length) {
+            var gs = await supabaseClient.from('conversations').select('id, title').eq('type', 'group').in('id', myIds);
+            (gs.data || []).forEach(function (g) {
+              if (!g || g.id === gid) return;
+              if ((g.title || '').indexOf('Équipe AUPYGO') !== -1) return;
+              html +=
+                '<div class="conversation" onclick="window.openStaffAnyGroup(\'' + g.id + '\',\'' +
+                String(g.title || 'Groupe').replace(/'/g, '\\'') + '\')">' +
+                '<div class="conv-avatar" style="background:#6366f1;color:#fff">👥</div>' +
+                '<div class="conv-meta"><div class="conv-name">' + (g.title || 'Groupe') + '</div></div></div>';
+            });
+          }
+        } catch (e) {}
+      }
+      groupsList.innerHTML = html;
+    }
+
+    // Masquer Quitter/Supprimer pour Host (Admin garde)
+    if (!(typeof isAdmin === 'function' && isAdmin())) {
+      document.querySelectorAll('#messages button, .chat-header-actions button').forEach(function (btn) {
+        var t = (btn.textContent || '').toLowerCase();
+        if (/quitter|supprimer/i.test(t)) btn.style.display = 'none';
+      });
+    }
+  }
+
+  window.openStaffGroup = async function () {
+    if (!isStaff()) return;
+    var gid = await ensureStaffGroup();
+    if (!gid) { showToast('Impossible d\'ouvrir le groupe', 'error'); return; }
+    if (typeof go === 'function' && typeof getActivePage === 'function' && getActivePage() !== 'messages') go('messages');
+    window.activeConversation = { type: 'group', id: gid, name: STAFF_GROUP_TITLE, conversationId: gid };
+    await renderStaffChat(gid, true);
+    markRead(gid);
+    applyStaffMessagesUI();
   };
+
+  window.openStaffAnyGroup = async function (gid, title) {
+    if (!(typeof isAdmin === 'function' && isAdmin())) return;
+    window.activeConversation = { type: 'group', id: gid, name: title || 'Groupe', conversationId: gid };
+    await renderStaffChat(gid, true);
+    markRead(gid);
+    applyStaffMessagesUI();
+  };
+
+  // Intercepter envoi pour afficher prénom
+  var _origSend = window.sendMessage;
+  if (typeof _origSend === 'function' && !window._staffSendNamed) {
+    window._staffSendNamed = true;
+    var prevSend = window.sendMessage;
+    window.sendMessage = async function () {
+      if (!isStaff()) return prevSend.apply(this, arguments);
+      var input = document.getElementById('messageInput');
+      var body = input && input.value ? input.value.trim() : '';
+      var r = await prevSend.apply(this, arguments);
+      // Recharger le chat pour afficher les labels
+      if (window.activeConversation && window.activeConversation.conversationId && body) {
+        setTimeout(function () {
+          renderStaffChat(
+            window.activeConversation.conversationId,
+            window.activeConversation.type === 'group'
+          );
+        }, 400);
+      }
+      return r;
+    };
+  }
+
+  // Bloquer sidebar native
+  var _origSidebar = window.renderConversationSidebar;
+  if (typeof _origSidebar === 'function') {
+    window.renderConversationSidebar = function () {
+      if (isStaff()) { applyStaffMessagesUI(); return; }
+      return _origSidebar.apply(this, arguments);
+    };
+  }
+
+  var _origHist = window.loadConversationHistory;
+  if (typeof _origHist === 'function') {
+    window.loadConversationHistory = async function (convId) {
+      if (isStaff()) {
+        var cid = convId || (window.activeConversation && window.activeConversation.conversationId);
+        var isG = window.activeConversation && window.activeConversation.type === 'group';
+        await renderStaffChat(cid, !!isG);
+        markRead(cid);
+        return;
+      }
+      return _origHist.apply(this, arguments);
+    };
+  }
 
   var _origMessageMember = window.messageMember;
   if (typeof _origMessageMember === 'function') {
@@ -148,301 +490,31 @@
     };
   }
 
-  var _origOpenConv = window.openConversation;
-  if (typeof _origOpenConv === 'function') {
-    window.openConversation = async function (type, id, name) {
-      if (type === 'dm' && isStaff()) {
-        if (window._adminBypassDm || canStartDm(id)) return openStaffDm(id, name);
-        showToast('Conversation privée non autorisée.', 'error');
-        return;
-      }
-      return _origOpenConv(type, id, name);
-    };
-  }
-
-  var _origGetDm = window.getOrCreateDmConversation;
-  if (typeof _origGetDm === 'function') {
-    window.getOrCreateDmConversation = async function (friendId) {
-      if (isStaff() && (canStartDm(friendId) || window._adminBypassDm)) return ensureStaffDmConversation(friendId);
-      if (isStaff()) { showToast('Conversation privée interdite.', 'error'); return null; }
-      return _origGetDm(friendId);
-    };
-  }
-
-  async function ensureStaffGroup() {
-    if (!isStaff() || !window.currentUser) return null;
-    if (staffGroupIdCache) return staffGroupIdCache;
-    try {
-      var myRows = await supabaseClient.from('conversation_members').select('conversation_id').eq('user_id', currentUser.id);
-      var myIds = ((myRows && myRows.data) || []).map(function (r) { return r.conversation_id; });
-      if (myIds.length) {
-        var groups = await supabaseClient.from('conversations').select('id, title, type').eq('type', 'group').in('id', myIds);
-        var found = ((groups && groups.data) || []).find(function (g) {
-          return (g.title || '').indexOf('Équipe AUPYGO') !== -1;
-        });
-        if (found) {
-          staffGroupIdCache = found.id;
-          await syncStaffMembers(found.id);
-          return found.id;
-        }
-      }
-      var anyStaff = await supabaseClient.from('conversations').select('id, title').eq('type', 'group').ilike('title', '%Équipe AUPYGO%').limit(1);
-      if (anyStaff && anyStaff.data && anyStaff.data.length) {
-        staffGroupIdCache = anyStaff.data[0].id;
-        try { await supabaseClient.from('conversation_members').insert({ conversation_id: staffGroupIdCache, user_id: currentUser.id }); } catch (e) {}
-        await syncStaffMembers(staffGroupIdCache);
-        return staffGroupIdCache;
-      }
-      var created = await supabaseClient.from('conversations').insert({
-        created_by: currentUser.id, type: 'group', title: STAFF_GROUP_TITLE
-      }).select().single();
-      if (created.error || !created.data) return null;
-      staffGroupIdCache = created.data.id;
-      await supabaseClient.from('conversation_members').insert({ conversation_id: staffGroupIdCache, user_id: currentUser.id });
-      await syncStaffMembers(staffGroupIdCache);
-      return staffGroupIdCache;
-    } catch (e) { return null; }
-  }
-
-  async function syncStaffMembers(convId) {
-    if (!convId) return;
-    try {
-      var list = await loadStaffMembers();
-      if (!list.length) return;
-      var existing = await supabaseClient.from('conversation_members').select('user_id').eq('conversation_id', convId);
-      var have = new Set(((existing && existing.data) || []).map(function (r) { return r.user_id; }));
-      var toAdd = list.filter(function (s) { return !have.has(s.id); }).map(function (s) {
-        return { conversation_id: convId, user_id: s.id };
-      });
-      if (toAdd.length) await supabaseClient.from('conversation_members').insert(toAdd);
-    } catch (e) {}
-  }
-
-  function renameAmisToEquipe() {
-    if (!isStaff()) return;
-    document.querySelectorAll(
-      '#messages h2, #messages h3, #messages .section-title, #messages .tab, #messages .conv-section-title, .messages-sidebar h3, .messages-sidebar h4'
-    ).forEach(function (el) {
-      var t = (el.textContent || '').trim();
-      if (/amis/i.test(t)) el.textContent = t.replace(/amis/ig, 'Équipe');
-    });
-  }
-
-  /** Patch appendBubble pour stocker sender + afficher prénom */
-  var _origAppend = window.appendBubble;
-  if (typeof _origAppend === 'function' && !window._staffAppendPatched) {
-    window._staffAppendPatched = true;
-    window.appendBubble = function (text, isMe, createdAt, senderId) {
-      _origAppend(text, isMe, createdAt);
-      if (!isStaff()) return;
-      var box = document.getElementById('chatMessages');
-      if (!box) return;
-      var bubbles = box.querySelectorAll('.bubble');
-      var last = bubbles[bubbles.length - 1];
-      if (!last || last.getAttribute('data-staff-labeled')) return;
-
-      var uid = senderId || (isMe && window.currentUser ? window.currentUser.id : null);
-      if (uid) last.setAttribute('data-user-id', uid);
-
-      var p = uid ? profileById(uid) : null;
-      var name = p ? (p.display_name || 'Staff') : (isMe ? 'Moi' : null);
-      var isAdm = p && (p.role === 'admin_general' || p.is_admin === true);
-      if (!name) return;
-
-      var col = colorForUser(uid, isAdm);
-      var wrap = document.createElement('div');
-      wrap.className = 'staff-msg-wrap';
-      wrap.setAttribute('data-staff-labeled', '1');
-      wrap.style.cssText = 'display:flex;flex-direction:column;' + (isMe ? 'align-items:flex-end;' : 'align-items:flex-start;');
-
-      var label = document.createElement('div');
-      label.className = 'staff-sender-label';
-      label.style.cssText = 'font-size:11px;font-weight:800;color:' + col + ';margin:4px 4px 2px;';
-      label.textContent = name + (isAdm ? ' · Admin' : '');
-
-      last.setAttribute('data-staff-labeled', '1');
-      if (!isMe) last.style.borderLeft = '3px solid ' + col;
-
-      try {
-        last.parentNode.insertBefore(wrap, last);
-        wrap.appendChild(label);
-        wrap.appendChild(last);
-      } catch (e) {
-        try { last.parentNode.insertBefore(label, last); } catch (e2) {}
-      }
-    };
-  }
-
-  /** Recharge l'historique avec prénoms */
-  async function renderStaffGroupHistory(convId) {
-    if (!convId) return;
-    var box = document.getElementById('chatMessages');
-    if (!box) return;
-    try {
-      await loadStaffMembers();
-      var res = await supabaseClient
-        .from('messages')
-        .select('id, content, sender_id, created_at')
-        .eq('conversation_id', convId)
-        .order('created_at', { ascending: true })
-        .limit(200);
-      var data = res.data || [];
-      box.innerHTML = '';
-      if (!data.length) {
-        box.innerHTML = '<div class="chat-placeholder"><p>Aucun message. Écris le premier !</p></div>';
-        return;
-      }
-      var lastDate = null;
-      data.forEach(function (m) {
-        var dk = m.created_at ? String(m.created_at).slice(0, 10) : null;
-        if (dk && dk !== lastDate) {
-          var sep = document.createElement('div');
-          sep.className = 'chat-date-separator';
-          try {
-            sep.innerHTML = '<span>' + new Date(m.created_at).toLocaleDateString('fr-FR') + '</span>';
-          } catch (e) { sep.innerHTML = '<span>' + dk + '</span>'; }
-          box.appendChild(sep);
-          lastDate = dk;
-        }
-        var isMe = window.currentUser && m.sender_id === window.currentUser.id;
-        if (typeof appendBubble === 'function') {
-          appendBubble(m.content, isMe, m.created_at, m.sender_id);
-        }
-      });
-      box.scrollTop = box.scrollHeight;
-    } catch (e) {
-      console.warn('[Staff] history', e);
-    }
-  }
-
-  function buildEquipeListHtml(list) {
-    if (!list || !list.length) {
-      return '<p class="conv-empty" style="opacity:0.7;font-size:12px;padding:8px">Aucun membre Staff.</p>';
-    }
-    var me = window.currentUser && window.currentUser.id;
-    return list.map(function (p) {
-      if (!p || p.id === me) return '';
-      var isAdm = p.role === 'admin_general' || p.is_admin === true;
-      var on = isOnline(p);
-      var col = colorForUser(p.id, isAdm);
-      var roleLabel = isAdm ? 'Admin' : 'Host';
-      var name = p.display_name || roleLabel;
-      var loc = [p.city, p.country].filter(Boolean).join(', ');
-      return (
-        '<div class="conversation" style="cursor:pointer" onclick="window.openStaffMemberDm(\'' + p.id + '\',\'' +
-        String(name).replace(/'/g, '\\'') + '\')">' +
-        '<div class="conv-avatar" style="background:' + col + ';color:#fff;position:relative">' +
-        (isAdm ? '🛡️' : '👤') +
-        '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:' +
-        (on ? '#22c55e' : '#94a3b8') + '"></span></div>' +
-        '<div class="conv-meta"><div class="conv-name">' + name +
-        ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + roleLabel + '</span></div>' +
-        '<div class="conv-preview" style="font-size:11px;color:#888">' +
-        (on ? '🟢 En ligne' : '⚫ Hors ligne') + (loc ? ' · ' + loc : '') +
-        '</div></div></div>'
-      );
-    }).join('');
-  }
-
-  async function applyStaffMessagesUI() {
-    if (!isStaff()) return;
-    renameAmisToEquipe();
-
-    var friendsList = document.getElementById('convFriendsList');
-    var groupsList = document.getElementById('convGroupsList');
-
-    document.querySelectorAll(
-      '#createGroupBtn, [onclick*="openCreateGroup"], [onclick*="CreateGroup"], .messages-create-group'
-    ).forEach(function (el) { el.style.display = 'none'; });
-
-    var list = await loadStaffMembers();
-
-    if (friendsList) {
-      if (typeof isAdmin === 'function' && isAdmin()) {
-        // Liste tous les hosts (+ autres admin si plusieurs)
-        var hosts = list.filter(function (p) {
-          return p && (p.role === 'host' || (p.role === 'admin_general' && p.id !== (window.currentUser && window.currentUser.id)));
-        });
-        friendsList.innerHTML = buildEquipeListHtml(hosts.length ? hosts : list);
-      } else if (typeof isHost === 'function' && isHost()) {
-        var admin = await findAdminGeneralId();
-        adminDmCache = admin;
-        friendsList.innerHTML = admin
-          ? buildEquipeListHtml([admin])
-          : '<p class="conv-empty" style="opacity:0.7">Admin introuvable.</p>';
-      } else {
-        friendsList.innerHTML = buildEquipeListHtml(list);
-      }
-    }
-
-    var gid = await ensureStaffGroup();
-    if (groupsList) {
-      var active = window.activeConversation && window.activeConversation.conversationId === gid ? ' active' : '';
-      groupsList.innerHTML =
-        '<div class="conversation' + active + '" onclick="window.openStaffGroup()">' +
-        '<div class="conv-avatar" style="background:#111;color:#fff">🛡️</div>' +
-        '<div class="conv-meta"><div class="conv-name">' + STAFF_GROUP_TITLE + '</div>' +
-        '<div class="conv-preview" style="font-size:11px;color:#888">Canal officiel · ' +
-        list.length + ' membre(s)</div></div></div>';
-    }
-  }
-
-  window.openAdminChannel = async function () {
-    if (!(typeof isHost === 'function' && isHost())) return;
-    var admin = adminDmCache || await findAdminGeneralId();
-    if (!admin) { showToast('Admin Général introuvable', 'error'); return; }
-    await openStaffDm(admin.id, admin.display_name || 'Admin Général');
-  };
-
-  window.openStaffGroup = async function () {
-    if (!isStaff()) return;
-    var gid = await ensureStaffGroup();
-    if (!gid) { showToast('Impossible d\'ouvrir le groupe staff', 'error'); return; }
-    if (typeof go === 'function' && typeof getActivePage === 'function' && getActivePage() !== 'messages') go('messages');
-    window.activeConversation = { type: 'group', id: gid, name: STAFF_GROUP_TITLE, conversationId: gid };
-    await renderStaffGroupHistory(gid);
-    applyStaffMessagesUI();
-  };
-
-  var _origSidebar = window.renderConversationSidebar;
-  if (typeof _origSidebar === 'function') {
-    window.renderConversationSidebar = function () {
-      if (isStaff()) { applyStaffMessagesUI(); return; }
-      return _origSidebar.apply(this, arguments);
-    };
-  }
-
-  var _origHist = window.loadConversationHistory;
-  if (typeof _origHist === 'function') {
-    window.loadConversationHistory = async function (convId) {
-      if (isStaff() && window.activeConversation && window.activeConversation.type === 'group') {
-        await renderStaffGroupHistory(convId || window.activeConversation.conversationId);
-        return;
-      }
-      var r = await _origHist.apply(this, arguments);
-      return r;
-    };
-  }
-
   var prevGo = window.go;
   if (typeof prevGo === 'function') {
     window.go = function (page) {
       prevGo(page);
       if (page === 'messages' && isStaff()) {
-        setTimeout(applyStaffMessagesUI, 300);
-        setTimeout(applyStaffMessagesUI, 1200);
+        setTimeout(applyStaffMessagesUI, 250);
+        setTimeout(applyStaffMessagesUI, 1000);
+        if (typeof isAdmin === 'function' && isAdmin()) setTimeout(adminJoinAllGroups, 1200);
       }
     };
   }
 
   setTimeout(function () {
     if (isStaff() && typeof getActivePage === 'function' && getActivePage() === 'messages') applyStaffMessagesUI();
-  }, 1500);
+  }, 1200);
 
   setInterval(function () {
     if (!isStaff()) return;
-    if (typeof getActivePage === 'function' && getActivePage() === 'messages') renameAmisToEquipe();
-  }, 3000);
+    if (typeof getActivePage === 'function' && getActivePage() === 'messages') {
+      // Maintenir le renommage AMIS → ÉQUIPE
+      document.querySelectorAll('#messages h3, #messages h4, .messages-sidebar h3').forEach(function (el) {
+        if (/^amis$/i.test((el.textContent || '').trim())) el.textContent = 'ÉQUIPE';
+      });
+    }
+  }, 2000);
 
-  console.log('[AUPYGO] staff-messages.js v4');
+  console.log('[AUPYGO] staff-messages.js v5');
 })();
