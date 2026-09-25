@@ -1,4 +1,4 @@
-/* AUPYGO staff-profile.js — âge 22-80, champs limités, sans Mon agenda */
+/* AUPYGO staff-profile.js v2 — profil Admin/Staff débloqué */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -12,11 +12,27 @@
       var el = document.getElementById(id);
       if (el) { el.style.display = 'none'; el.setAttribute('hidden', 'true'); }
     });
+    // Bloc "Mon agenda" en bas profil
+    document.querySelectorAll('#profile .card, #profile section').forEach(function (card) {
+      var t = (card.textContent || '').toLowerCase();
+      if (/mon agenda aupygo|agenda privé aupygo/i.test(t) && card.querySelector('#personalCalendar, #myAgendaList, #personalAgendaBox')) {
+        card.style.display = 'none';
+      }
+    });
   }
 
   function unlockIdentityFields() {
     if (!isStaff()) return;
-    ['firstName', 'age', 'country', 'city'].forEach(function (id) {
+
+    // Afficher le formulaire principal
+    document.querySelectorAll('#profile .profile-form-card, #profile form, #profile .card').forEach(function (el) {
+      if (el.id === 'personalAgendaBox') return;
+      el.style.display = '';
+      el.removeAttribute('hidden');
+    });
+
+    // Champs autorisés
+    ['firstName', 'age', 'country', 'city', 'gender'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
       el.disabled = false;
@@ -24,15 +40,45 @@
       el.removeAttribute('readonly');
       el.removeAttribute('disabled');
       el.style.display = '';
+      el.style.pointerEvents = '';
+      el.style.opacity = '1';
       var g = el.closest('.form-group');
-      if (g) g.style.display = '';
+      if (g) {
+        g.style.display = '';
+        g.style.visibility = 'visible';
+        g.removeAttribute('hidden');
+      }
     });
-    var formCard = document.querySelector('#profile .profile-form-card');
-    if (formCard) formCard.style.display = '';
+
+    // Genre (boutons)
+    var genderGroup = document.getElementById('genderGroup');
+    if (genderGroup) {
+      genderGroup.style.display = '';
+      genderGroup.style.visibility = 'visible';
+    }
     document.querySelectorAll('#genderGroup button, .gender-btn, [data-gender]').forEach(function (btn) {
       btn.disabled = false;
-      btn.style.pointerEvents = '';
-      btn.style.opacity = '';
+      btn.style.pointerEvents = 'auto';
+      btn.style.opacity = '1';
+      btn.style.display = '';
+    });
+
+    // Langues si présentes
+    var langBox = document.getElementById('languageSelect') || document.querySelector('#profile .lang-chips, #profile #langs');
+    if (langBox) {
+      var lg = langBox.closest('.form-group');
+      if (lg) lg.style.display = '';
+    }
+
+    // Bouton enregistrer
+    document.querySelectorAll('#profile button[onclick*="saveProfile"], #saveProfileBtn, #profile .btn-primary').forEach(function (btn) {
+      var t = (btn.textContent || '').toLowerCase();
+      if (/enregistrer|sauvegarder|save|valider/i.test(t) || (btn.getAttribute('onclick') || '').indexOf('saveProfile') !== -1) {
+        btn.style.display = '';
+        btn.disabled = false;
+        btn.style.pointerEvents = 'auto';
+        btn.style.opacity = '1';
+      }
     });
   }
 
@@ -78,8 +124,6 @@
       ageEl.setAttribute('min', String(STAFF_AGE_MIN));
       ageEl.setAttribute('max', String(STAFF_AGE_MAX));
       ageEl.setAttribute('type', 'number');
-      var n = parseInt(ageEl.value, 10);
-      if (!isNaN(n) && (n < STAFF_AGE_MIN || n > STAFF_AGE_MAX)) ageEl.value = '';
     }
   }
 
@@ -120,8 +164,8 @@
       }
     });
 
-    // Boutons supprimer / abonnements
-    document.querySelectorAll('button, a, .btn').forEach(function (btn) {
+    // Boutons supprimer / abonnements / mon agenda
+    document.querySelectorAll('#profile button, #profile a, #profile .btn').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       if (/supprimer mon profil|supprimer.*compte|delete.*account/i.test(t)) btn.style.display = 'none';
       if (/voir les abonnements|abonnement|passer en premium|voir les offres/i.test(t)) btn.style.display = 'none';
@@ -213,7 +257,8 @@
       prevGo(page);
       if (page === 'profile') {
         setTimeout(applyStaffProfileUI, 150);
-        setTimeout(applyStaffProfileUI, 600);
+        setTimeout(applyStaffProfileUI, 500);
+        setTimeout(applyStaffProfileUI, 1200);
       }
     };
   }
@@ -225,7 +270,7 @@
       enforceStaffAgeRange();
       hideStaffOnlyExtras();
     }
-  }, 2500);
+  }, 2000);
 
-  console.log('[AUPYGO] staff-profile.js (âge 22-80)');
+  console.log('[AUPYGO] staff-profile.js v2');
 })();
