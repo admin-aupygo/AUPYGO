@@ -204,7 +204,7 @@
 
   function updateAdminButtonVisibility() {
     var btn = document.getElementById('navAdminBtn');
-    if (btn) btn.style.display = isAdmin() ? 'flex' : 'none';
+    if (btn) btn.style.display = 'none';
   }
 
   function injectAdminPage() {
@@ -223,7 +223,7 @@
       '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;padding:14px;background:#fff;border:1px solid #e8e4ef;border-radius:16px">' +
         '<input type="search" id="adminSearchInput" placeholder="🔍 Rechercher un membre…" oninput="window.adminOnSearch(this.value)" style="flex:1;min-width:180px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px">' +
         '<select id="adminFilterSelect" onchange="window.adminOnFilter(this.value)" style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:13px">' +
-          '<option value="all">Tous</option><option value="online">En ligne</option><option value="host">Hôtes</option><option value="admin">Admins</option>' +
+          '<option value="all">Tous</option><option value="online">En ligne</option><option value="host">Staff</option><option value="admin">Admins</option>' +
         '</select>' +
         '<button class="btn btn-secondary" onclick="window.adminRefresh()" style="border-radius:12px">🔄 Actualiser</button>' +
       '</div>' +
@@ -241,6 +241,24 @@
         '</table>' +
       '</div>';
     main.appendChild(section);
+    if (!document.getElementById('adminActionStyles')) {
+      var st2 = document.createElement('style');
+      st2.id = 'adminActionStyles';
+      st2.textContent =
+        '.admin-actions-frozen{display:flex;flex-wrap:wrap;gap:4px;opacity:0.55}' +
+        '.admin-act-btn{padding:5px 10px;border-radius:8px;border:1px solid #e2e8f0;background:#f1f5f9;font-size:11px;font-weight:600;cursor:not-allowed;color:#94a3b8}' +
+        '#admin{padding-bottom:40px}' +
+        '.admin-stat-card{background:#fff;border:1px solid #e8e4ef;border-radius:16px;padding:18px 14px;text-align:center}' +
+        '.admin-stat-value{font-size:28px;font-weight:800;color:#7c3aed}' +
+        '.admin-stat-label{font-size:12px;color:#64748b;margin-top:4px;font-weight:600}' +
+        '#adminTableBody td{padding:14px 16px;border-top:1px solid #f1f5f9;vertical-align:middle}' +
+        '#adminTableBody tr:hover td{background:#fafafa}' +
+        '.admin-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700}' +
+        '.admin-badge.host{background:#334155;color:#fff}' +
+        '.admin-badge.admin_general{background:#111;color:#fff}' +
+        '.admin-badge.user{background:#e2e8f0;color:#475569}';
+      document.head.appendChild(st2);
+    }
   }
 
   var adminUsersCache = [];
@@ -305,21 +323,32 @@
     }
     tbody.innerHTML = list.map(function (u) {
       var name = u.display_name || 'Sans nom';
+      var rawRole = u.role || (u.is_admin ? 'admin_general' : 'user');
+      var roleLabel = 'User';
+      var roleClass = 'user';
       var plan = (u.subscription || 'FREE').toUpperCase();
-      if (u.role === 'host') plan = 'STAFF';
-      if (u.role === 'admin_general' || u.is_admin) plan = 'ADMIN';
-      var role = u.role || (u.is_admin ? 'admin_general' : 'user');
+      if (rawRole === 'host' || rawRole === 'moderator') {
+        roleLabel = 'Staff · Sergent';
+        roleClass = 'host';
+        plan = 'STAFF';
+      } else if (rawRole === 'admin_general' || u.is_admin) {
+        roleLabel = 'Admin';
+        roleClass = 'admin_general';
+        plan = 'ADMIN';
+      }
       var loc = [u.city, u.country || u.host_country].filter(Boolean).join(', ') || '—';
       var online = u.is_online || (u.last_seen && (now - new Date(u.last_seen).getTime()) < ONLINE);
       var lastSeen = u.last_seen
         ? new Date(u.last_seen).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
         : '—';
       var actions =
-        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'host\')">→ Hôte</button>' +
-        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'user\')">→ User</button>' +
-        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'admin_general\')">→ Admin</button>';
+        '<div class="admin-actions-frozen" title="Actions temporairement désactivées">' +
+        '<button type="button" disabled class="admin-act-btn" data-action="staff" data-uid="' + u.id + '">→ STAFF</button>' +
+        '<button type="button" disabled class="admin-act-btn" data-action="user" data-uid="' + u.id + '">→ User</button>' +
+        '<button type="button" disabled class="admin-act-btn" data-action="admin" data-uid="' + u.id + '">→ Admin</button>' +
+        '</div>';
       return '<tr><td><strong>' + esc(name) + '</strong></td>' +
-        '<td><span class="admin-badge ' + role + '">' + role + '</span></td>' +
+        '<td><span class="admin-badge ' + roleClass + '">' + roleLabel + '</span></td>' +
         '<td>' + plan + '</td><td>' + esc(loc) + '</td>' +
         '<td>' + (online ? '🟢' : '⚫') + ' ' + lastSeen + '</td><td>' + actions + '</td></tr>';
     }).join('');
@@ -329,6 +358,7 @@
   window.adminOnFilter = function (v) { adminFilter = v || 'all'; renderAdminTable(); };
   window.adminRefresh = function () { loadAdminData(); if (typeof showToast === 'function') showToast('Actualisé', 'success'); };
 
+  // Conservé pour usage futur (actions gelées dans le tableau)
   window.adminSetRole = async function (userId, newRole) {
     if (!isAdmin()) return;
     if (!confirm('Changer le rôle en « ' + newRole + ' » ?')) return;
@@ -353,7 +383,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260925ab';
+    s.src = src + '?v=20260925ac';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -381,5 +411,5 @@
   setInterval(updateAdminButtonVisibility, 4000);
   setInterval(applyStaffRestrictions, 5000);
 
-  console.log('[AUPYGO] admin.js v20260925ab');
+  console.log('[AUPYGO] admin.js v20260925ac');
 })();
