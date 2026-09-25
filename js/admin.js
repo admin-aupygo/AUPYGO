@@ -241,23 +241,6 @@
         '</table>' +
       '</div>';
     main.appendChild(section);
-    if (!document.getElementById('adminPageStyles')) {
-      var st = document.createElement('style');
-      st.id = 'adminPageStyles';
-      st.textContent =
-        '.admin-stat-card{background:#fff;border:1px solid #e8e4ef;border-radius:16px;padding:18px 14px;text-align:center}' +
-        '.admin-stat-value{font-size:28px;font-weight:800;color:#7c3aed}' +
-        '.admin-stat-label{font-size:12px;color:#64748b;margin-top:4px;font-weight:600}' +
-        '#adminTableBody td{padding:12px 16px;border-top:1px solid #f1f5f9;vertical-align:middle}' +
-        '#adminTableBody tr:hover td{background:#fafafa}' +
-        '.admin-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700}' +
-        '.admin-badge.admin_general{background:#111;color:#fff}' +
-        '.admin-badge.host{background:#334155;color:#fff}' +
-        '.admin-badge.user{background:#e2e8f0;color:#475569}' +
-        '#adminTableBody button{padding:5px 10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:11px;font-weight:600;margin:2px}' +
-        '#adminTableBody button:hover{background:#ede9fe;border-color:#c4b5fd}';
-      document.head.appendChild(st);
-    }
   }
 
   var adminUsersCache = [];
@@ -370,7 +353,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260925z';
+    s.src = src + '?v=20260925ab';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -389,6 +372,7 @@
     loadStaffScript('js/staff-events.js');
     loadStaffScript('js/staff-profile.js');
     loadStaffScript('js/staff-msg-unlock.js');
+    loadStaffScript('js/staff-agenda-nav.js');
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
@@ -397,5 +381,5 @@
   setInterval(updateAdminButtonVisibility, 4000);
   setInterval(applyStaffRestrictions, 5000);
 
-  console.log('[AUPYGO] admin.js v20260925z');
+  console.log('[AUPYGO] admin.js v20260925ab');
 })();
