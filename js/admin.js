@@ -7,9 +7,7 @@
   'use strict';
 
   var STAFF_EMAIL_PATTERN = /^aupygo-staff[-.].+@.+$/i;
-  var STAFF_EMAIL_WHITELIST = [
-    'aupygo-staff-fr1@protonmail.com'
-  ];
+  var STAFF_EMAIL_WHITELIST = ['aupygo-staff-fr1@protonmail.com'];
   var ADMIN_EMAILS = ['aupygo@protonmail.com'];
 
   function emailLooksStaff(email) {
@@ -23,8 +21,7 @@
 
   function isEmailConfirmed(user) {
     if (!user) return false;
-    if (user.email_confirmed_at) return true;
-    if (user.confirmed_at) return true;
+    if (user.email_confirmed_at || user.confirmed_at) return true;
     if (user.user_metadata && user.user_metadata.email_verified === true) return true;
     return false;
   }
@@ -52,7 +49,6 @@
     var wanted = emailLooksStaff(window.currentUser.email);
     if (!wanted) return;
     if (!isEmailConfirmed(window.currentUser)) {
-      console.warn('[Staff] e-mail non validé — rôle staff non appliqué');
       window.currentUserRole = 'user';
       window.currentUserIsAdmin = false;
       return;
@@ -60,15 +56,13 @@
     try {
       var res = await supabaseClient.from('profiles').select('id, role, is_admin').eq('id', window.currentUser.id).maybeSingle();
       var profile = res.data;
-      var needUpdate = false;
-      if (!profile) needUpdate = true;
-      else if (wanted === 'admin_general' && profile.role !== 'admin_general') needUpdate = true;
-      else if (wanted === 'host' && profile.role !== 'host' && profile.role !== 'admin_general') needUpdate = true;
+      var needUpdate = !profile ||
+        (wanted === 'admin_general' && profile.role !== 'admin_general') ||
+        (wanted === 'host' && profile.role !== 'host' && profile.role !== 'admin_general');
       if (needUpdate) {
         var payload = { id: window.currentUser.id, role: wanted, subscription: 'PREMIUM' };
         var up = await supabaseClient.from('profiles').upsert(payload, { onConflict: 'id' });
         if (up.error) {
-          console.warn('[Staff] auto-role', up.error);
           await supabaseClient.from('profiles').update({ role: wanted, subscription: 'PREMIUM' }).eq('id', window.currentUser.id);
         }
       }
@@ -117,9 +111,8 @@
 
   function applyStaffRestrictions() {
     var staff = isStaff();
-    var friendsBtn = document.getElementById('navFriends');
-    var homeFriendsBtn = document.getElementById('homeBtnFriends');
-    [friendsBtn, homeFriendsBtn].forEach(function (btn) {
+    ['navFriends', 'homeBtnFriends'].forEach(function (id) {
+      var btn = document.getElementById(id);
       if (!btn) return;
       if (staff) {
         btn.style.opacity = '0.35';
@@ -162,37 +155,27 @@
         if (map[p.id]) { p.role = map[p.id].role; p.is_admin = map[p.id].is_admin; }
       });
       if (typeof renderMarkers === 'function') renderMarkers();
-    } catch (e) { console.warn('[Staff] enrich', e); }
+    } catch (e) {}
   }
 
   if (typeof window.openMemberProfile === 'function' && !window._staffOpenMemberPatched) {
     window._staffOpenMemberPatched = true;
     var _origOpenMember = window.openMemberProfile;
-    window.openMemberProfile = function (memberId, opts) {
+    window.openMemberProfile = function (memberId) {
       if (!isStaff()) { _origOpenMember(memberId); return; }
       _origOpenMember(memberId);
       setTimeout(function () {
         var box = document.getElementById('memberModal');
         if (!box) return;
-        box.querySelectorAll('.member-friend-btn, button[onclick*="Friend"], button[onclick*="friend"], button[onclick*="sendFriend"]').forEach(function (btn) {
+        box.querySelectorAll('.member-friend-btn, button[onclick*="Friend"], button[onclick*="friend"]').forEach(function (btn) {
           btn.style.display = 'none';
         });
         var target = (window.profiles || []).find(function (p) { return p && p.id === memberId; });
         var targetStaff = target && (target.is_admin === true || ['admin_general','host','moderator'].indexOf((target.role||'').toLowerCase()) >= 0);
-        var allowMsg = false;
-        if (isAdmin() && targetStaff) allowMsg = true;
-        if (isHost() && target && (target.role === 'admin_general' || target.is_admin === true)) allowMsg = true;
-        box.querySelectorAll('.member-msg-btn, button[onclick*="Message"], button[onclick*="message"], button[onclick*="messageMember"]').forEach(function (btn) {
+        var allowMsg = (isAdmin() && targetStaff) || (isHost() && target && (target.role === 'admin_general' || target.is_admin === true));
+        box.querySelectorAll('.member-msg-btn, button[onclick*="Message"], button[onclick*="messageMember"]').forEach(function (btn) {
           btn.style.display = allowMsg ? '' : 'none';
-          if (allowMsg) btn.disabled = false;
         });
-        if (!allowMsg && !box.querySelector('.staff-readonly-badge')) {
-          var badge = document.createElement('div');
-          badge.className = 'staff-readonly-badge';
-          badge.style.cssText = 'margin-top:12px;font-size:12px;font-weight:700;color:#64748b;background:#f1f5f9;padding:8px 12px;border-radius:10px;';
-          badge.textContent = '👁️ Vue lecture seule (staff)';
-          box.appendChild(badge);
-        }
       }, 80);
     };
   }
@@ -217,25 +200,11 @@
       btn.onclick = function () { go('admin'); };
       nav.appendChild(btn);
     }
-    var moreList = document.querySelector('.more-sheet-list');
-    if (moreList && !document.getElementById('moreAdminItem')) {
-      var item = document.createElement('button');
-      item.type = 'button';
-      item.id = 'moreAdminItem';
-      item.className = 'more-sheet-item';
-      item.style.display = 'none';
-      item.innerHTML = '<span class="msi-icon">🛡️</span><span>Administration</span>';
-      item.onclick = function () { if (typeof closeMoreMenu === 'function') closeMoreMenu(); go('admin'); };
-      moreList.appendChild(item);
-    }
   }
 
   function updateAdminButtonVisibility() {
-    var visible = isAdmin();
     var btn = document.getElementById('navAdminBtn');
-    var more = document.getElementById('moreAdminItem');
-    if (btn) btn.style.display = visible ? 'flex' : 'none';
-    if (more) more.style.display = visible ? 'flex' : 'none';
+    if (btn) btn.style.display = isAdmin() ? 'flex' : 'none';
   }
 
   function injectAdminPage() {
@@ -245,8 +214,50 @@
     var section = document.createElement('section');
     section.id = 'admin';
     section.className = 'page';
-    section.innerHTML = '<div class="section-title"><h2>🛡️ Administration AUPYGO</h2><p>Panneau réservé à l\'administrateur</p></div><div class="admin-stats" id="adminStats"></div><div class="admin-toolbar"><input type="search" id="adminSearchInput" placeholder="🔍 Rechercher…" oninput="window.adminOnSearch(this.value)"><select id="adminFilterSelect" onchange="window.adminOnFilter(this.value)"><option value="all">Tous</option><option value="online">En ligne</option><option value="host">Hôtes</option><option value="admin">Admins</option></select><button class="btn btn-secondary" onclick="window.adminRefresh()">🔄 Actualiser</button></div><div class="admin-table-wrap"><table class="admin-table"><thead><tr><th>Membre</th><th>Rôle</th><th>Plan</th><th>Localisation</th><th>Statut</th><th>Actions</th></tr></thead><tbody id="adminTableBody"><tr><td colspan="6" style="text-align:center;padding:30px;color:#888">Chargement…</td></tr></tbody></table></div>';
+    section.innerHTML =
+      '<div class="section-title" style="margin-bottom:20px">' +
+        '<h2 style="margin:0 0 6px">🛡️ Administration</h2>' +
+        '<p style="margin:0;color:#64748b;font-size:14px">Gestion des membres, rôles et équipe Aupygo</p>' +
+      '</div>' +
+      '<div id="adminStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px"></div>' +
+      '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;padding:14px;background:#fff;border:1px solid #e8e4ef;border-radius:16px">' +
+        '<input type="search" id="adminSearchInput" placeholder="🔍 Rechercher un membre…" oninput="window.adminOnSearch(this.value)" style="flex:1;min-width:180px;padding:10px 14px;border:1px solid #e2e8f0;border-radius:12px;font-size:14px">' +
+        '<select id="adminFilterSelect" onchange="window.adminOnFilter(this.value)" style="padding:10px 12px;border:1px solid #e2e8f0;border-radius:12px;font-size:13px">' +
+          '<option value="all">Tous</option><option value="online">En ligne</option><option value="host">Hôtes</option><option value="admin">Admins</option>' +
+        '</select>' +
+        '<button class="btn btn-secondary" onclick="window.adminRefresh()" style="border-radius:12px">🔄 Actualiser</button>' +
+      '</div>' +
+      '<div style="background:#fff;border:1px solid #e8e4ef;border-radius:16px;overflow:auto;box-shadow:0 4px 20px rgba(0,0,0,.04)">' +
+        '<table style="width:100%;border-collapse:collapse;font-size:13px">' +
+          '<thead><tr style="background:#f8fafc">' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Membre</th>' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Rôle</th>' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Plan</th>' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Localisation</th>' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Statut</th>' +
+            '<th style="text-align:left;padding:14px 16px;font-weight:700;color:#475569">Actions</th>' +
+          '</tr></thead>' +
+          '<tbody id="adminTableBody"><tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8">Chargement…</td></tr></tbody>' +
+        '</table>' +
+      '</div>';
     main.appendChild(section);
+    if (!document.getElementById('adminPageStyles')) {
+      var st = document.createElement('style');
+      st.id = 'adminPageStyles';
+      st.textContent =
+        '.admin-stat-card{background:#fff;border:1px solid #e8e4ef;border-radius:16px;padding:18px 14px;text-align:center}' +
+        '.admin-stat-value{font-size:28px;font-weight:800;color:#7c3aed}' +
+        '.admin-stat-label{font-size:12px;color:#64748b;margin-top:4px;font-weight:600}' +
+        '#adminTableBody td{padding:12px 16px;border-top:1px solid #f1f5f9;vertical-align:middle}' +
+        '#adminTableBody tr:hover td{background:#fafafa}' +
+        '.admin-badge{display:inline-block;padding:4px 10px;border-radius:999px;font-size:11px;font-weight:700}' +
+        '.admin-badge.admin_general{background:#111;color:#fff}' +
+        '.admin-badge.host{background:#334155;color:#fff}' +
+        '.admin-badge.user{background:#e2e8f0;color:#475569}' +
+        '#adminTableBody button{padding:5px 10px;border-radius:8px;border:1px solid #e2e8f0;background:#f8fafc;cursor:pointer;font-size:11px;font-weight:600;margin:2px}' +
+        '#adminTableBody button:hover{background:#ede9fe;border-color:#c4b5fd}';
+      document.head.appendChild(st);
+    }
   }
 
   var adminUsersCache = [];
@@ -256,14 +267,34 @@
   async function loadAdminData() {
     if (!isAdmin()) return;
     var tbody = document.getElementById('adminTableBody');
-    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888">Chargement…</td></tr>';
+    if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8">Chargement…</td></tr>';
     try {
-      var { data, error } = await supabaseClient.from('profiles').select('id, display_name, age, gender, city, country, host_country, subscription, last_seen, is_online, is_admin, role').order('last_seen', { ascending: false });
+      var { data, error } = await supabaseClient.from('profiles')
+        .select('id, display_name, age, gender, city, country, host_country, subscription, last_seen, is_online, is_admin, role')
+        .order('last_seen', { ascending: false });
       if (error) throw error;
       adminUsersCache = data || [];
+      renderAdminStats();
       renderAdminTable();
     } catch (e) {
       if (tbody) tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;color:#c00">Erreur</td></tr>';
+    }
+  }
+
+  function renderAdminStats() {
+    var box = document.getElementById('adminStats');
+    if (!box) return;
+    var list = adminUsersCache;
+    var now = Date.now();
+    var ONLINE = 15 * 60 * 1000;
+    var isOn = function (u) { return u.is_online === true || (u.last_seen && (now - new Date(u.last_seen).getTime()) < ONLINE); };
+    var staffN = list.filter(function (u) { return u.role === 'admin_general' || u.role === 'host' || u.is_admin; }).length;
+    box.innerHTML =
+      card(list.length, 'Membres') +
+      card(list.filter(isOn).length, 'En ligne') +
+      card(staffN, 'Staff / Admin');
+    function card(v, label) {
+      return '<div class="admin-stat-card"><div class="admin-stat-value">' + v + '</div><div class="admin-stat-label">' + label + '</div></div>';
     }
   }
 
@@ -278,20 +309,36 @@
     else if (adminFilter === 'admin') list = list.filter(function (u) { return u.role === 'admin_general' || u.is_admin; });
     if (adminSearch.trim()) {
       var q = adminSearch.trim().toLowerCase();
-      list = list.filter(function (u) { return [u.display_name, u.city, u.country].filter(Boolean).join(' ').toLowerCase().indexOf(q) !== -1; });
+      list = list.filter(function (u) {
+        return [u.display_name, u.city, u.country].filter(Boolean).join(' ').toLowerCase().indexOf(q) !== -1;
+      });
     }
-    if (!list.length) { tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:30px;color:#888">Aucun résultat</td></tr>'; return; }
-    function esc(s) { return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>'); }
+    if (!list.length) {
+      tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:40px;color:#94a3b8">Aucun résultat</td></tr>';
+      return;
+    }
+    function esc(s) {
+      return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+    }
     tbody.innerHTML = list.map(function (u) {
       var name = u.display_name || 'Sans nom';
       var plan = (u.subscription || 'FREE').toUpperCase();
-      if (u.role === 'host' || u.role === 'admin_general' || u.is_admin) plan = (u.role === 'admin_general' || u.is_admin) ? 'ADMIN' : 'STAFF';
+      if (u.role === 'host') plan = 'STAFF';
+      if (u.role === 'admin_general' || u.is_admin) plan = 'ADMIN';
       var role = u.role || (u.is_admin ? 'admin_general' : 'user');
       var loc = [u.city, u.country || u.host_country].filter(Boolean).join(', ') || '—';
       var online = u.is_online || (u.last_seen && (now - new Date(u.last_seen).getTime()) < ONLINE);
-      var lastSeen = u.last_seen ? new Date(u.last_seen).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—';
-      var actions = isAdmin() ? '<button onclick="window.adminSetRole(\'' + u.id + '\',\'host\')" style="font-size:11px;margin:2px">→ Hôte</button><button onclick="window.adminSetRole(\'' + u.id + '\',\'user\')" style="font-size:11px;margin:2px">→ User</button><button onclick="window.adminSetRole(\'' + u.id + '\',\'admin_general\')" style="font-size:11px;margin:2px">→ Admin</button>' : '';
-      return '<tr><td><strong>' + esc(name) + '</strong></td><td><span class="admin-badge ' + role + '">' + role + '</span></td><td>' + plan + '</td><td>' + esc(loc) + '</td><td>' + (online ? '🟢' : '⚫') + ' ' + lastSeen + '</td><td>' + actions + '</td></tr>';
+      var lastSeen = u.last_seen
+        ? new Date(u.last_seen).toLocaleString('fr-FR', { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
+        : '—';
+      var actions =
+        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'host\')">→ Hôte</button>' +
+        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'user\')">→ User</button>' +
+        '<button onclick="window.adminSetRole(\'' + u.id + '\',\'admin_general\')">→ Admin</button>';
+      return '<tr><td><strong>' + esc(name) + '</strong></td>' +
+        '<td><span class="admin-badge ' + role + '">' + role + '</span></td>' +
+        '<td>' + plan + '</td><td>' + esc(loc) + '</td>' +
+        '<td>' + (online ? '🟢' : '⚫') + ' ' + lastSeen + '</td><td>' + actions + '</td></tr>';
     }).join('');
   }
 
@@ -309,6 +356,7 @@
       if (error) throw error;
       var u = adminUsersCache.find(function (x) { return x.id === userId; });
       if (u) { u.role = newRole; if (payload.subscription) u.subscription = payload.subscription; }
+      renderAdminStats();
       renderAdminTable();
       if (typeof showToast === 'function') showToast('Rôle mis à jour', 'success');
     } catch (e) {
@@ -322,7 +370,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260925x';
+    s.src = src + '?v=20260925z';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -349,5 +397,5 @@
   setInterval(updateAdminButtonVisibility, 4000);
   setInterval(applyStaffRestrictions, 5000);
 
-  console.log('[AUPYGO] admin.js restauré v20260925x');
+  console.log('[AUPYGO] admin.js v20260925z');
 })();
