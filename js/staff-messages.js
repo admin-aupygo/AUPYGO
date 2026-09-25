@@ -1,4 +1,4 @@
-/* AUPYGO staff-messages.js v6.1 — Staff tab + groupes Admin + supprimer */
+/* AUPYGO staff-messages.js v6.2 — fix 409 doublons conversation_members */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -9,6 +9,30 @@
   var STAFF_COLORS = ['#7c3aed', '#2563eb', '#db2777', '#ea580c', '#0891b2', '#4f46e5', '#c026d3', '#0d9488'];
   var ADMIN_COLOR = '#16a34a';
   var selectedStaffForGroup = {};
+
+  /** Insert membres sans planter sur 409 (déjà membre) */
+  async function safeAddMembers(rows) {
+    if (!rows || !rows.length) return { error: null };
+    try {
+      var res = await supabaseClient
+        .from('conversation_members')
+        .upsert(rows, { onConflict: 'conversation_id,user_id', ignoreDuplicates: true });
+      if (res.error) {
+        for (var i = 0; i < rows.length; i++) {
+          var r = await supabaseClient.from('conversation_members').insert(rows[i]);
+          if (r.error && r.error.code !== '23505' &&
+              !/duplicate|conflict|unique|409/i.test(String(r.error.message || '') + String(r.error.code || ''))) {
+            console.warn('[Staff] add member', r.error);
+          }
+        }
+        return { error: null };
+      }
+      return res;
+    } catch (e) {
+      console.warn('[Staff] safeAddMembers', e);
+      return { error: null };
+    }
+  }
 
   function isMemberStaffProfile(p) {
     if (!p) return false;
@@ -50,18 +74,6 @@
     } catch (e) { return staffMembersCache; }
   }
 
-  function canStartDm(targetUserId) {
-    if (typeof isAdmin === 'function' && isAdmin()) {
-      var t = profileById(targetUserId);
-      return !!(t && isMemberStaffProfile(t) && t.id !== (window.currentUser && window.currentUser.id));
-    }
-    if (typeof isHost === 'function' && isHost()) {
-      var t2 = profileById(targetUserId);
-      return !!(t2 && (t2.role === 'admin_general' || t2.is_admin === true));
-    }
-    return false;
-  }
-
   async function ensureStaffDmConversation(otherUserId) {
     if (!window.currentUser || !otherUserId) return null;
     try {
@@ -79,7 +91,7 @@
         .insert({ created_by: currentUser.id, type: 'dm', title: null }).select().single();
       if (created.error || !created.data) return null;
       var cid = created.data.id;
-      await supabaseClient.from('conversation_members').insert([
+      await safeAddMembers([
         { conversation_id: cid, user_id: currentUser.id },
         { conversation_id: cid, user_id: otherUserId }
       ]);
@@ -123,10 +135,7 @@
         staffGroupIdCache = created.data.id;
       }
       await syncStaffMembers(staffGroupIdCache);
-      try {
-        await supabaseClient.from('conversation_members')
-          .insert({ conversation_id: staffGroupIdCache, user_id: currentUser.id });
-      } catch (e) {}
+      await safeAddMembers([{ conversation_id: staffGroupIdCache, user_id: currentUser.id }]);
       return staffGroupIdCache;
     } catch (e) { return null; }
   }
@@ -140,7 +149,7 @@
       var toAdd = list.filter(function (s) { return !have.has(s.id); }).map(function (s) {
         return { conversation_id: convId, user_id: s.id };
       });
-      if (toAdd.length) await supabaseClient.from('conversation_members').insert(toAdd);
+      if (toAdd.length) await safeAddMembers(toAdd);
     } catch (e) {}
   }
 
@@ -208,7 +217,7 @@
     var label = document.createElement('div');
     label.className = 'staff-sender-label';
     label.style.cssText = 'font-size:11px;font-weight:800;color:' + col + ';margin:0 6px 2px;';
-    label.textContent = name + (isAdm ? ' · Admin' : '');
+    label.textContent = name + (isAdm ? ' · Admin-Amiral' : '');
     var bubble = document.createElement('div');
     bubble.className = 'bubble' + (isMe ? ' me' : '');
     bubble.textContent = text;
@@ -231,7 +240,7 @@
         var on = isOnline(p);
         return '<span style="display:inline-flex;align-items:center;gap:4px;margin:2px 6px 2px 0;padding:2px 8px;background:#fff;border-radius:999px;border:1px solid #e2e8f0">' +
           '<span style="width:8px;height:8px;border-radius:50%;background:' + (on ? '#22c55e' : '#94a3b8') + '"></span>' +
-          n + (isAdm ? ' <strong style="color:' + ADMIN_COLOR + '">Admin</strong>' : '') +
+          n + (isAdm ? ' <strong style="color:' + ADMIN_COLOR + '">Admin-Amiral</strong>' : '') +
           '</span>';
       }).join('');
       return '<strong style="margin-right:8px">Participants (' + ids.length + ') :</strong> ' + names;
@@ -261,7 +270,7 @@
     var isAdm = p.role === 'admin_general' || p.is_admin === true;
     var on = isOnline(p);
     var col = colorForUser(p.id, isAdm);
-    var name = p.display_name || (isAdm ? 'Admin' : 'Host');
+    var name = p.display_name || (isAdm ? 'Admin-Amiral' : 'Host');
     var loc = [p.city, p.country].filter(Boolean).join(', ');
     var safeName = escAttr(name);
     var html = '';
@@ -270,7 +279,7 @@
     html += isAdm ? '🛡️' : '👤';
     html += '<span style="position:absolute;bottom:0;right:0;width:10px;height:10px;border-radius:50%;border:2px solid #fff;background:' + (on ? '#22c55e' : '#94a3b8') + '"></span></div>';
     html += '<div class="conv-meta"><div class="conv-name">' + name;
-    html += ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + (isAdm ? 'Admin' : 'Host') + '</span></div>';
+    html += ' <span style="font-size:10px;font-weight:700;color:' + col + '">' + (isAdm ? 'Admin-Amiral' : 'Host') + '</span></div>';
     html += '<div class="conv-preview" style="font-size:11px;color:#888">';
     html += (on ? '🟢 En ligne' : '⚫ Hors ligne') + (loc ? ' · ' + loc : '');
     html += '</div></div></div>';
@@ -309,11 +318,11 @@
     } else {
       pickList.innerHTML = others.map(function (p) {
         var isAdm = p.role === 'admin_general' || p.is_admin === true;
-        var name = p.display_name || (isAdm ? 'Admin' : 'Host');
+        var name = p.display_name || (isAdm ? 'Admin-Amiral' : 'Host');
         return '<label style="display:flex;align-items:center;gap:10px;padding:8px;border-radius:10px;cursor:pointer">' +
           '<input type="checkbox" data-staff-id="' + p.id + '" onchange="window.toggleStaffGroupPick(\'' + p.id + '\', this.checked)" style="width:18px;height:18px">' +
           '<span style="font-weight:600;font-size:13px">' + name +
-          ' <span style="font-size:11px;color:#64748b">' + (isAdm ? 'Admin' : 'Host') + '</span></span></label>';
+          ' <span style="font-size:11px;color:#64748b">' + (isAdm ? 'Admin-Amiral' : 'Host') + '</span></span></label>';
       }).join('');
     }
     var titleIn = document.getElementById('adminGroupTitleInput');
@@ -348,9 +357,8 @@
       var cid = created.data.id;
       var members = [{ conversation_id: cid, user_id: currentUser.id }];
       ids.forEach(function (uid) { members.push({ conversation_id: cid, user_id: uid }); });
-      var ins = await supabaseClient.from('conversation_members').insert(members);
-      if (ins.error) showToast('Groupe créé mais membres partiels: ' + ins.error.message, 'error');
-      else showToast('Groupe « ' + title + ' » créé', 'success');
+      await safeAddMembers(members);
+      showToast('Groupe « ' + title + ' » créé', 'success');
       var ov = document.getElementById('adminStaffGroupOverlay');
       if (ov) ov.style.display = 'none';
       await applyStaffMessagesUI();
@@ -406,16 +414,10 @@
       return;
     }
     if (!gid) return;
-    var msg = 'Supprimer le groupe « ' + (title || '') + ' » ?\n\n' +
-      'Cette action est définitive :\n' +
-      '• le groupe disparaît pour tous les membres\n' +
-      '• tous les messages sont effacés';
-    if (!confirm(msg)) return;
+    if (!confirm('Supprimer le groupe « ' + (title || '') + ' » ?\n\nCette action est définitive pour tous les membres.')) return;
     try {
-      var m = await supabaseClient.from('messages').delete().eq('conversation_id', gid);
-      if (m.error) console.warn('[Staff] delete messages', m.error);
-      var cm = await supabaseClient.from('conversation_members').delete().eq('conversation_id', gid);
-      if (cm.error) console.warn('[Staff] delete members', cm.error);
+      await supabaseClient.from('messages').delete().eq('conversation_id', gid);
+      await supabaseClient.from('conversation_members').delete().eq('conversation_id', gid);
       var c = await supabaseClient.from('conversations').delete().eq('id', gid);
       if (c.error) {
         showToast('Erreur suppression: ' + c.error.message, 'error');
@@ -580,5 +582,5 @@
     }
   }, 2000);
 
-  console.log('[AUPYGO] staff-messages.js v6.1');
+  console.log('[AUPYGO] staff-messages.js v6.2');
 })();
