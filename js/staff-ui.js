@@ -1,11 +1,11 @@
-/* AUPYGO staff-ui.js v3.1 — menu, pop-up centrée, nav Messages, unlock msg */
+/* AUPYGO staff-ui.js v3.2 — Messages forcé entre Agenda et Profil */
 (function () {
   'use strict';
 
   function loadScriptOnce(name) {
     if (document.querySelector('script[src*="' + name + '"]')) return;
     var s = document.createElement('script');
-    s.src = 'js/' + name + '?v=20260925b';
+    s.src = 'js/' + name + '?v=20260925c';
     document.body.appendChild(s);
   }
 
@@ -24,33 +24,58 @@
 
   function forceMessagesBetweenAgendaAndProfile() {
     var nav = document.querySelector('header nav');
-    var msg = document.getElementById('navMessages');
-    if (!nav || !msg) return;
+    if (!nav) return;
 
-    msg.style.display = '';
-    msg.style.visibility = 'visible';
-    msg.style.opacity = '1';
-    msg.style.pointerEvents = 'auto';
-    msg.style.position = '';
-    msg.style.right = '';
-    msg.style.top = '';
+    var msg = document.getElementById('navMessages');
+    if (!msg) {
+      // Créer le bouton s'il a été retiré du DOM
+      msg = document.createElement('button');
+      msg.type = 'button';
+      msg.id = 'navMessages';
+      msg.setAttribute('data-nav', 'messages');
+      msg.setAttribute('onclick', "go('messages')");
+      msg.title = 'Messages';
+      msg.setAttribute('aria-label', 'Messages');
+      msg.innerHTML = '<span class="icon">💬</span><span class="messages-badge" id="messagesBadge">0</span>';
+      nav.appendChild(msg);
+    }
+
+    // Styles forcés (contre CSS qui masque)
+    msg.style.cssText = 'display:inline-flex !important;visibility:visible !important;opacity:1 !important;pointer-events:auto !important;position:relative !important;align-items:center;justify-content:center;';
+    msg.classList.remove('hidden');
+    msg.removeAttribute('hidden');
 
     var agenda = nav.querySelector('[data-nav="agenda"]');
     var profile = nav.querySelector('[data-nav="profile"]');
+
     try {
-      if (agenda && agenda.nextSibling !== msg) {
-        if (agenda.nextSibling) nav.insertBefore(msg, agenda.nextSibling);
-        else nav.appendChild(msg);
-      } else if (profile && msg.nextSibling !== profile) {
+      // Ordre : agenda → messages → profile
+      if (profile) {
         nav.insertBefore(msg, profile);
+      } else if (agenda && agenda.nextSibling) {
+        nav.insertBefore(msg, agenda.nextSibling);
+      } else {
+        nav.appendChild(msg);
       }
-    } catch (e) {}
+    } catch (e) {
+      try { nav.appendChild(msg); } catch (e2) {}
+    }
+
+    // Masquer Amis
+    var friends = document.getElementById('navFriends');
+    if (friends) {
+      friends.style.display = 'none';
+      friends.style.visibility = 'hidden';
+    }
 
     var extra = document.getElementById('navStaffMessages');
     if (extra && extra.parentNode) extra.parentNode.removeChild(extra);
 
     var btm = document.getElementById('bottomNavMessages');
-    if (btm) { btm.style.display = ''; btm.style.visibility = 'visible'; }
+    if (btm) {
+      btm.style.display = '';
+      btm.style.visibility = 'visible';
+    }
   }
 
   function filterMoreMenu() {
@@ -74,7 +99,6 @@
       }
       if (allowStaff.test(t) || /profil|profile|home|accueil/i.test(t)) {
         item.style.display = '';
-        return;
       }
     });
   }
@@ -83,8 +107,7 @@
     if (!isStaff()) return;
     var sheet = document.getElementById('moreSheet') ||
       document.querySelector('.more-sheet') ||
-      document.querySelector('.more-menu') ||
-      document.querySelector('[class*="more-sheet"]');
+      document.querySelector('.more-menu');
     if (!sheet) return;
     sheet.style.position = 'fixed';
     sheet.style.left = '50%';
@@ -107,9 +130,10 @@
         el.style.display = 'none';
         el.style.pointerEvents = 'none';
       } else if (key === 'messages') {
-        el.style.display = '';
+        el.style.display = 'inline-flex';
         el.style.pointerEvents = 'auto';
         el.style.opacity = '1';
+        el.style.visibility = 'visible';
       }
     });
 
@@ -278,5 +302,5 @@
   setTimeout(tick, 600);
   setInterval(tick, 3000);
 
-  console.log('[AUPYGO] staff-ui.js v3.1');
+  console.log('[AUPYGO] staff-ui.js v3.2');
 })();
