@@ -1,22 +1,27 @@
 /* AUPYGO — staff-hierarchy.js
- * Source unique de vérité pour les rôles Staff selon la charte organisationnelle.
+ * Source unique de vérité pour les rôles Staff (charte organisationnelle).
  * Chargé AVANT les autres modules staff.
+ *
+ * Rôles officiels uniquement :
+ *   amiral | major_staff | sergent_staff | major_moderateur | sergent_moderateur
+ *
+ * Les anciens noms (admin_general, host, moderator) sont normalisés en lecture
+ * pour compatibilité DB, mais ne sont plus écrits côté client.
  */
 (function () {
   'use strict';
 
-  // ─── Rôles officiels ───────────────────────────────────────────────
   window.STAFF_ROLES = {
-    amiral:            { level: 1, branch: 'evenementiel', label: 'Amiral' },
-    major_staff:       { level: 2, branch: 'evenementiel', label: 'Major Staff' },
-    sergent_staff:     { level: 3, branch: 'evenementiel', label: 'Sergent Staff' },
-    major_moderateur:  { level: 2, branch: 'moderation',   label: 'Major Modérateur' },
-    sergent_moderateur:{ level: 3, branch: 'moderation',   label: 'Sergent Modérateur' }
+    amiral:             { level: 1, branch: 'evenementiel', label: 'Amiral' },
+    major_staff:        { level: 2, branch: 'evenementiel', label: 'Major Staff' },
+    sergent_staff:      { level: 3, branch: 'evenementiel', label: 'Sergent Staff' },
+    major_moderateur:   { level: 2, branch: 'moderation',   label: 'Major Modérateur' },
+    sergent_moderateur: { level: 3, branch: 'moderation',   label: 'Sergent Modérateur' }
   };
 
   var STAFF_ROLE_LIST = Object.keys(window.STAFF_ROLES);
 
-  // Rétrocompatibilité anciens noms
+  // Lecture seule — ne jamais écrire ces valeurs
   var LEGACY_MAP = {
     admin_general: 'amiral',
     host: 'sergent_staff',
@@ -32,14 +37,12 @@
     return 'user';
   }
 
-  // ─── Helpers de base ───────────────────────────────────────────────
   window.getNormalizedRole = function () {
     return normalizeRole(window.currentUserRole || 'user');
   };
 
   window.isStaff = function isStaff() {
-    var r = window.getNormalizedRole();
-    return STAFF_ROLE_LIST.indexOf(r) !== -1;
+    return STAFF_ROLE_LIST.indexOf(window.getNormalizedRole()) !== -1;
   };
 
   window.isAmiral = function isAmiral() {
@@ -66,7 +69,7 @@
     return r === 'major_moderateur' || r === 'sergent_moderateur';
   };
 
-  // Anciens helpers (compatibilité)
+  // Compatibilité (isAdmin = Amiral, isHost = branche événementielle Major/Sergent)
   window.isAdmin = function isAdmin() {
     return window.isAmiral();
   };
@@ -75,8 +78,6 @@
     var r = window.getNormalizedRole();
     return r === 'sergent_staff' || r === 'major_staff';
   };
-
-  // ─── Permissions métier ────────────────────────────────────────────
 
   /** Uniquement l'Amiral peut initier un DM privé vers un Staff */
   window.canStaffPrivateDm = function canStaffPrivateDm() {
@@ -92,8 +93,8 @@
   window.canApproveAsMajor = function canApproveAsMajor(eventCountry) {
     if (window.isAmiral()) return true;
     if (!window.isMajor()) return false;
-    // Le Major ne valide que son pays
-    var myCountry = (window.currentUserProfile && (window.currentUserProfile.staff_country || window.currentUserProfile.country)) || null;
+    var myCountry = (window.currentUserProfile &&
+      (window.currentUserProfile.staff_country || window.currentUserProfile.country)) || null;
     if (!myCountry || !eventCountry) return false;
     return String(myCountry).toLowerCase() === String(eventCountry).toLowerCase();
   };
@@ -118,19 +119,19 @@
     return label;
   };
 
-  /** True si le profil est un membre Staff (tous rôles) */
+  /** True si le profil est un membre Staff */
   window.isMemberStaffProfile = function isMemberStaffProfile(p) {
     if (!p) return false;
     if (p.is_admin === true) return true;
-    var r = normalizeRole(p.role);
-    return STAFF_ROLE_LIST.indexOf(r) !== -1;
+    return STAFF_ROLE_LIST.indexOf(normalizeRole(p.role)) !== -1;
   };
 
-  /** Niveau numérique (1 = Amiral, 3 = Sergent) */
   window.getStaffLevel = function getStaffLevel(role) {
     var r = normalizeRole(role);
     return (window.STAFF_ROLES[r] && window.STAFF_ROLES[r].level) || 99;
   };
+
+  window.normalizeStaffRole = normalizeRole;
 
   console.log('[AUPYGO] staff-hierarchy.js chargé');
 })();
