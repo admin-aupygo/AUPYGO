@@ -1,37 +1,134 @@
 /* AUPYGO — realtime-fix.js
- * Corrige : cannot add postgres_changes callbacks ... after subscribe()
- * Cause : setupMessagesRealtime() appelé en parallèle avant que messagesChannel soit assigné.
- * Solution : verrou synchrone + nettoyage du channel existant + .on() uniquement avant subscribe.
+ * Corrige : cannot add postgres_changes callbacks after subscribe()
+ * Race : setupMessagesRealtime() appelé 2× avant assignation de messagesChannel.
  */
 (function () {
   'use strict';
 
   var _pending = false;
 
+  function removeStaleChannels(uid) {
+    if (!uid || typeof supabaseClient === 'undefined' || !supabaseClient) return;
+    try {
+      if (typeof supabaseClient.getChannels === 'function') {
+        var hint = 'messages-' + uid;
+        supabaseClient.getChannels().slice().forEach(function (ch) {
+          var t = String((ch && ch.topic) || '');
+          if (t.indexOf(hint) !== -1) {
+            try { supabaseClient.removeChannel(ch); } catch (e) {}
+          }
+        });
+      }
+    } catch (e) {}
+  }
+
   function safeTeardown() {
+    _pending = false;
     try {
       if (typeof messagesChannel !== 'undefined' && messagesChannel) {
-        if (typeof supabaseClient !== 'undefined' && supabaseClient) {
-          supabaseClient.removeChannel(messagesChannel);
-        }
+        try { supabaseClient.removeChannel(messagesChannel); } catch (e) {}
         messagesChannel = null;
       }
-      // Nettoie tout channel orphelin avec le même topic
-      if (typeof supabaseClient !== 'undefined' && supabaseClient && typeof supabaseClient.getChannels === 'function') {
-        var uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) || null;
-        if (uid) {
-          var topicHint = 'messages-' + uid;
-          supabaseClient.getChannels().forEach(function (ch) {
-            var t = (ch && (ch.topic || ch.params && ch.params.topic)) || '';
-            if (String(t).indexOf(topicHint) !== -1) {
-              try { supabaseClient.removeChannel(ch); } catch (e) {}
-            }
-          });
-        }
-      }
+      var uid = (typeof currentUser !== 'undefined' && currentUser && currentUser.id) || null;
+      removeStaleChannels(uid);
     } catch (e) {
       console.warn('[AUPYGO] realtime teardown', e);
     }
+  }
+
+  function buildChannel() {
+    var uid = currentUser.id;
+
+    var ch = supabaseClient.channel('messages-' + uid);
+
+    ch = ch.on('postgres_changes',
+      { event: 'INSERT', schema: 'public', table: 'messages' },
+      function (payload) {
+        try {
+          var msg = payload.new;
+          if (!msg || msg.sender_id === currentUser.id) return;
+
+          if (typeof myConversationIds !== 'undefined' && myConversationIds && !myConversationIds.has(msg.conversation_id)) {
+            if (typeof refreshMyConversationIds === 'function') {
+              refreshMyConversationIds().then(function () {
+                if (myConversationIds.has(msg.conversation_id)) {
+                  if (typeof loadUnreadCounts === 'function') loadUnreadCounts();
+                  if (typeof loadMyGroups === 'function') {
+                    loadMyGroups().then(function () {
+                      if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+                    });
+                  }
+                }
+              });
+            }
+            return;
+          }
+
+          var isConversationOpen = typeof activeConversation !== 'undefined' && activeConversation
+            && (activeConversation.type === 'dm' || activeConversation.type === 'group')
+            && activeConversation.conversationId === msg.conversation_id
+            && typeof getActivePage === 'function' && getActivePage() === 'messages';
+
+          if (isConversationOpen) {
+            if (typeof appendBubble === 'function') appendBubble(msg.content, false, msg.created_at);
+            if (typeof markConversationRead === 'function') {
+              markConversationRead(msg.conversation_id, activeConversation.type === 'dm' ? activeConversation.id : null);
+            }
+            return;
+          }
+
+          var isGroup = false;
+          try {
+            if (typeof myGroups !== 'undefined' && Array.isArray(myGroups)) {
+              isGroup = myGroups.some(function (g) { return g && g.id === msg.conversation_id; });
+            }
+          } catch (e) {}
+
+          var friendId = null;
+          try {
+            if (!isGroup && typeof friendIdByConversation !== 'undefined') {
+              friendId = friendIdByConversation[msg.conversation_id];
+            }
+          } catch (e2) {}
+
+          try {
+            if (typeof unreadByConversation !== 'undefined') {
+              unreadByConversation[msg.conversation_id] = (unreadByConversation[msg.conversation_id] || 0) + 1;
+            }
+            if (friendId && typeof unreadByFriend !== 'undefined') {
+              unreadByFriend[friendId] = (unreadByFriend[friendId] || 0) + 1;
+            } else if (!isGroup && typeof loadUnreadCounts === 'function') {
+              loadUnreadCounts();
+            }
+          } catch (e3) {}
+
+          if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
+          if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
+          if (typeof showToast === 'function') {
+            var label = (typeof t === 'function') ? t('messages.new_message_toast') : 'Nouveau message';
+            showToast('💬 ' + label, 'success');
+          }
+        } catch (err) {
+          console.warn('[AUPYGO] on message insert', err);
+        }
+      }
+    );
+
+    ch = ch.on('postgres_changes',
+      {
+        event: 'INSERT',
+        schema: 'public',
+        table: 'group_invitations',
+        filter: 'invited_user_id=eq.' + uid
+      },
+      function () {
+        try {
+          if (typeof loadGroupInvitations === 'function') loadGroupInvitations();
+        } catch (e) {}
+      }
+    );
+
+    return ch;
   }
 
   function install() {
@@ -39,16 +136,13 @@
     if (window._realtimeFixInstalled) return true;
     window._realtimeFixInstalled = true;
 
-    var origSetup = window.setupMessagesRealtime;
     var origTeardown = window.teardownMessagesRealtime;
 
     window.teardownMessagesRealtime = function () {
-      _pending = false;
       safeTeardown();
       if (typeof origTeardown === 'function') {
         try { origTeardown(); } catch (e) {}
       }
-      // S'assurer que la variable globale est nulle
       try { messagesChannel = null; } catch (e2) {}
     };
 
@@ -58,91 +152,52 @@
       if (_pending) return;
       _pending = true;
 
-      var run = function () {
+      var finish = function () {
         try {
           if (messagesChannel) {
             _pending = false;
             return;
           }
-          safeTeardown();
-
-          var ch = supabaseClient.channel('messages-' + currentUser.id);
-
-          ch = ch.on('postgres_changes',
-            { event: 'INSERT', schema: 'public', table: 'messages' },
-            function (payload) {
-              // Délègue au handler d'origine si disponible via re-appel minimal
-              // On reconstruit le comportement attendu en appelant la logique existante
-              // via un événement custom pour éviter de dupliquer 80 lignes.
-              try {
-                if (typeof window.__aupygoOnMessageInsert === 'function') {
-                  window.__aupygoOnMessageInsert(payload);
-                  return;
-                }
-              } catch (e) {}
-              // Fallback : rafraîchir badges
-              try {
-                if (typeof loadUnreadCounts === 'function') loadUnreadCounts();
-                if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
-                if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
-              } catch (e2) {}
-            }
-          );
-
-          ch = ch.on('postgres_changes',
-            {
-              event: 'INSERT',
-              schema: 'public',
-              table: 'group_invitations',
-              filter: 'invited_user_id=eq.' + currentUser.id
-            },
-            function () {
-              try {
-                if (typeof loadGroupInvitations === 'function') loadGroupInvitations();
-              } catch (e) {}
-            }
-          );
-
+          removeStaleChannels(currentUser.id);
+          var ch = buildChannel();
           messagesChannel = ch;
           ch.subscribe(function (status) {
             _pending = false;
-            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
-              console.warn('[AUPYGO] messages channel status', status);
+            if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+              console.warn('[AUPYGO] messages channel', status);
               try { messagesChannel = null; } catch (e) {}
             }
           });
         } catch (e) {
           _pending = false;
-          console.warn('[AUPYGO] setupMessagesRealtime fixed', e);
+          console.warn('[AUPYGO] setupMessagesRealtime', e);
         }
       };
 
       if (typeof refreshMyConversationIds === 'function') {
-        refreshMyConversationIds().then(run).catch(function () {
+        refreshMyConversationIds().then(finish).catch(function () {
           _pending = false;
-          run();
+          finish();
         });
       } else {
-        run();
+        finish();
       }
     };
 
-    // Capture le handler INSERT d'origine une fois (si app.js l'a déjà installé)
-    // en ré-exécutant une fois de façon contrôlée si besoin — sinon le fallback suffit.
-    console.log('[AUPYGO] realtime-fix.js installé');
+    console.log('[AUPYGO] realtime-fix.js v2 installé');
     return true;
   }
 
-  // Install dès que possible + retries (app.js charge avant)
   function tryInstall() {
     if (install()) return;
-    setTimeout(tryInstall, 300);
+    setTimeout(tryInstall, 250);
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', tryInstall);
   } else {
     tryInstall();
   }
-  setTimeout(tryInstall, 800);
-  setTimeout(tryInstall, 2000);
+  setTimeout(tryInstall, 600);
+  setTimeout(tryInstall, 1500);
+  setTimeout(tryInstall, 3000);
 })();
