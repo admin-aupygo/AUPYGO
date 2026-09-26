@@ -1,12 +1,6 @@
 /* AUPYGO — staff-hierarchy.js
- * Source unique de vérité pour les rôles Staff (charte organisationnelle).
- * Chargé AVANT les autres modules staff.
- *
- * Rôles officiels uniquement :
- *   amiral | major_staff | sergent_staff | major_moderateur | sergent_moderateur
- *
- * Les anciens noms (admin_general, host, moderator) sont normalisés en lecture
- * pour compatibilité DB, mais ne sont plus écrits côté client.
+ * Source unique de vérité pour les rôles Staff.
+ * Charge aussi profiles.role → window.currentUserRole (critique).
  */
 (function () {
   'use strict';
@@ -21,7 +15,6 @@
 
   var STAFF_ROLE_LIST = Object.keys(window.STAFF_ROLES);
 
-  // Lecture seule — ne jamais écrire ces valeurs
   var LEGACY_MAP = {
     admin_general: 'amiral',
     host: 'sergent_staff',
@@ -37,8 +30,18 @@
     return 'user';
   }
 
+  window.normalizeStaffRole = normalizeRole;
+
   window.getNormalizedRole = function () {
-    return normalizeRole(window.currentUserRole || 'user');
+    // 1) rôle explicite
+    var fromRole = normalizeRole(window.currentUserRole || 'user');
+    if (fromRole !== 'user') return fromRole;
+    // 2) fallback is_admin (Amiral bootstrap)
+    try {
+      if (window.currentUserIsAdmin === true) return 'amiral';
+      if (window.currentUserProfile && window.currentUserProfile.is_admin === true) return 'amiral';
+    } catch (e) {}
+    return 'user';
   };
 
   window.isStaff = function isStaff() {
@@ -69,7 +72,6 @@
     return r === 'major_moderateur' || r === 'sergent_moderateur';
   };
 
-  // Compatibilité (isAdmin = Amiral, isHost = branche événementielle Major/Sergent)
   window.isAdmin = function isAdmin() {
     return window.isAmiral();
   };
@@ -79,17 +81,14 @@
     return r === 'sergent_staff' || r === 'major_staff';
   };
 
-  /** Uniquement l'Amiral peut initier un DM privé vers un Staff */
   window.canStaffPrivateDm = function canStaffPrivateDm() {
     return window.isAmiral();
   };
 
-  /** Amiral + Majors peuvent créer des groupes Staff */
   window.canCreateStaffGroup = function canCreateStaffGroup() {
     return window.isAmiral() || window.isMajor();
   };
 
-  /** Qui peut approuver un événement payant à l'étape Major */
   window.canApproveAsMajor = function canApproveAsMajor(eventCountry) {
     if (window.isAmiral()) return true;
     if (!window.isMajor()) return false;
@@ -99,12 +98,10 @@
     return String(myCountry).toLowerCase() === String(eventCountry).toLowerCase();
   };
 
-  /** Seul l'Amiral valide définitivement un événement payant */
   window.canApproveAsAmiral = function canApproveAsAmiral() {
     return window.isAmiral();
   };
 
-  /** Label affiché (ex. "Major Staff · France") */
   window.getStaffRoleLabel = function getStaffRoleLabel(role, country, city) {
     var r = normalizeRole(role);
     var meta = window.STAFF_ROLES[r];
@@ -119,7 +116,6 @@
     return label;
   };
 
-  /** True si le profil est un membre Staff */
   window.isMemberStaffProfile = function isMemberStaffProfile(p) {
     if (!p) return false;
     if (p.is_admin === true) return true;
@@ -131,7 +127,78 @@
     return (window.STAFF_ROLES[r] && window.STAFF_ROLES[r].level) || 99;
   };
 
-  window.normalizeStaffRole = normalizeRole;
+  /** Charge role + profil staff depuis Supabase et met à jour les globals */
+  window.syncStaffRoleFromProfile = async function syncStaffRoleFromProfile() {
+    try {
+      if (typeof supabaseClient === 'undefined' || !supabaseClient) return null;
+      var userRes = await supabaseClient.auth.getUser();
+      var user = userRes.data && userRes.data.user;
+      if (!user) {
+        window.currentUserRole = 'user';
+        window.currentUserProfile = null;
+        return null;
+      }
+      var res = await supabaseClient
+        .from('profiles')
+        .select('id, role, is_admin, staff_branch, staff_country, staff_city, subscription, display_name, age, gender, country, city, identity_locked')
+        .eq('id', user.id)
+        .maybeSingle();
+      var p = res.data || null;
+      window.currentUserProfile = p;
+      if (p) {
+        var role = normalizeRole(p.role);
+        if (p.is_admin === true && role === 'user') role = 'amiral';
+        window.currentUserRole = role;
+        try {
+          if (typeof currentUserIsAdmin !== 'undefined') {
+            currentUserIsAdmin = (p.is_admin === true) || (role === 'amiral');
+          }
+          window.currentUserIsAdmin = (p.is_admin === true) || (role === 'amiral');
+        } catch (e) {}
+      } else {
+        window.currentUserRole = 'user';
+      }
+      return p;
+    } catch (e) {
+      console.warn('[AUPYGO] syncStaffRoleFromProfile', e);
+      return null;
+    }
+  };
 
-  console.log('[AUPYGO] staff-hierarchy.js chargé');
+  // Patch refreshAuthUI pour synchroniser le rôle après chaque auth
+  function patchRefreshAuth() {
+    if (typeof window.refreshAuthUI !== 'function' || window._staffRoleRefreshPatched) return;
+    window._staffRoleRefreshPatched = true;
+    var orig = window.refreshAuthUI;
+    window.refreshAuthUI = async function () {
+      var args = arguments;
+      var result = await orig.apply(this, args);
+      try {
+        await window.syncStaffRoleFromProfile();
+      } catch (e) {}
+      return result;
+    };
+  }
+
+  function boot() {
+    patchRefreshAuth();
+    if (typeof window.syncStaffRoleFromProfile === 'function') {
+      window.syncStaffRoleFromProfile();
+    }
+  }
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', boot);
+  } else {
+    boot();
+  }
+  setTimeout(boot, 500);
+  setTimeout(boot, 1500);
+  setTimeout(function () {
+    if (typeof window.syncStaffRoleFromProfile === 'function') {
+      window.syncStaffRoleFromProfile();
+    }
+  }, 3000);
+
+  console.log('[AUPYGO] staff-hierarchy.js chargé (+ sync role)');
 })();

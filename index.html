@@ -19,10 +19,10 @@
     } catch (e) {}
   }
   if (!html) {
-    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html. Ouvre GitHub → historique → restaure le commit <code>0effaead</code>.</p>';
+    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260926ui5');
+  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260926ui6');
 
   var scripts = [
     'js/realtime-fix.js',
@@ -45,7 +45,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=20260926ui5"><\/script>\n';
+    inject += '<script src="' + src + '?v=20260926ui6"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 

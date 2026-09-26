@@ -1,20 +1,29 @@
-/* AUPYGO staff-profile.js — profil limité Staff (identité verrouillable, pas d'écriture de rôle) */
+/* AUPYGO staff-profile.js v2
+ * Profil Staff / Amiral :
+ * - Âge 22–80
+ * - Champs identité éditables (prénom, âge, genre, pays, ville, langues)
+ * - Masque bio, hobbies, pays d'accueil, agenda perso, abonnements
+ * - N'écrit JAMAIS le rôle (RLS Amiral uniquement)
+ */
 (function () {
   'use strict';
-  if (typeof isStaff !== 'function') return;
 
   var STAFF_AGE_MIN = 22;
   var STAFF_AGE_MAX = 80;
 
+  function staffReady() {
+    return typeof isStaff === 'function' && isStaff();
+  }
+
   function hidePersonalAgendaOnly() {
-    if (!isStaff()) return;
-    var box = document.getElementById('personalAgendaBox');
-    if (box) {
-      box.style.display = 'none';
-      box.setAttribute('hidden', 'true');
-    }
-    var notice = document.getElementById('personalAgendaNotice');
-    if (notice) notice.style.display = 'none';
+    if (!staffReady()) return;
+    ['personalAgendaBox', 'personalAgendaNotice', 'personalCalendar'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (el) {
+        el.style.display = 'none';
+        el.setAttribute('hidden', 'true');
+      }
+    });
   }
 
   function showFormCard() {
@@ -37,7 +46,7 @@
   }
 
   function unlockIdentityFields() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     showFormCard();
 
     ['firstName', 'age', 'country', 'city'].forEach(function (id) {
@@ -50,6 +59,8 @@
       el.style.display = '';
       el.style.pointerEvents = 'auto';
       el.style.opacity = '1';
+      el.style.cursor = '';
+      el.title = '';
       var g = el.closest('.form-group');
       if (g) {
         g.style.display = '';
@@ -72,6 +83,13 @@
       btn.style.display = '';
     });
 
+    // Langues visibles
+    document.querySelectorAll('#profile .lang-chip, #profile #languageSelect, #profile .languages-box').forEach(function (el) {
+      el.style.display = '';
+      var g = el.closest('.form-group');
+      if (g) g.style.display = '';
+    });
+
     document.querySelectorAll('#profile button').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       var oc = btn.getAttribute('onclick') || '';
@@ -85,57 +103,51 @@
   }
 
   function enforceStaffAgeRange() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     var ageEl = document.getElementById('age');
     if (!ageEl) return;
 
+    var current = ageEl.value;
+
     if (ageEl.tagName === 'SELECT') {
-      var current = ageEl.value;
-      var opts = ageEl.querySelectorAll('option');
-      var hasRange = false;
-      opts.forEach(function (opt) {
-        var v = parseInt(opt.value, 10);
-        if (!opt.value || isNaN(v)) return;
-        if (v < STAFF_AGE_MIN || v > STAFF_AGE_MAX) {
-          opt.disabled = true;
-          opt.hidden = true;
-          opt.style.display = 'none';
-        } else {
-          opt.disabled = false;
-          opt.hidden = false;
-          opt.style.display = '';
-          hasRange = true;
-        }
-      });
-      if (!hasRange) {
-        ageEl.innerHTML = '';
-        var ph = document.createElement('option');
-        ph.value = '';
-        ph.textContent = 'Âge';
-        ageEl.appendChild(ph);
-        for (var a = STAFF_AGE_MIN; a <= STAFF_AGE_MAX; a++) {
-          var o = document.createElement('option');
-          o.value = String(a);
-          o.textContent = String(a);
-          ageEl.appendChild(o);
-        }
+      // Rebuild complet 22–80
+      ageEl.innerHTML = '';
+      var ph = document.createElement('option');
+      ph.value = '';
+      ph.textContent = 'Âge';
+      ageEl.appendChild(ph);
+      for (var a = STAFF_AGE_MIN; a <= STAFF_AGE_MAX; a++) {
+        var o = document.createElement('option');
+        o.value = String(a);
+        o.textContent = String(a);
+        ageEl.appendChild(o);
       }
       var curNum = parseInt(current, 10);
-      if (curNum >= STAFF_AGE_MIN && curNum <= STAFF_AGE_MAX) ageEl.value = String(curNum);
+      if (curNum >= STAFF_AGE_MIN && curNum <= STAFF_AGE_MAX) {
+        ageEl.value = String(curNum);
+      }
+      ageEl.disabled = false;
+      ageEl.style.opacity = '1';
+      ageEl.style.cursor = '';
+      ageEl.title = 'Âge Staff : ' + STAFF_AGE_MIN + '–' + STAFF_AGE_MAX + ' ans';
     } else {
       ageEl.setAttribute('min', String(STAFF_AGE_MIN));
       ageEl.setAttribute('max', String(STAFF_AGE_MAX));
+      ageEl.disabled = false;
+      ageEl.readOnly = false;
     }
   }
 
   function hideStaffOnlyExtras() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
 
     function hideGroupOf(el) {
       if (!el) return;
       var g = el.closest('.form-group');
       if (g && !g.classList.contains('profile-form-card')) {
         g.style.display = 'none';
+      } else {
+        el.style.display = 'none';
       }
     }
 
@@ -157,7 +169,7 @@
 
     document.querySelectorAll('#profile .form-group label, #profile .form-group .form-label').forEach(function (el) {
       var t = (el.textContent || '').toLowerCase();
-      if (/hobbies|centres d.intérêt|centres d'intérêt|intérêts|pays d.accueil|à propos de moi/i.test(t)) {
+      if (/hobbies|centres d.intérêt|centres d'intérêt|intérêts|pays d.accueil|à propos de moi|bio/i.test(t)) {
         var g = el.closest('.form-group');
         if (g) g.style.display = 'none';
       }
@@ -174,22 +186,46 @@
     });
   }
 
+  function injectStaffProfileBanner() {
+    if (!staffReady()) return;
+    var page = document.getElementById('profile');
+    if (!page) return;
+    var existing = document.getElementById('staffProfileBanner');
+    if (existing) {
+      existing.style.display = '';
+      return;
+    }
+    var banner = document.createElement('div');
+    banner.id = 'staffProfileBanner';
+    banner.style.cssText = 'margin:12px 0;padding:12px 16px;background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;font-size:13px;color:#166534;font-weight:600';
+    var label = (typeof isAmiral === 'function' && isAmiral()) ? 'Amiral' : 'Staff';
+    banner.innerHTML = '🛡️ Compte ' + label + ' — âge ' + STAFF_AGE_MIN + '–' + STAFF_AGE_MAX +
+      ' ans · privilèges Premium · pas d\'abonnement communautaire';
+    var form = page.querySelector('.profile-form-card') || page.querySelector('form') || page;
+    if (form.firstChild) form.insertBefore(banner, form.firstChild);
+    else form.appendChild(banner);
+  }
+
   function applyStaffProfileUI() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     showFormCard();
     unlockIdentityFields();
     enforceStaffAgeRange();
     hideStaffOnlyExtras();
     hidePersonalAgendaOnly();
+    injectStaffProfileBanner();
     showFormCard();
     try { profileSaved = true; } catch (e) {}
     try { window.profileSaved = true; } catch (e2) {}
   }
 
-  var _origSave = window.saveProfile;
-  if (typeof _origSave === 'function') {
+  // saveProfile Staff — n'écrit jamais role / is_admin / staff_*
+  function installSavePatch() {
+    if (typeof window.saveProfile !== 'function' || window._staffSavePatched) return;
+    window._staffSavePatched = true;
+    var _origSave = window.saveProfile;
     window.saveProfile = async function () {
-      if (!isStaff()) return _origSave.apply(this, arguments);
+      if (!staffReady()) return _origSave.apply(this, arguments);
 
       var userRes = await supabaseClient.auth.getUser();
       var user = userRes.data && userRes.data.user;
@@ -213,7 +249,6 @@
         return;
       }
 
-      // Ne jamais écrire le rôle ici — seul l'Amiral l'attribue via le panneau admin
       var profile = {
         id: user.id,
         display_name: name,
@@ -232,56 +267,76 @@
       var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
       if (result.error) {
         showToast('Erreur : ' + result.error.message, 'error');
+        console.error('[Staff] saveProfile', result.error);
         return;
       }
 
       window.profileSaved = true;
       try { profileSaved = true; } catch (e0) {}
-      showToast('Profil enregistré', 'success');
-      if (typeof refreshAuthUI === 'function') await refreshAuthUI('home');
+      showToast('Profil Staff enregistré', 'success');
+      if (typeof window.syncStaffRoleFromProfile === 'function') {
+        await window.syncStaffRoleFromProfile();
+      }
+      if (typeof refreshAuthUI === 'function') await refreshAuthUI('profile');
       setTimeout(applyStaffProfileUI, 200);
+      setTimeout(applyStaffProfileUI, 600);
     };
   }
 
-  var _origLock = window.lockIdentityFields;
-  if (typeof _origLock === 'function') {
+  function installLockPatch() {
+    if (typeof window.lockIdentityFields !== 'function' || window._staffLockPatched) return;
+    window._staffLockPatched = true;
+    var _origLock = window.lockIdentityFields;
     window.lockIdentityFields = function () {
-      if (isStaff()) {
+      if (staffReady()) {
         unlockIdentityFields();
+        enforceStaffAgeRange();
         return;
       }
       return _origLock.apply(this, arguments);
     };
   }
 
-  function init() { applyStaffProfileUI(); }
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
-  else init();
+  function tick() {
+    installSavePatch();
+    installLockPatch();
+    if (!staffReady()) return;
+    applyStaffProfileUI();
+  }
 
-  var prevGo = window.go;
-  if (typeof prevGo === 'function' && !window._staffProfileGoPatched) {
+  async function ensureRoleThenApply() {
+    if (typeof window.syncStaffRoleFromProfile === 'function') {
+      try { await window.syncStaffRoleFromProfile(); } catch (e) {}
+    }
+    tick();
+  }
+
+  // Patch go → profil
+  if (typeof window.go === 'function' && !window._staffProfileGoPatched) {
     window._staffProfileGoPatched = true;
+    var prevGo = window.go;
     window.go = function (page) {
       prevGo(page);
       if (page === 'profile') {
-        setTimeout(applyStaffProfileUI, 100);
-        setTimeout(applyStaffProfileUI, 400);
-        setTimeout(applyStaffProfileUI, 1000);
+        setTimeout(ensureRoleThenApply, 100);
+        setTimeout(ensureRoleThenApply, 400);
+        setTimeout(ensureRoleThenApply, 1000);
       }
     };
   }
 
+  // Init
+  setTimeout(ensureRoleThenApply, 400);
+  setTimeout(ensureRoleThenApply, 1200);
+  setTimeout(ensureRoleThenApply, 2500);
+
   setInterval(function () {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     try { profileSaved = true; } catch (e) {}
     if (typeof getActivePage === 'function' && getActivePage() === 'profile') {
-      showFormCard();
-      unlockIdentityFields();
-      hideStaffOnlyExtras();
-      hidePersonalAgendaOnly();
-      showFormCard();
+      applyStaffProfileUI();
     }
-  }, 2500);
+  }, 2000);
 
-  console.log('[AUPYGO] staff-profile.js (sans écriture de rôle)');
+  console.log('[AUPYGO] staff-profile.js v2');
 })();
