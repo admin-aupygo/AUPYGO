@@ -1,4 +1,4 @@
-/* AUPYGO staff-profile.js v3.1 — identity_locked true (debloque l app) */
+/* AUPYGO staff-profile.js — profil limité Staff (identité verrouillable, pas d'écriture de rôle) */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -182,7 +182,6 @@
     hideStaffOnlyExtras();
     hidePersonalAgendaOnly();
     showFormCard();
-    // Débloque navigation / dashboard
     try { profileSaved = true; } catch (e) {}
     try { window.profileSaved = true; } catch (e2) {}
   }
@@ -214,6 +213,7 @@
         return;
       }
 
+      // Ne jamais écrire le rôle ici — seul l'Amiral l'attribue via le panneau admin
       var profile = {
         id: user.id,
         display_name: name,
@@ -228,8 +228,6 @@
         bio: null,
         interests: null
       };
-      if (typeof isHost === 'function' && isHost()) profile.role = 'host';
-      if (typeof isAdmin === 'function' && isAdmin()) profile.role = 'admin_general';
 
       var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
       if (result.error) {
@@ -285,5 +283,5 @@
     }
   }, 2500);
 
-  console.log('[AUPYGO] staff-profile.js v3.1');
+  console.log('[AUPYGO] staff-profile.js (sans écriture de rôle)');
 })();
