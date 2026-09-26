@@ -37,12 +37,37 @@ Colonnes associées :
 
 ---
 
-## Sécurité — attribution des rôles
+## Sécurité — RLS Supabase (obligatoire)
 
-Les rôles Staff sont **uniquement** attribués par l'Amiral via le panneau Administration.
-**Aucune auto-promotion par email côté client** (supprimée).
+**Script :** [`SUPABASE_STAFF_RLS.sql`](./SUPABASE_STAFF_RLS.sql)  
+À exécuter dans **Supabase → SQL Editor → Run**.
 
-Le client lit `profiles.role` depuis Supabase. L'écriture de `role` / `is_admin` par un utilisateur non-Amiral doit être **bloquée par les politiques RLS Supabase**.
+### Règles
+
+1. **Pas d'email / domaine** dans les policies (`auth.jwt() ->> 'email'` interdit).
+2. **Source de vérité :** `public.profiles.role` (+ `is_admin`).
+3. **Helpers** `SECURITY DEFINER` : `is_amiral()`, `is_staff_member()`, `current_profile_role()`.
+4. **Trigger** avant UPDATE/INSERT : bloque toute écriture de `role` / `is_admin` / `staff_*` si l'acteur n'est pas Amiral.
+5. **Amiral unique** : impossible d'attribuer `role = amiral` à un autre compte ; l'Amiral ne peut pas se rétrograder via l'API.
+6. **Attribution exclusive** : seul l'Amiral peut promouvoir/révoquer le Staff.
+
+### Bootstrap Amiral (une fois)
+
+Dans le SQL Editor (compte service), après avoir collé le script :
+
+```sql
+update public.profiles
+set role = 'amiral',
+    is_admin = true,
+    staff_branch = 'evenementiel',
+    subscription = 'PREMIUM'
+where id = '<TON_UUID_AUTH.USERS>';
+```
+
+### Côté client
+
+- Aucune auto-promotion par email.
+- Le panneau Admin lit/écrit `profiles.role` ; le RLS refuse si non-Amiral.
 
 ---
 
@@ -51,7 +76,7 @@ Le client lit `profiles.role` depuis Supabase. L'écriture de `role` / `is_admin
 ### Niveau 1 — Amiral
 - Administrateur général unique
 - Validation finale des événements payants
-- Gestion des Majors
+- Gestion des grades Staff
 - Accès à tous les outils
 - Peut communiquer individuellement avec tout le Staff
 
@@ -128,6 +153,7 @@ Aucun événement payant ne peut être publié sans validation finale de l'Amira
 | Validation finale payant            | Non  | Non     | Non   | Oui    |
 | Participer événements utilisateurs  | Oui  | Non     | Non   | Non    |
 | Accès outils admin                  | Non  | Non     | Non   | Oui    |
+| Modifier `role` / Staff (RLS)       | Non  | Non     | Non   | Oui    |
 
 \* Exception : l'Amiral peut DM n'importe quel Staff.
 
@@ -137,6 +163,7 @@ Aucun événement payant ne peut être publié sans validation finale de l'Amira
 
 | Fichier                    | Rôle                                      |
 |----------------------------|-------------------------------------------|
+| `SUPABASE_STAFF_RLS.sql`   | RLS + triggers rôles (exécuter une fois)  |
 | `js/staff-hierarchy.js`    | Source unique des rôles & permissions     |
 | `js/admin.js`              | Panneau Administration (Amiral uniquement)|
 | `js/staff-messages.js`     | Messagerie Staff                          |
