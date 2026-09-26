@@ -2,117 +2,60 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
-  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUPYGO — Meet. Go out. Make friends.</title>
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
-
-<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
-
-<link rel="stylesheet" href="styles.css?v=20260926ui2"/>
+<title>AUPYGO — chargement…</title>
+<script>
+(async function () {
+  var urls = [
+    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
+    'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
+    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html'
+  ];
+  var html = null;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var res = await fetch(urls[i], { cache: 'no-store' });
+      if (res.ok) { html = await res.text(); break; }
+    } catch (e) {}
+  }
+  if (!html) {
+    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html. Ouvre GitHub → historique → restaure le commit <code>0effaead</code>.</p>';
+    return;
+  }
+  // Cache-bust
+  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui2');
+  // Inject all staff + agenda scripts before </body>
+  var scripts = [
+    'js/agenda-week-nav.js',
+    'js/staff-hierarchy.js',
+    'js/admin.js',
+    'js/staff-ui.js',
+    'js/staff-profile.js',
+    'js/staff-events.js',
+    'js/staff-messages.js',
+    'js/staff-visibility.js',
+    'js/staff-restrictions.js',
+    'js/staff-msg-unlock.js'
+  ];
+  var inject = '';
+  scripts.forEach(function (src) {
+    if (html.indexOf(src) === -1) {
+      inject += '<script src="' + src + '?v=20260926ui2"><\/script>\n';
+    }
+  });
+  // Remove old staff-hierarchy + admin if present to avoid double, then inject full list
+  html = html.replace(/<script src="js\/staff-hierarchy\.js\?v=[^"]+"><\/script>\s*/g, '');
+  html = html.replace(/<script src="js\/admin\.js\?v=[^"]+"><\/script>\s*/g, '');
+  if (inject) {
+    html = html.replace('</body>', inject + '</body>');
+  }
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
 </head>
-
 <body>
-
-<!-- =========================
-     HEADER
-========================= -->
-
-<header>
-  <div class="header-inner">
-
-    <div class="logo-aupygo" onclick="go('home')" title="AUPYGO">
-      <span class="logo-a">A</span>
-      <span class="logo-u">U</span>
-      <span class="logo-p">P</span>
-      <span class="logo-y">Y</span>
-      <span class="logo-g">G</span>
-      <span class="logo-o">O</span>
-      <div class="location-pin"></div>
-    </div>
-
-    <!-- ICÔNES UNIQUEMENT -->
-
-    <nav>
-
-  <button onclick="go('home')" class="active" data-nav="home" data-i18n-title="nav.home" data-i18n-aria="nav.home" title="Accueil" aria-label="Accueil">
-    <span class="icon">🏠</span>
-  </button>
-
-  <button onclick="go('map')" data-nav="map" data-i18n-title="nav.discover" data-i18n-aria="nav.discover" title="Découvrir" aria-label="Découvrir">
-    <span class="icon">🗺️</span>
-  </button>
-
-  <button onclick="go('events')" data-nav="events" data-i18n-title="nav.events" data-i18n-aria="nav.events" title="Sorties" aria-label="Sorties">
-    <span class="icon">🎉</span>
-  </button>
-
-  <button onclick="go('agenda')" data-nav="agenda" data-i18n-title="nav.agenda" data-i18n-aria="nav.agenda" title="Agenda" aria-label="Agenda">
-    <span class="icon">📅</span>
-  </button>
-
-  <button onclick="go('messages')" data-nav="messages" id="navMessages" data-i18n-title="nav.messages" data-i18n-aria="nav.messages" title="Messages" aria-label="Messages">
-    <span class="icon">💬</span>
-    <span class="messages-badge" id="messagesBadge">0</span>
-  </button>
-
-  <button onclick="go('reconnect')" data-nav="reconnect" id="navFriends" data-i18n-title="nav.friends" data-i18n-aria="nav.friends" title="Amis" aria-label="Amis">
-    <span class="icon">🤝</span>
-    <span class="friends-badge" id="friendsBadge">0</span>
-  </button>
-
-  <button onclick="go('profile')" data-nav="profile" data-i18n-title="nav.profile" data-i18n-aria="nav.profile" title="Profil" aria-label="Profil">
-    <span class="icon">👤</span>
-  </button>
-
-</nav>
-
-    <div class="header-actions">
-      <!-- Avatar forfait (visible mobile + desktop) -->
-      <button type="button" class="header-plan-btn" id="headerPlanBtn" onclick="toggleMoreMenu()" title="Compte & abonnement" aria-label="Compte et abonnement">
-        <span class="header-plan-avatar" id="headerPlanAvatar">👤</span>
-        <span class="header-plan-badge" id="headerPlanBadge">FREE</span>
-      </button>
-
-      <select class="lang-select" id="language" onchange="changeLanguage(this.value)" title="Langue">
-        <option value="fr">🇫🇷 Français</option>
-        <option value="en">🇬🇧 English</option>
-        <option value="es">🇪🇸 Español</option>
-      </select>
-    </div>
-
-  </div>
-</header>
-
-<!-- ========== NAVIGATION BASSE MOBILE ========== -->
-<nav class="bottom-nav" id="bottomNav" aria-label="Navigation principale">
-  <button type="button" class="bottom-nav-btn active" data-nav="home" onclick="go('home')" title="Accueil" aria-label="Accueil">
-    <span class="bn-icon">🏠</span>
-    <span class="bn-label" data-i18n="nav.home">Accueil</span>
-  </button>
-  <button type="button" class="bottom-nav-btn" data-nav="map" onclick="go('map')" title="Carte" aria-label="Carte">
-    <span class="bn-icon">🗺️</span>
-    <span class="bn-label" data-i18n="nav.discover">Carte</span>
-  </button>
-  <button type="button" class="bottom-nav-btn" data-nav="events" onclick="go('events')" title="Sorties" aria-label="Sorties">
-    <span class="bn-icon">🎉</span>
-    <span class="bn-label" data-i18n="nav.events">Sorties</span>
-  </button>
-  <button type="button" class="bottom-nav-btn" data-nav="agenda" onclick="go('agenda')" title="Agenda" aria-label="Agenda">
-    <span class="bn-icon">📅</span>
-    <span class="bn-label" data-i18n="nav.agenda">Agenda</span>
-  </button>
-  <button type="button" class="bottom-nav-btn" data-nav="messages" onclick="go('messages')" title="Messages" aria-label="Messages">
-    <span class="bn-icon">💬</span>
-    <span class="bn-label" data-i18n="nav.messages">Messages</span>
-    <span class="messages-badge bn-badge" id="bottomMessagesBadge">0</span>
-  </button>
-  <button type="button" class="bottom-nav-btn" data-nav="profile" onclick="go('profile')" title="Profil" aria-label="Profil">
-    <span class="bn-icon">👤</span>
-    <span class="bn-label" data-i18n="nav.profile">Profil</span>
-  </button>
-</nav>
-
-<!-- The rest of the body content is identical to the restored version; full content is long so we use the prepared file. -->
+<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Chargement AUPYGO…</p>
+</body>
+</html>
