@@ -1,47 +1,76 @@
-/* AUPYGO staff-restrictions.js — boutons sorties / agenda / demandes */
+/* AUPYGO staff-restrictions.js v2
+ * - Masque création sorties utilisateur pour le Staff
+ * - Autorise Major / Sergent / Amiral à créer des événements Aupygo GRATUITS
+ */
 (function () {
   'use strict';
-  if (typeof isStaff !== 'function') return;
+
+  function staffReady() {
+    return typeof isStaff === 'function' && isStaff();
+  }
+
+  function canCreateAupygoEvents() {
+    // Amiral + Major + Sergent (les deux branches)
+    if (typeof isAmiral === 'function' && isAmiral()) return true;
+    if (typeof isMajor === 'function' && isMajor()) return true;
+    if (typeof isSergent === 'function' && isSergent()) return true;
+    return staffReady();
+  }
 
   function hideStaffCreateButtons() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
 
     document.querySelectorAll('button, a, .btn, [role="button"]').forEach(function (btn) {
       var t = (btn.textContent || '').trim().toLowerCase();
       var oc = (btn.getAttribute('onclick') || '') + (btn.getAttribute('href') || '');
 
-      if (/organiser une sortie|sortie entre amis|créer une sortie/i.test(t)) {
-        if (/spécial|special|aupygo/i.test(t)) return;
-        btn.style.display = 'none';
+      // Garder les boutons « spécial Aupygo »
+      if (/spécial aupygo|special aupygo|événement spécial|evenement special/i.test(t)) {
+        if (canCreateAupygoEvents()) {
+          btn.style.display = '';
+          btn.disabled = false;
+          btn.style.pointerEvents = 'auto';
+          btn.style.opacity = '1';
+        }
+        return;
       }
 
-      if (typeof getActivePage === 'function' && getActivePage() === 'agenda') {
-        if (/créer|organiser|nouvelle sortie|nouvel événement|spécial aupygo|special aupygo/i.test(t)) {
-          btn.style.display = 'none';
-        }
+      // Masquer création sorties communautaires / entre amis
+      if (/organiser une sortie|sortie entre amis|créer une sortie|nouvelle sortie|créer un événement|creer un evenement/i.test(t)) {
+        btn.style.display = 'none';
       }
     });
 
+    // IDs connus de création utilisateur
     ['#btnCreateEvent', '#btnCreateFriendsEvent', '#btnOrgUser', '#btnOrgFriends',
       '#createEventBtn', '#btnOpenCreateEvent', '#agendaCreateBtn'].forEach(function (sel) {
       var el = document.querySelector(sel);
-      if (el) el.style.display = 'none';
+      if (!el) return;
+      var t = (el.textContent || '').toLowerCase();
+      if (/spécial|special|aupygo/i.test(t)) {
+        if (canCreateAupygoEvents()) {
+          el.style.display = '';
+          el.disabled = false;
+        }
+        return;
+      }
+      el.style.display = 'none';
     });
 
-    document.querySelectorAll('button, .btn').forEach(function (btn) {
-      var t = (btn.textContent || '').toLowerCase();
-      if (/événement spécial aupygo|evenement special aupygo|spécial aupygo/i.test(t)) {
-        if (typeof getActivePage === 'function' && getActivePage() === 'agenda') {
+    // Sur Agenda : pas de création utilisateur ; le Staff crée depuis Sorties
+    if (typeof getActivePage === 'function' && getActivePage() === 'agenda') {
+      document.querySelectorAll('#agenda button, #agenda .btn').forEach(function (btn) {
+        var t = (btn.textContent || '').toLowerCase();
+        if (/créer|organiser|nouvelle sortie|nouvel événement/i.test(t) &&
+            !/spécial aupygo|special aupygo/i.test(t)) {
           btn.style.display = 'none';
-        } else {
-          btn.style.display = '';
         }
-      }
-    });
+      });
+    }
   }
 
   function hideParticipationRequests() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     var uid = window.currentUser && window.currentUser.id;
 
     document.querySelectorAll(
@@ -59,25 +88,17 @@
         el.style.display = 'none';
       }
     });
-
-    document.querySelectorAll('#eventRequestsList, #joinRequestsPanel').forEach(function (panel) {
-      panel.querySelectorAll('[data-event-id]').forEach(function (row) {
-        var eid = row.getAttribute('data-event-id');
-        var ev = (window.cachedEvents || []).find(function (e) { return e && e.id === eid; });
-        if (!ev || !uid || ev.creator_id !== uid) row.style.display = 'none';
-      });
-    });
   }
 
   function tick() {
-    if (!isStaff()) return;
+    if (!staffReady()) return;
     hideStaffCreateButtons();
     hideParticipationRequests();
   }
 
-  var prevGo = window.go;
-  if (typeof prevGo === 'function' && !window._staffRestrictGo) {
+  if (typeof window.go === 'function' && !window._staffRestrictGo) {
     window._staffRestrictGo = true;
+    var prevGo = window.go;
     window.go = function (page) {
       prevGo(page);
       if (page === 'events' || page === 'agenda' || page === 'home') {
@@ -90,5 +111,5 @@
   setTimeout(tick, 800);
   setInterval(tick, 2500);
 
-  console.log('[AUPYGO] staff-restrictions.js chargé');
+  console.log('[AUPYGO] staff-restrictions.js v2 (Major/Sergent = events Aupygo gratuits)');
 })();

@@ -1,10 +1,8 @@
-/* AUPYGO — staff-ui.js
- * Interface Staff / Amiral :
- * - Accueil : masquer Amis + Mon abonnement
- * - Header : bouclier 🛡️ + menu raccourcis (Messages, Sorties, Admin)
- *   → masqué sur la page Admin (redondant)
- * - Badge « Staff » à la place de Premium
- * - Privilèges Premium hérités automatiquement
+/* AUPYGO — staff-ui.js v3
+ * - Accueil : masquer Amis + Abonnement
+ * - Header : Messages 💬 + bouclier Staff (hors page Admin)
+ * - Badge Staff, Premium forcé
+ * - Stop clignotement messages une fois lus
  */
 (function () {
   'use strict';
@@ -19,7 +17,6 @@
     } catch (e) {}
     var adminEl = document.getElementById('admin');
     if (adminEl && adminEl.classList && adminEl.classList.contains('active')) return true;
-    if (adminEl && adminEl.style && adminEl.style.display === 'block') return true;
     return false;
   }
 
@@ -46,6 +43,48 @@
         el.style.pointerEvents = 'none';
       }
     });
+
+    // S'assurer que les boutons utiles de l'accueil fonctionnent
+    ['homeBtnMessages', 'homeBtnEvents', 'homeBtnAgenda', 'homeBtnMap', 'homeBtnProfile'].forEach(function (id) {
+      var el = document.getElementById(id);
+      if (!el) return;
+      el.style.display = '';
+      el.style.pointerEvents = 'auto';
+      el.removeAttribute('hidden');
+    });
+  }
+
+  /** Stoppe tout clignotement / badge si plus de non-lus */
+  function stopMessageBlinkIfRead() {
+    var total = 0;
+    try {
+      if (typeof getTotalUnreadCount === 'function') total = getTotalUnreadCount() || 0;
+    } catch (e) {}
+    if (total > 0) return;
+
+    document.querySelectorAll(
+      '#navMessages, #bottomNavMessages, [data-nav="messages"], #homeBtnMessages, #headerMessagesBtn'
+    ).forEach(function (el) {
+      if (!el) return;
+      el.classList.remove('has-unread-messages', 'nav-blink', 'blink', 'pulse', 'unread');
+      el.querySelectorAll('.messages-badge, .badge, .bn-badge').forEach(function (b) {
+        b.textContent = '0';
+        b.style.display = 'none';
+        b.classList.remove('show');
+      });
+    });
+    var badge = document.getElementById('messagesBadge');
+    if (badge) {
+      badge.textContent = '0';
+      badge.classList.remove('show');
+      badge.style.display = 'none';
+    }
+    var badgeB = document.getElementById('messagesBadgeBottom') || document.getElementById('bottomMessagesBadge');
+    if (badgeB) {
+      badgeB.textContent = '0';
+      badgeB.classList.remove('show');
+      badgeB.style.display = 'none';
+    }
   }
 
   function applyStaffBadges() {
@@ -79,19 +118,6 @@
       premiumBadge.style.display = 'block';
       premiumBadge.textContent = label;
     }
-    var planPremium = document.getElementById('plan-PREMIUM');
-    if (planPremium) {
-      planPremium.classList.add('active-plan');
-      var titles = planPremium.querySelectorAll('h3, .plan-name, .plan-title');
-      titles.forEach(function (t) {
-        if (/premium/i.test(t.textContent || '')) {
-          if (!t.dataset.staffRelabeled) {
-            t.dataset.staffRelabeled = '1';
-            t.textContent = (t.textContent || '').replace(/PREMIUM|Premium/gi, label);
-          }
-        }
-      });
-    }
   }
 
   function rebuildMoreMenuForStaff() {
@@ -122,6 +148,58 @@
     }
   }
 
+  /** Bouton Messages dans le bandeau supérieur → boîte de réception */
+  function injectHeaderMessagesBtn() {
+    if (!staffReady()) return;
+    var actions = document.querySelector('.header-actions');
+    if (!actions) return;
+
+    var existing = document.getElementById('headerMessagesBtn');
+    if (existing) {
+      existing.style.display = '';
+      return;
+    }
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'headerMessagesBtn';
+    btn.title = 'Messages';
+    btn.setAttribute('aria-label', 'Messages');
+    btn.style.cssText = 'display:inline-flex;align-items:center;justify-content:center;width:40px;height:40px;border-radius:50%;border:1px solid #e2e8f0;background:#fff;cursor:pointer;font-size:18px;margin-right:8px;position:relative;';
+    btn.innerHTML = '💬<span id="headerMessagesBadge" style="display:none;position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;padding:0 4px;border-radius:999px;background:#ef4444;color:#fff;font-size:10px;font-weight:800;line-height:16px">0</span>';
+    btn.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      if (typeof go === 'function') go('messages');
+    };
+
+    var lang = actions.querySelector('.lang-select') || actions.querySelector('#language');
+    var shield = document.getElementById('staffHeaderWrap');
+    if (shield && shield.parentNode === actions) {
+      actions.insertBefore(btn, shield);
+    } else if (lang) {
+      actions.insertBefore(btn, lang);
+    } else {
+      actions.appendChild(btn);
+    }
+  }
+
+  function syncHeaderMessagesBadge() {
+    var hb = document.getElementById('headerMessagesBadge');
+    if (!hb) return;
+    var total = 0;
+    try {
+      if (typeof getTotalUnreadCount === 'function') total = getTotalUnreadCount() || 0;
+    } catch (e) {}
+    if (total > 0) {
+      hb.style.display = 'block';
+      hb.textContent = total > 99 ? '99+' : String(total);
+    } else {
+      hb.style.display = 'none';
+      hb.textContent = '0';
+    }
+  }
+
   function injectStaffHeaderShield() {
     if (!staffReady()) return;
     var actions = document.querySelector('.header-actions');
@@ -129,7 +207,6 @@
 
     var wrap = document.getElementById('staffHeaderWrap');
 
-    // Sur la page Admin : masquer le bouton bouclier (redondant à côté de la langue)
     if (isAdminPage()) {
       if (wrap) {
         wrap.style.display = 'none';
@@ -227,6 +304,10 @@
           return;
         }
         prev(page);
+        if (page === 'messages') {
+          setTimeout(stopMessageBlinkIfRead, 300);
+          setTimeout(stopMessageBlinkIfRead, 1000);
+        }
         setTimeout(tick, 150);
       };
     }
@@ -250,6 +331,28 @@
         if (staffReady()) applyStaffBadges();
       };
     }
+
+    // Après updateMessagesBadge → sync header + stop blink si 0
+    if (typeof window.updateMessagesBadge === 'function' && !window._staffMsgBadgePatched) {
+      window._staffMsgBadgePatched = true;
+      var _origBadge = window.updateMessagesBadge;
+      window.updateMessagesBadge = function () {
+        _origBadge.apply(this, arguments);
+        syncHeaderMessagesBadge();
+        stopMessageBlinkIfRead();
+      };
+    }
+
+    if (typeof window.markConversationRead === 'function' && !window._staffMarkReadPatched) {
+      window._staffMarkReadPatched = true;
+      var _origMark = window.markConversationRead;
+      window.markConversationRead = function () {
+        var r = _origMark.apply(this, arguments);
+        setTimeout(stopMessageBlinkIfRead, 50);
+        setTimeout(stopMessageBlinkIfRead, 400);
+        return r;
+      };
+    }
   }
 
   function tick() {
@@ -258,7 +361,10 @@
     hideStaffHomeButtons();
     applyStaffBadges();
     rebuildMoreMenuForStaff();
+    injectHeaderMessagesBtn();
     injectStaffHeaderShield();
+    syncHeaderMessagesBadge();
+    stopMessageBlinkIfRead();
     blockStaffNav();
   }
 
@@ -278,5 +384,5 @@
     init();
   }
 
-  console.log('[AUPYGO] staff-ui.js chargé');
+  console.log('[AUPYGO] staff-ui.js v3');
 })();
