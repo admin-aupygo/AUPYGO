@@ -2,9 +2,11 @@
    AUPYGO — Panneau Administration (Amiral)
    Chargé APRÈS app.js et staff-hierarchy.js
 
-   Sécurité : les rôles Staff sont lus uniquement depuis profiles.role (DB).
-   Aucune auto-promotion par email côté client.
-   Seul l'Amiral attribue les rôles via ce panneau.
+   Règles strictes des rôles :
+   - Amiral unique (toi) : non transférable
+   - Users restent users : pas de promotion Staff
+   - Staff reste Staff : grades Major/Sergent uniquement (pas Amiral, pas User)
+   - Aucune auto-promotion par email côté client
 ========================= */
 
 (function () {
@@ -12,7 +14,6 @@
 
   window.currentUserRole = window.currentUserRole || 'user';
 
-  // Helpers de secours si hierarchy pas encore chargé
   if (typeof window.isStaff !== 'function') {
     window.isStaff = function () {
       var r = (window.currentUserRole || '').toLowerCase();
@@ -48,7 +49,6 @@
     return r;
   }
 
-  // Charge le rôle depuis la DB uniquement (pas d'écriture auto)
   var originalRefreshAuthUI = window.refreshAuthUI;
   if (typeof originalRefreshAuthUI === 'function') {
     window.refreshAuthUI = async function (redirectPage) {
@@ -229,7 +229,7 @@
     section.innerHTML =
       '<div class="section-title" style="margin-bottom:20px">' +
         '<h2 style="margin:0 0 6px">🛡️ Administration — Amiral</h2>' +
-        '<p style="margin:0;color:#64748b;font-size:14px">Gestion des membres et de l\'équipe Aupygo</p>' +
+        '<p style="margin:0;color:#64748b;font-size:14px">Consultation des membres · gestion des grades Staff uniquement (Amiral unique, users fixes)</p>' +
       '</div>' +
       '<div id="adminStats" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:12px;margin-bottom:20px"></div>' +
       '<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px;padding:14px;background:#fff;border:1px solid #e8e4ef;border-radius:16px">' +
@@ -353,7 +353,7 @@
     }
 
     function esc(s) {
-      return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+      return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
     }
 
     tbody.innerHTML = list.map(function (u) {
@@ -367,17 +367,28 @@
       var status = online ? '<span style="color:#16a34a;font-weight:700">● En ligne</span>' : '<span style="color:#94a3b8">Hors ligne</span>';
 
       var actions = '';
-      if (u.id !== (window.currentUser && window.currentUser.id)) {
-        actions = '<div class="admin-actions">' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'amiral\')">Amiral</button>' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'major_staff\')">Major Staff</button>' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'sergent_staff\')">Sergent Staff</button>' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'major_moderateur\')">Major Mod.</button>' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'sergent_moderateur\')">Sergent Mod.</button>' +
-          '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'user\')">User</button>' +
-          '</div>';
+      var meId = window.currentUser && window.currentUser.id;
+      // Règles strictes :
+      // - Amiral unique (toi) : pas d'action
+      // - Users : restent users (pas de promotion Staff)
+      // - Staff : grades Staff uniquement (pas Amiral, pas User)
+      if (u.id === meId || rawRole === 'amiral') {
+        actions = '<span style="font-size:11px;color:#94a3b8">Amiral unique</span>';
+      } else if (rawRole === 'user' || !isMemberStaffProfile(u)) {
+        actions = '<span style="font-size:11px;color:#94a3b8">User (fixe)</span>';
       } else {
-        actions = '<span style="font-size:11px;color:#94a3b8">Toi</span>';
+        var ranks = [
+          { role: 'major_staff', label: 'Major Staff' },
+          { role: 'sergent_staff', label: 'Sergent Staff' },
+          { role: 'major_moderateur', label: 'Major Mod.' },
+          { role: 'sergent_moderateur', label: 'Sergent Mod.' }
+        ];
+        actions = '<div class="admin-actions">' + ranks.map(function (rk) {
+          if (rk.role === rawRole) {
+            return '<span class="admin-act-btn" style="opacity:.45;cursor:default">' + rk.label + ' ✓</span>';
+          }
+          return '<button type="button" class="admin-act-btn" onclick="window.adminSetRole(\'' + u.id + '\',\'' + rk.role + '\')">' + rk.label + '</button>';
+        }).join('') + '</div>';
       }
 
       return '<tr>' +
@@ -395,42 +406,55 @@
   window.adminOnFilter = function (v) { adminFilter = v || 'all'; renderAdminTable(); };
   window.adminRefresh = function () { loadAdminData(); };
 
+  // Grades Staff modifiables uniquement (jamais Amiral, jamais User)
+  var STAFF_RANKS_ONLY = ['major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur'];
+
   window.adminSetRole = async function (userId, newRole) {
     if (!isAmiral()) return;
-    var allowed = ['amiral', 'major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur', 'user'];
-    if (allowed.indexOf(newRole) === -1) return;
+    if (STAFF_RANKS_ONLY.indexOf(newRole) === -1) {
+      if (typeof showToast === 'function') {
+        showToast('Interdit : Amiral unique · users restent users · staff reste staff', 'error');
+      }
+      return;
+    }
+    if (userId === (window.currentUser && window.currentUser.id)) {
+      if (typeof showToast === 'function') showToast('Tu ne peux pas modifier ton propre rôle Amiral', 'error');
+      return;
+    }
+    var target = adminUsersCache.find(function (x) { return x.id === userId; });
+    if (!target) return;
+    var current = normalizeFromDb(target.role || (target.is_admin ? 'amiral' : 'user'));
+    if (current === 'amiral') {
+      if (typeof showToast === 'function') showToast('Le rôle Amiral est unique et non modifiable', 'error');
+      return;
+    }
+    if (current === 'user' || !isMemberStaffProfile(target)) {
+      if (typeof showToast === 'function') showToast('Un user ne peut pas devenir Staff', 'error');
+      return;
+    }
     var label = roleLabel(newRole);
-    if (!confirm('Attribuer le rôle « ' + label + ' » ?')) return;
+    if (!confirm('Changer le grade Staff → « ' + label + ' » ?')) return;
     try {
       var payload = {
         role: newRole,
-        is_admin: newRole === 'amiral',
-        subscription: (newRole === 'user') ? undefined : 'PREMIUM'
+        is_admin: false,
+        subscription: 'PREMIUM'
       };
-      if (newRole === 'amiral' || newRole === 'major_staff' || newRole === 'sergent_staff') {
+      if (newRole === 'major_staff' || newRole === 'sergent_staff') {
         payload.staff_branch = 'evenementiel';
-      } else if (newRole === 'major_moderateur' || newRole === 'sergent_moderateur') {
-        payload.staff_branch = 'moderation';
       } else {
-        payload.staff_branch = null;
-        payload.staff_country = null;
-        payload.staff_city = null;
+        payload.staff_branch = 'moderation';
       }
-      Object.keys(payload).forEach(function (k) { if (payload[k] === undefined) delete payload[k]; });
-
       var { error } = await supabaseClient.from('profiles').update(payload).eq('id', userId);
       if (error) throw error;
 
-      var u = adminUsersCache.find(function (x) { return x.id === userId; });
-      if (u) {
-        u.role = newRole;
-        u.is_admin = newRole === 'amiral';
-        if (payload.subscription) u.subscription = payload.subscription;
-        u.staff_branch = payload.staff_branch;
-      }
+      target.role = newRole;
+      target.is_admin = false;
+      target.subscription = 'PREMIUM';
+      target.staff_branch = payload.staff_branch;
       renderAdminStats();
       renderAdminTable();
-      if (typeof showToast === 'function') showToast('Rôle mis à jour → ' + label, 'success');
+      if (typeof showToast === 'function') showToast('Grade Staff → ' + label, 'success');
     } catch (e) {
       if (typeof showToast === 'function') showToast('Erreur: ' + (e.message || e), 'error');
     }
@@ -442,7 +466,7 @@
       try { el.parentNode.removeChild(el); } catch (e) {}
     });
     var s = document.createElement('script');
-    s.src = src + '?v=20260926clean';
+    s.src = src + '?v=20260926roles';
     s.async = false;
     document.body.appendChild(s);
   }
@@ -471,5 +495,5 @@
     init();
   }
 
-  console.log('[AUPYGO] admin.js (sécurisé, sans auto-promo email) chargé');
+  console.log('[AUPYGO] admin.js (Amiral unique, users/staff figés)');
 })();
