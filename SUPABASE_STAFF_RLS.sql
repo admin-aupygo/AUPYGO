@@ -2,50 +2,95 @@
 -- AUPYGO — RLS Staff / Profiles (sécurité stricte)
 -- À coller dans Supabase → SQL Editor → Run
 --
+-- Compatible si profiles.role est :
+--   • enum public.app_role  (cas actuel qui a planté)
+--   • ou text
+--
 -- Principes :
 -- 1. Jamais d'email / domaine dans les policies
--- 2. Le rôle vient de public.profiles.role (source de vérité)
--- 3. Seul l'Amiral peut modifier role / is_admin / staff_*
--- 4. Amiral unique : personne d'autre ne peut recevoir role=amiral
--- 5. Users ne deviennent Staff que si l'Amiral l'écrit en DB
--- 6. Staff ne peut pas s'auto-promouvoir ni se rétrograder
+-- 2. Source de vérité : profiles.role (+ is_admin)
+-- 3. Seul l'Amiral modifie role / is_admin / staff_*
+-- 4. Amiral unique et non transférable
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- 0. Colonnes Staff (idempotent)
 -- ------------------------------------------------------------
 alter table public.profiles
-  add column if not exists role          text not null default 'user',
   add column if not exists is_admin      boolean not null default false,
   add column if not exists staff_branch  text,
   add column if not exists staff_country text,
   add column if not exists staff_city    text;
 
--- Contrainte de valeurs de rôle (officiels + legacy en lecture)
+-- role existe déjà (enum app_role ou text) — ne pas le recréer en text
+
+-- ------------------------------------------------------------
+-- 0b. Étendre l'enum app_role si c'est le type de profiles.role
+--     (PostgreSQL : ADD VALUE ne peut pas tourner dans un bloc
+--      avec d'autres commandes en transaction stricte — on utilise
+--      des ALTER TYPE séparés, hors DO, avec IF NOT EXISTS PG 15+)
+-- ------------------------------------------------------------
+
+-- Ajoute les valeurs manquantes à l'enum (ignore si déjà présentes)
 do $$
+declare
+  col_type text;
+  enum_name text;
+  needed text[] := array[
+    'user',
+    'amiral',
+    'major_staff',
+    'sergent_staff',
+    'major_moderateur',
+    'sergent_moderateur',
+    'admin_general',
+    'host',
+    'moderator'
+    -- volontairement PAS 'admin' (souvent absent de l'enum → erreur 22P02)
+  ];
+  v text;
 begin
-  if not exists (
-    select 1 from pg_constraint
-    where conname = 'profiles_role_check'
-      and conrelid = 'public.profiles'::regclass
-  ) then
+  select t.typname
+    into col_type
+  from pg_attribute a
+  join pg_class c on c.oid = a.attrelid
+  join pg_namespace n on n.oid = c.relnamespace
+  join pg_type t on t.oid = a.atttypid
+  where n.nspname = 'public'
+    and c.relname = 'profiles'
+    and a.attname = 'role'
+    and a.attnum > 0
+    and not a.attisdropped
+  limit 1;
+
+  if col_type is null then
+    -- Colonne role absente : créer en text
     alter table public.profiles
-      add constraint profiles_role_check
-      check (role in (
-        'user',
-        'amiral',
-        'major_staff',
-        'sergent_staff',
-        'major_moderateur',
-        'sergent_moderateur',
-        -- legacy (lecture / migration)
-        'admin_general',
-        'host',
-        'moderator',
-        'admin'
-      ));
+      add column if not exists role text not null default 'user';
+    return;
   end if;
+
+  if col_type = 'app_role' or exists (
+    select 1 from pg_type where typname = col_type and typtype = 'e'
+  ) then
+    enum_name := col_type;
+    foreach v in array needed loop
+      if not exists (
+        select 1
+        from pg_enum e
+        join pg_type t on t.oid = e.enumtypid
+        where t.typname = enum_name
+          and e.enumlabel = v
+      ) then
+        execute format('alter type public.%I add value %L', enum_name, v);
+      end if;
+    end loop;
+  end if;
+  -- Si text : rien à faire (pas de CHECK qui référence des labels enum invalides)
 end $$;
+
+-- Pas de CONSTRAINT CHECK sur un enum : les labels invalides (ex. 'admin')
+-- provoquent ERROR 22P02. Les valeurs autorisées sont gérées par le trigger.
 
 create index if not exists profiles_role_idx on public.profiles (role);
 create index if not exists profiles_is_admin_idx on public.profiles (is_admin);
@@ -64,12 +109,12 @@ as $$
   select coalesce(
     (
       select case
-        when lower(p.role) in ('amiral', 'admin_general', 'admin') or p.is_admin is true
+        when lower(p.role::text) in ('amiral', 'admin_general', 'admin') or p.is_admin is true
           then 'amiral'
-        when lower(p.role) in ('major_staff') then 'major_staff'
-        when lower(p.role) in ('sergent_staff', 'host') then 'sergent_staff'
-        when lower(p.role) in ('major_moderateur') then 'major_moderateur'
-        when lower(p.role) in ('sergent_moderateur', 'moderator') then 'sergent_moderateur'
+        when lower(p.role::text) in ('major_staff') then 'major_staff'
+        when lower(p.role::text) in ('sergent_staff', 'host') then 'sergent_staff'
+        when lower(p.role::text) in ('major_moderateur') then 'major_moderateur'
+        when lower(p.role::text) in ('sergent_moderateur', 'moderator') then 'sergent_moderateur'
         else 'user'
       end
       from public.profiles p
@@ -129,7 +174,6 @@ grant execute on function public.is_staff_member() to authenticated;
 
 -- ------------------------------------------------------------
 -- 2. Trigger : verrouille role / is_admin / staff_* côté écriture
---    Même si une policy UPDATE est trop large, ce trigger bloque.
 -- ------------------------------------------------------------
 create or replace function public.profiles_guard_staff_columns()
 returns trigger
@@ -148,17 +192,17 @@ declare
     'sergent_moderateur'
   ];
 begin
-  old_role := public.normalize_staff_role(old.role);
+  old_role := public.normalize_staff_role(old.role::text);
   if old.is_admin is true then
     old_role := 'amiral';
   end if;
 
-  new_role := public.normalize_staff_role(new.role);
+  new_role := public.normalize_staff_role(new.role::text);
   if new.is_admin is true then
     new_role := 'amiral';
   end if;
 
-  -- Champs sensibles inchangés → OK pour tout le monde (profil perso)
+  -- Champs sensibles inchangés → OK
   if old_role is not distinct from new_role
      and old.is_admin is not distinct from new.is_admin
      and old.staff_branch is not distinct from new.staff_branch
@@ -168,36 +212,30 @@ begin
     return new;
   end if;
 
-  -- Toute modification sensible exige Amiral
   actor_is_amiral := public.is_amiral();
   if not actor_is_amiral then
-    raise exception 'FORBIDDEN: seuls les champs non-Staff sont modifiables (role/is_admin/staff_* réservés à l''Amiral)'
+    raise exception 'FORBIDDEN: role/is_admin/staff_* réservés à l''Amiral'
       using errcode = '42501';
   end if;
 
-  -- Amiral unique : interdiction d'attribuer amiral à un autre compte
+  -- Amiral unique : pas de transfert
   if new_role = 'amiral' and old.id is distinct from auth.uid() then
     raise exception 'FORBIDDEN: le rôle Amiral est unique et non transférable'
       using errcode = '42501';
   end if;
 
-  -- Interdiction de retirer l'Amiral à soi-même via l'API (évite lock-out)
+  -- Anti lock-out
   if old_role = 'amiral' and new_role is distinct from 'amiral' and old.id = auth.uid() then
     raise exception 'FORBIDDEN: l''Amiral ne peut pas se rétrograder via l''API'
       using errcode = '42501';
   end if;
 
-  -- Amiral peut gérer les grades Staff uniquement (pas User ↔ Staff libre sans intention)
-  -- Autorisé : Staff → autre grade Staff
-  -- Autorisé : User → grade Staff (attribution exclusive Amiral)
-  -- Autorisé : Staff → user (révocation exclusive Amiral)
-  -- Interdit : tout le monde sauf Amiral (déjà bloqué plus haut)
   if new_role not in ('user', 'amiral') and new_role <> all (staff_ranks) then
     raise exception 'FORBIDDEN: rôle invalide %', new_role
       using errcode = '23514';
   end if;
 
-  -- Cohérence is_admin
+  -- Cohérence is_admin + affectation typée (enum ou text)
   if new_role = 'amiral' then
     new.is_admin := true;
     new.role := 'amiral';
@@ -206,7 +244,6 @@ begin
     new.role := new_role;
   end if;
 
-  -- Branche auto
   if new_role in ('major_staff', 'sergent_staff') then
     new.staff_branch := 'evenementiel';
   elsif new_role in ('major_moderateur', 'sergent_moderateur') then
@@ -227,7 +264,6 @@ create trigger trg_profiles_guard_staff
   for each row
   execute function public.profiles_guard_staff_columns();
 
--- Empêche INSERT avec role staff/amiral sauf service_role / Amiral déjà existant
 create or replace function public.profiles_guard_staff_insert()
 returns trigger
 language plpgsql
@@ -237,34 +273,19 @@ as $$
 declare
   r text;
 begin
-  r := public.normalize_staff_role(new.role);
+  r := public.normalize_staff_role(new.role::text);
   if new.is_admin is true then
     r := 'amiral';
   end if;
 
-  -- Inscription classique : forcer user
-  if auth.uid() is null then
+  -- Inscription / non-Amiral → forcer user
+  if auth.uid() is null or not public.is_amiral() then
     new.role := 'user';
     new.is_admin := false;
     new.staff_branch := null;
     new.staff_country := null;
     new.staff_city := null;
     return new;
-  end if;
-
-  if r = 'user' and coalesce(new.is_admin, false) = false then
-    new.role := 'user';
-    new.is_admin := false;
-    return new;
-  end if;
-
-  -- Seul Amiral (ou bootstrap service_role hors JWT) peut créer un profil Staff
-  if not public.is_amiral() then
-    new.role := 'user';
-    new.is_admin := false;
-    new.staff_branch := null;
-    new.staff_country := null;
-    new.staff_city := null;
   end if;
 
   return new;
@@ -295,24 +316,18 @@ begin
   end loop;
 end $$;
 
--- Lecture : tout utilisateur authentifié (carte / communauté)
--- Les champs sensibles role/is_admin restent visibles au Staff pour l'UI Amiral ;
--- un user lambda qui les lit ne peut pas les modifier (trigger + policies).
 create policy "profiles_select_authenticated"
   on public.profiles
   for select
   to authenticated
   using (true);
 
--- Insert : son propre profil uniquement (role forcé user par trigger)
 create policy "profiles_insert_own"
   on public.profiles
   for insert
   to authenticated
   with check (auth.uid() = id);
 
--- Update profil perso (colonnes non-Staff)
--- Les colonnes Staff sont re-vérifiées par le trigger.
 create policy "profiles_update_own_non_staff"
   on public.profiles
   for update
@@ -320,7 +335,6 @@ create policy "profiles_update_own_non_staff"
   using (auth.uid() = id)
   with check (auth.uid() = id);
 
--- Update Staff réservé à l'Amiral (n'importe quelle ligne)
 create policy "profiles_update_staff_by_amiral"
   on public.profiles
   for update
@@ -328,15 +342,11 @@ create policy "profiles_update_staff_by_amiral"
   using (public.is_amiral())
   with check (public.is_amiral());
 
--- Pas de delete profil par les clients (optionnel : soft-delete côté app)
--- create policy "profiles_delete_own" ...
-
 grant select, insert, update on public.profiles to authenticated;
 
 -- ------------------------------------------------------------
 -- 4. Bootstrap Amiral (UNE SEULE FOIS)
---    Remplace l'UUID ci-dessous par ton auth.users id, puis exécute.
---    Ensuite commente ou supprime ce bloc.
+--    Remplace l'UUID, exécute, puis commente ce bloc.
 -- ------------------------------------------------------------
 -- update public.profiles
 -- set role = 'amiral',
@@ -346,9 +356,11 @@ grant select, insert, update on public.profiles to authenticated;
 -- where id = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx';
 
 -- ============================================================
--- Vérifications utiles
+-- Vérifications
 -- ============================================================
+-- select enumlabel from pg_enum e
+--   join pg_type t on t.oid = e.enumtypid
+--  where t.typname = 'app_role' order by enumsortorder;
 -- select public.is_amiral(), public.current_profile_role();
 -- select policyname, cmd from pg_policies where tablename = 'profiles';
--- select tgname from pg_trigger where tgrelid = 'public.profiles'::regclass;
 -- ============================================================
