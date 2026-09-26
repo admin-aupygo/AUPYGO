@@ -1,1 +1,117 @@
-PLACEHOLDER
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>AUPYGO — chargement…</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<style>body{font-family:system-ui,sans-serif;padding:24px;color:#64748b;margin:0}</style>
+</head>
+<body>
+<p id="boot">Chargement AUPYGO…</p>
+<script>
+(async function () {
+  var V = '20260926ui10';
+  var urls = [
+    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
+    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html'
+  ];
+  var html = null;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var res = await fetch(urls[i], { cache: 'no-store' });
+      if (res.ok) { html = await res.text(); break; }
+    } catch (e) {}
+  }
+  if (!html) {
+    document.getElementById('boot').textContent = 'Impossible de charger AUPYGO.';
+    return;
+  }
+
+  html = html.replace(/\?v=20260926[^"']*/g, '?v=' + V);
+
+  var parser = new DOMParser();
+  var doc = parser.parseFromString(html, 'text/html');
+
+  var fav = doc.createElement('link');
+  fav.rel = 'icon';
+  fav.href = 'favicon.svg';
+  fav.type = 'image/svg+xml';
+  doc.head.insertBefore(fav, doc.head.firstChild);
+
+  // Retirer scripts staff déjà présents dans la base (évite doublons)
+  var kill = /js\/(staff-|admin|agenda-week|realtime)/;
+  Array.from(doc.querySelectorAll('script[src]')).forEach(function (s) {
+    var src = s.getAttribute('src') || '';
+    if (kill.test(src)) s.remove();
+  });
+
+  var extra = [
+    'js/realtime-fix.js',
+    'js/agenda-week-nav.js',
+    'js/staff-hierarchy.js',
+    'js/admin.js',
+    'js/staff-ui.js',
+    'js/staff-profile.js',
+    'js/staff-events.js',
+    'js/staff-messages.js',
+    'js/staff-groups-fix.js',
+    'js/staff-msg-badge-fix.js',
+    'js/staff-visibility.js',
+    'js/staff-restrictions.js',
+    'js/staff-msg-unlock.js'
+  ];
+  extra.forEach(function (src) {
+    var el = doc.createElement('script');
+    el.src = src + '?v=' + V;
+    doc.body.appendChild(el);
+  });
+
+  // Remplacer head
+  document.documentElement.lang = doc.documentElement.lang || 'fr';
+  document.head.innerHTML = '';
+  Array.from(doc.head.childNodes).forEach(function (n) {
+    document.head.appendChild(document.importNode(n, true));
+  });
+
+  // Body HTML sans scripts, puis chargement séquentiel des scripts
+  var bodyHtml = '';
+  var scripts = [];
+  Array.from(doc.body.childNodes).forEach(function (n) {
+    if (n.nodeName === 'SCRIPT') {
+      scripts.push(n);
+    } else if (n.nodeType === 1) {
+      bodyHtml += n.outerHTML;
+    } else if (n.nodeType === 3) {
+      bodyHtml += n.textContent;
+    }
+  });
+  document.body.innerHTML = bodyHtml;
+
+  function loadScript(node) {
+    return new Promise(function (resolve) {
+      var s = document.createElement('script');
+      var src = node.getAttribute && node.getAttribute('src');
+      if (src) {
+        s.src = src;
+        if (node.async) s.async = true;
+        if (node.defer) s.defer = true;
+        s.onload = function () { resolve(); };
+        s.onerror = function () { console.warn('[AUPYGO] script fail', src); resolve(); };
+        document.body.appendChild(s);
+      } else {
+        s.textContent = node.textContent || '';
+        document.body.appendChild(s);
+        resolve();
+      }
+    });
+  }
+
+  for (var j = 0; j < scripts.length; j++) {
+    await loadScript(scripts[j]);
+  }
+})();
+</script>
+</body>
+</html>
