@@ -22,10 +22,14 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html. Ouvre GitHub → historique → restaure le commit <code>0effaead</code>.</p>';
     return;
   }
-  // Cache-bust
-  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui2');
-  // Inject all staff + agenda scripts before </body>
+  // Cache-bust global
+  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui3');
+  html = html.replace(/\?v=20260926ui1/g, '?v=20260926ui3');
+  html = html.replace(/\?v=20260926ui2/g, '?v=20260926ui3');
+
+  // Liste complète des scripts à garantir (ordre)
   var scripts = [
+    'js/realtime-fix.js',
     'js/agenda-week-nav.js',
     'js/staff-hierarchy.js',
     'js/admin.js',
@@ -37,18 +41,19 @@
     'js/staff-restrictions.js',
     'js/staff-msg-unlock.js'
   ];
+
+  // Retirer anciennes balises staff pour éviter doublons
+  scripts.concat(['js/staff-hierarchy.js', 'js/admin.js']).forEach(function (src) {
+    var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
+    html = html.replace(re, '');
+  });
+
   var inject = '';
   scripts.forEach(function (src) {
-    if (html.indexOf(src) === -1) {
-      inject += '<script src="' + src + '?v=20260926ui2"><\/script>\n';
-    }
+    inject += '<script src="' + src + '?v=20260926ui3"><\/script>\n';
   });
-  // Remove old staff-hierarchy + admin if present to avoid double, then inject full list
-  html = html.replace(/<script src="js\/staff-hierarchy\.js\?v=[^"]+"><\/script>\s*/g, '');
-  html = html.replace(/<script src="js\/admin\.js\?v=[^"]+"><\/script>\s*/g, '');
-  if (inject) {
-    html = html.replace('</body>', inject + '</body>');
-  }
+  html = html.replace('</body>', inject + '</body>');
+
   document.open();
   document.write(html);
   document.close();
