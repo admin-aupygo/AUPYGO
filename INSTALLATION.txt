@@ -1,7 +1,7 @@
-AUPYGO — Comment mettre à jour le site (très simple)
-=====================================================
+AUPYGO — Comment mettre à jour le site (structure sectorisée)
+==============================================================
 
-1) Télécharge le fichier AUPYGO-A-INSTALLER.zip (fourni par Grok dans le chat)
+1) Télécharge le fichier AUPYGO-sectorized.zip (fourni par Grok dans le chat)
 
 2) Dézippe-le sur ton ordinateur
 
@@ -19,5 +19,5 @@ AUPYGO — Comment mettre à jour le site (très simple)
 
 C'est tout. Rien d'autre à faire.
 
-En cas de doute, tu peux aussi remplacer uniquement index.html
-par le fichier AUPYGO-tout-en-un.html (renomme-le en index.html).
+Les anciens fichiers à la racine (styles.css, app.js, config.js, i18n.js…)
+ne sont plus utilisés et peuvent être supprimés plus tard si tu veux.
