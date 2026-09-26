@@ -2,22 +2,32 @@
 
 La communauté mondiale des au pairs — **Meet. Go out. Make friends.**
 
-## Structure cible (sectorisée)
+## Structure (sectorisée — finalisée)
 
 ```
 index.html          → structure HTML des pages
 css/styles.css      → tout le design
-js/config.js        → Supabase URL + clé anon (déjà sur le dépôt)
+js/config.js        → Supabase URL + clé anon
 js/i18n.js          → traductions FR / EN / ES
+js/i18n-extra.js    → traductions complémentaires
 js/app.js           → logique (auth, carte, messages, profil, idle…)
+js/map-markers.js   → marqueurs carte + règles Staff
+js/staff-*.js       → modules Staff (hiérarchie, admin, messages, events…)
+js/admin.js         → panneau Administration
 CNAME               → domaine Cloudflare
 ```
 
-## État actuel
+## Installation / mise à jour
 
-- `js/config.js` est déjà dans le dépôt.
-- `index.html` actuel est encore la version **monolithique** (tout-en-un) pour ne pas casser le site en production.
-- La version **sectorisée complète** (index + css + js) a été préparée et doit être poussée / uploadée pour finaliser le découpage.
+Utilise le fichier **AUPYGO-sectorized.zip** fourni par Grok :
+
+1. Dézippe
+2. Va sur https://github.com/admin-aupygo/AUPYGO/upload/main
+3. Glisse `index.html` + dossiers `css/` et `js/`
+4. Commit changes
+5. Attends 1-2 min
+
+Les anciens fichiers à la racine (`styles.css`, `app.js`…) ne sont plus chargés et peuvent être supprimés plus tard.
 
 ## Stack (100 % free)
 
@@ -30,13 +40,14 @@ CNAME               → domaine Cloudflare
 
 ## Déploiement
 
-Chaque push sur `branch main` met à jour le site via Cloudflare Pages.
+Chaque push sur `main` met à jour le site via Cloudflare Pages.
 
-## Améliorations récentes (dans le build sectorisé)
+## Fonctionnalités clés
 
-- Invité : carte mondiale + compteur de connectés (sans interaction)
+- Invité : carte mondiale + compteur de connectés
 - Déconnexion globale (tous appareils)
 - Inactivité 45 min + alerte à 40 min
 - Messagerie (amis + groupes max 5)
-- Profils réels uniquement (plus de fictifs)
+- Profils réels uniquement + avatars universels
 - Couleurs carte : moi bleu / en ligne vert / hors ligne rouge
+- Système Staff (Amiral / Major / Sergent) avec séparation stricte Users/Staff
