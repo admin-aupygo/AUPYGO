@@ -22,11 +22,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html. Ouvre GitHub → historique → restaure le commit <code>0effaead</code>.</p>';
     return;
   }
-  // Cache-bust global
-  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui4');
-  html = html.replace(/\?v=20260926ui1/g, '?v=20260926ui4');
-  html = html.replace(/\?v=20260926ui2/g, '?v=20260926ui4');
-  html = html.replace(/\?v=20260926ui3/g, '?v=20260926ui4');
+  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260926ui5');
 
   var scripts = [
     'js/realtime-fix.js',
@@ -49,7 +45,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=20260926ui4"><\/script>\n';
+    inject += '<script src="' + src + '?v=20260926ui5"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
