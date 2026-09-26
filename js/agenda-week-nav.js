@@ -2,13 +2,12 @@
  * Navigation hebdomadaire + sélecteur de date
  * Pour TOUS les utilisateurs (User + Staff)
  * Pages : Sorties (#events) et Agenda (#agenda)
+ *
+ * Fix : délégation d'événements (handlers jamais perdus) +
+ * surcharge fiable de getCurrentWeekDays.
  */
 (function () {
   'use strict';
-
-  var DAYS_FR = ['Dim', 'Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam'];
-  var MONTHS_FR = ['Janvier', 'Février', 'Mars', 'Avril', 'Mai', 'Juin',
-    'Juillet', 'Août', 'Septembre', 'Octobre', 'Novembre', 'Décembre'];
 
   function startOfWeek(d) {
     var x = new Date(d.getFullYear(), d.getMonth(), d.getDate());
@@ -33,11 +32,15 @@
     return dd(monday) + ' → ' + dd(end) + ' ' + monday.getFullYear();
   }
 
-  // État global partagé avec getCurrentWeekDays (surcharge)
+  function padKey(d) {
+    return d.getFullYear() + '-' +
+      String(d.getMonth() + 1).padStart(2, '0') + '-' +
+      String(d.getDate()).padStart(2, '0');
+  }
+
   window.__agendaWeekStart = window.__agendaWeekStart || startOfWeek(new Date());
 
-  // Surcharge getCurrentWeekDays pour respecter la semaine navigable
-  window.getCurrentWeekDays = function getCurrentWeekDays() {
+  function overriddenGetCurrentWeekDays() {
     var names = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     var monday = window.__agendaWeekStart || startOfWeek(new Date());
     var out = [];
@@ -48,29 +51,38 @@
         date: d,
         dayNum: d.getDate(),
         monthNum: d.getMonth() + 1,
-        key: d.getFullYear() + '-' +
-          String(d.getMonth() + 1).padStart(2, '0') + '-' +
-          String(d.getDate()).padStart(2, '0')
+        key: padKey(d)
       });
     }
     return out;
-  };
+  }
+
+  // Surcharge durable (y compris si app.js redéfinit la fonction)
+  function installGetCurrentWeekDays() {
+    try {
+      window.getCurrentWeekDays = overriddenGetCurrentWeekDays;
+      // Aussi sur le scope global non-window si besoin
+      if (typeof getCurrentWeekDays !== 'undefined') {
+        try { getCurrentWeekDays = overriddenGetCurrentWeekDays; } catch (e) {}
+      }
+    } catch (e) {
+      window.getCurrentWeekDays = overriddenGetCurrentWeekDays;
+    }
+  }
+  installGetCurrentWeekDays();
 
   function refreshCalendars() {
+    installGetCurrentWeekDays();
     try {
-      if (typeof renderEventsAgenda === 'function' && window.cachedEvents) {
-        renderEventsAgenda(window.cachedEvents);
-      }
-      if (typeof renderCommunityAgenda === 'function' && window.cachedEvents) {
-        renderCommunityAgenda(window.cachedEvents);
-      }
-      if (typeof renderPersonalAgenda === 'function' && window.cachedEvents) {
-        renderPersonalAgenda(window.cachedEvents);
-      }
+      var events = window.cachedEvents || [];
+      if (typeof renderEventsAgenda === 'function') renderEventsAgenda(events);
+      if (typeof renderCommunityAgenda === 'function') renderCommunityAgenda(events);
+      if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(events);
       if (typeof renderEventGridFiltered === 'function') renderEventGridFiltered();
       if (typeof updateMyAgendaList === 'function') updateMyAgendaList();
-      if (typeof loadAndRenderEvents === 'function') {
-        // re-render listes si besoin (léger)
+      // Re-render grille événements si présente
+      if (typeof renderEventCards === 'function') {
+        try { renderEventCards(events); } catch (e0) {}
       }
     } catch (e) {
       console.warn('[agenda-nav] refresh', e);
@@ -81,16 +93,16 @@
   function shiftWeek(delta) {
     window.__agendaWeekStart = addDays(window.__agendaWeekStart || startOfWeek(new Date()), delta * 7);
     try { window.selectedAgendaDay = null; } catch (e) {}
+    try { selectedAgendaDay = null; } catch (e2) {}
     refreshCalendars();
   }
 
   function goToDate(dateObj) {
     if (!dateObj || isNaN(dateObj.getTime())) return;
     window.__agendaWeekStart = startOfWeek(dateObj);
-    var key = dateObj.getFullYear() + '-' +
-      String(dateObj.getMonth() + 1).padStart(2, '0') + '-' +
-      String(dateObj.getDate()).padStart(2, '0');
+    var key = padKey(dateObj);
     try { window.selectedAgendaDay = key; } catch (e) {}
+    try { selectedAgendaDay = key; } catch (e2) {}
     refreshCalendars();
   }
 
@@ -100,12 +112,56 @@
     goToDate(t);
   }
 
+  // Délégation globale — les boutons marchent même si le DOM est régénéré
+  if (!window._agendaWeekNavDelegated) {
+    window._agendaWeekNavDelegated = true;
+    document.addEventListener('click', function (e) {
+      var t = e.target;
+      if (!t || !t.closest) return;
+      var prev = t.closest('.aupygo-week-prev');
+      var next = t.closest('.aupygo-week-next');
+      var today = t.closest('.aupygo-week-today');
+      var goBtn = t.closest('.aupygo-week-go');
+      if (prev) {
+        e.preventDefault();
+        e.stopPropagation();
+        shiftWeek(-1);
+        return;
+      }
+      if (next) {
+        e.preventDefault();
+        e.stopPropagation();
+        shiftWeek(1);
+        return;
+      }
+      if (today) {
+        e.preventDefault();
+        e.stopPropagation();
+        goToday();
+        return;
+      }
+      if (goBtn) {
+        e.preventDefault();
+        e.stopPropagation();
+        var nav = goBtn.closest('.aupygo-week-nav');
+        var inp = nav ? nav.querySelector('.aupygo-week-picker') : null;
+        if (!inp || !inp.value) return;
+        var parts = String(inp.value).split('-');
+        if (parts.length !== 3) return;
+        goToDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
+      }
+    }, true);
+  }
+
   function injectNav(anchorId, navId) {
     var anchor = document.getElementById(anchorId);
-    if (!anchor) return;
+    if (!anchor) return null;
     var host = anchor.parentElement || anchor;
     var existing = document.getElementById(navId);
-    if (existing) return existing;
+    if (existing) {
+      syncNavLabels();
+      return existing;
+    }
 
     var nav = document.createElement('div');
     nav.id = navId;
@@ -129,17 +185,7 @@
     } catch (e) {
       host.appendChild(nav);
     }
-
-    nav.querySelector('.aupygo-week-prev').onclick = function () { shiftWeek(-1); };
-    nav.querySelector('.aupygo-week-next').onclick = function () { shiftWeek(1); };
-    nav.querySelector('.aupygo-week-today').onclick = function () { goToday(); };
-    nav.querySelector('.aupygo-week-go').onclick = function () {
-      var inp = nav.querySelector('.aupygo-week-picker');
-      if (!inp || !inp.value) return;
-      var parts = inp.value.split('-');
-      if (parts.length !== 3) return;
-      goToDate(new Date(parseInt(parts[0], 10), parseInt(parts[1], 10) - 1, parseInt(parts[2], 10)));
-    };
+    syncNavLabels();
     return nav;
   }
 
@@ -149,59 +195,52 @@
     document.querySelectorAll('.aupygo-week-range').forEach(function (el) {
       el.textContent = label;
     });
-    var iso = monday.getFullYear() + '-' +
-      String(monday.getMonth() + 1).padStart(2, '0') + '-' +
-      String(monday.getDate()).padStart(2, '0');
+    var today = new Date();
+    var todayIso = padKey(today);
+    var sel = window.selectedAgendaDay || todayIso;
     document.querySelectorAll('.aupygo-week-picker').forEach(function (inp) {
-      if (!inp.value) {
-        var sel = window.selectedAgendaDay;
-        if (sel) inp.value = sel;
-        else {
-          var t = new Date();
-          inp.value = t.getFullYear() + '-' +
-            String(t.getMonth() + 1).padStart(2, '0') + '-' +
-            String(t.getDate()).padStart(2, '0');
-        }
+      // Toujours refléter la sélection courante si vide ou après navigation
+      if (!inp.dataset.userPicked) {
+        inp.value = sel;
       }
     });
   }
 
   function ensureNavs() {
-    // Agenda page calendar
+    installGetCurrentWeekDays();
     injectNav('agendaCalendar', 'agendaWeekNav');
-    // Events page — chercher calendrier communauté ou grille
+
     var eventCal = document.getElementById('eventsCalendar') ||
       document.getElementById('communityCalendar') ||
       document.querySelector('#events .agenda-week') ||
       document.getElementById('eventGrid');
     if (eventCal && eventCal.id) {
       injectNav(eventCal.id, 'eventsWeekNav');
-    } else if (eventCal) {
-      // pas d'id : injecter avant la grille
+    } else if (eventCal && eventCal.parentNode) {
       if (!document.getElementById('eventsWeekNav')) {
-        var nav = document.createElement('div');
-        nav.id = 'eventsWeekNavPlaceholder';
-        eventCal.parentNode.insertBefore(nav, eventCal);
-        nav.id = 'eventsWeekNavAnchor';
+        var ph = document.createElement('div');
+        ph.id = 'eventsWeekNavAnchor';
+        eventCal.parentNode.insertBefore(ph, eventCal);
         injectNav('eventsWeekNavAnchor', 'eventsWeekNav');
       }
     }
-    // Personal calendar on profile
+
     if (document.getElementById('personalCalendar')) {
       injectNav('personalCalendar', 'personalWeekNav');
     }
     syncNavLabels();
   }
 
+  // Patch go()
   var prevGo = window.go;
   if (typeof prevGo === 'function' && !window._agendaWeekNavGo) {
     window._agendaWeekNavGo = true;
     window.go = function (page) {
       prevGo(page);
       if (page === 'agenda' || page === 'events' || page === 'profile') {
-        setTimeout(ensureNavs, 200);
-        setTimeout(ensureNavs, 600);
-        setTimeout(refreshCalendars, 700);
+        setTimeout(ensureNavs, 150);
+        setTimeout(ensureNavs, 500);
+        setTimeout(refreshCalendars, 600);
       }
     };
   }
@@ -212,14 +251,28 @@
     window._agendaWeekNavLoad = true;
     window.loadAndRenderEvents = async function () {
       var r = await _origLoad.apply(this, arguments);
-      setTimeout(ensureNavs, 100);
-      setTimeout(syncNavLabels, 150);
+      setTimeout(ensureNavs, 80);
+      setTimeout(function () {
+        installGetCurrentWeekDays();
+        syncNavLabels();
+      }, 120);
       return r;
     };
   }
 
-  setTimeout(ensureNavs, 800);
-  setTimeout(ensureNavs, 2000);
+  // Réinstaller périodiquement au cas où app.js redéfinit getCurrentWeekDays
+  setInterval(function () {
+    installGetCurrentWeekDays();
+  }, 2000);
 
-  console.log('[AUPYGO] agenda-week-nav.js (tous utilisateurs)');
+  setTimeout(ensureNavs, 600);
+  setTimeout(ensureNavs, 1500);
+  setTimeout(ensureNavs, 3000);
+
+  // API debug
+  window.__agendaShiftWeek = shiftWeek;
+  window.__agendaGoToday = goToday;
+  window.__agendaGoToDate = goToDate;
+
+  console.log('[AUPYGO] agenda-week-nav.js v2 (délégation + surcharge fiable)');
 })();
