@@ -2,6 +2,7 @@
  * Interface Staff / Amiral :
  * - Accueil : masquer Amis + Mon abonnement
  * - Header : bouclier 🛡️ + menu raccourcis (Messages, Sorties, Admin)
+ *   → masqué sur la page Admin (redondant)
  * - Badge « Staff » à la place de Premium
  * - Privilèges Premium hérités automatiquement
  */
@@ -10,6 +11,16 @@
 
   function staffReady() {
     return typeof isStaff === 'function' && isStaff();
+  }
+
+  function isAdminPage() {
+    try {
+      if (typeof getActivePage === 'function' && getActivePage() === 'admin') return true;
+    } catch (e) {}
+    var adminEl = document.getElementById('admin');
+    if (adminEl && adminEl.classList && adminEl.classList.contains('active')) return true;
+    if (adminEl && adminEl.style && adminEl.style.display === 'block') return true;
+    return false;
   }
 
   function forceStaffPremium() {
@@ -28,7 +39,6 @@
         el.setAttribute('hidden', 'true');
       }
     });
-    // Nav amis
     ['navFriends', 'homeBtnFriends'].forEach(function (id) {
       var el = document.getElementById(id);
       if (el) {
@@ -44,7 +54,6 @@
 
     var label = (typeof isAmiral === 'function' && isAmiral()) ? 'Amiral' : 'Staff';
 
-    // Header badge (remplace PREMIUM / diamant)
     var badge = document.getElementById('headerPlanBadge');
     if (badge) {
       badge.textContent = label;
@@ -65,7 +74,6 @@
     var sheetAvatar = document.getElementById('moreSheetAvatar');
     if (sheetAvatar) sheetAvatar.textContent = '🛡️';
 
-    // Page plans : mention Staff à la place de Premium actif
     var premiumBadge = document.getElementById('badge-PREMIUM');
     if (premiumBadge) {
       premiumBadge.style.display = 'block';
@@ -91,7 +99,6 @@
     var list = document.querySelector('.more-sheet-list');
     if (!list) return;
 
-    // Vider et reconstruire
     list.innerHTML = '';
 
     function addItem(icon, label, page) {
@@ -113,7 +120,6 @@
     if (typeof isAmiral === 'function' && isAmiral()) {
       addItem('🛡️', 'Administration', 'admin');
     }
-    // PAS d'Abonnement, PAS d'Amis
   }
 
   function injectStaffHeaderShield() {
@@ -121,13 +127,22 @@
     var actions = document.querySelector('.header-actions');
     if (!actions) return;
 
-    // Masquer le bouton plan classique pour Amiral (menu dédié)
-    var planBtn = document.getElementById('headerPlanBtn');
-    if (planBtn && typeof isAmiral === 'function' && isAmiral()) {
-      // On garde le bouton mais avatar/badge déjà en bouclier
+    var wrap = document.getElementById('staffHeaderWrap');
+
+    // Sur la page Admin : masquer le bouton bouclier (redondant à côté de la langue)
+    if (isAdminPage()) {
+      if (wrap) {
+        wrap.style.display = 'none';
+        wrap.setAttribute('hidden', 'true');
+      }
+      return;
     }
 
-    var wrap = document.getElementById('staffHeaderWrap');
+    if (wrap) {
+      wrap.style.display = '';
+      wrap.removeAttribute('hidden');
+    }
+
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = 'staffHeaderWrap';
@@ -217,7 +232,6 @@
     }
   }
 
-  // Intercepter updatePlanAvatarUI / updatePlanUI
   function patchPlanUI() {
     if (typeof window.updatePlanAvatarUI === 'function' && !window._staffPlanAvatarPatched) {
       window._staffPlanAvatarPatched = true;
