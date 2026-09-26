@@ -24,14 +24,12 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260926ui8');
+  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260926ui9');
 
-  // Favicon fiable (évite le 404 /favicon.ico)
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace(
       '</head>',
-      '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n' +
-      '<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🌍</text></svg>">\n</head>'
+      '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>'
     );
   }
 
@@ -45,6 +43,7 @@
     'js/staff-events.js',
     'js/staff-messages.js',
     'js/staff-groups-fix.js',
+    'js/staff-msg-badge-fix.js',
     'js/staff-visibility.js',
     'js/staff-restrictions.js',
     'js/staff-msg-unlock.js'
@@ -57,7 +56,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=20260926ui8"><\/script>\n';
+    inject += '<script src="' + src + '?v=20260926ui9"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
