@@ -1,1 +1,43 @@
-PLACEHOLDER_WILL_BE_REPLACED_BY_READING_FILE
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUPYGO — chargement…</title>
+<script>
+(async function () {
+  // Restauration depuis le dernier commit valide, puis injection des nouveaux scripts
+  var urls = [
+    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
+    'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
+    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html'
+  ];
+  var html = null;
+  for (var i = 0; i < urls.length; i++) {
+    try {
+      var res = await fetch(urls[i], { cache: 'no-store' });
+      if (res.ok) { html = await res.text(); break; }
+    } catch (e) {}
+  }
+  if (!html) {
+    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html. Ouvre GitHub → historique → restaure le commit <code>0effaead</code>.</p>';
+    return;
+  }
+  // Cache-bust + agenda-week-nav
+  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui1');
+  if (html.indexOf('agenda-week-nav') === -1) {
+    html = html.replace(
+      '<script src="js/staff-hierarchy.js?v=20260926ui1"><\/script>',
+      '<script src="js/agenda-week-nav.js?v=20260926ui1"><\/script>\n<script src="js/staff-hierarchy.js?v=20260926ui1"><\/script>'
+    );
+  }
+  document.open();
+  document.write(html);
+  document.close();
+})();
+</script>
+</head>
+<body>
+<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Chargement AUPYGO…</p>
+</body>
+</html>
