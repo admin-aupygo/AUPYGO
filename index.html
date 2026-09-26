@@ -23,11 +23,11 @@
     return;
   }
   // Cache-bust global
-  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui3');
-  html = html.replace(/\?v=20260926ui1/g, '?v=20260926ui3');
-  html = html.replace(/\?v=20260926ui2/g, '?v=20260926ui3');
+  html = html.replace(/\?v=20260926fix3/g, '?v=20260926ui4');
+  html = html.replace(/\?v=20260926ui1/g, '?v=20260926ui4');
+  html = html.replace(/\?v=20260926ui2/g, '?v=20260926ui4');
+  html = html.replace(/\?v=20260926ui3/g, '?v=20260926ui4');
 
-  // Liste complète des scripts à garantir (ordre)
   var scripts = [
     'js/realtime-fix.js',
     'js/agenda-week-nav.js',
@@ -42,7 +42,6 @@
     'js/staff-msg-unlock.js'
   ];
 
-  // Retirer anciennes balises staff pour éviter doublons
   scripts.concat(['js/staff-hierarchy.js', 'js/admin.js']).forEach(function (src) {
     var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
     html = html.replace(re, '');
@@ -50,7 +49,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=20260926ui3"><\/script>\n';
+    inject += '<script src="' + src + '?v=20260926ui4"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
