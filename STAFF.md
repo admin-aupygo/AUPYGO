@@ -27,13 +27,22 @@ Colonnes associées :
 - `staff_branch` — `evenementiel` | `moderation`
 - `is_admin` — true uniquement pour l'Amiral
 
-### Mapping migration
+### Mapping migration (lecture seule)
 
 | Ancien          | Nouveau            |
 |-----------------|--------------------|
 | `admin_general` | `amiral`           |
 | `host`          | `sergent_staff`    |
 | `moderator`     | `sergent_moderateur` |
+
+---
+
+## Sécurité — attribution des rôles
+
+Les rôles Staff sont **uniquement** attribués par l'Amiral via le panneau Administration.
+**Aucune auto-promotion par email côté client** (supprimée).
+
+Le client lit `profiles.role` depuis Supabase. L'écriture de `role` / `is_admin` par un utilisateur non-Amiral doit être **bloquée par les politiques RLS Supabase**.
 
 ---
 
@@ -124,17 +133,18 @@ Aucun événement payant ne peut être publié sans validation finale de l'Amira
 
 ---
 
-## Fichiers
+## Fichiers actifs
 
-| Fichier                 | Rôle                                      |
-|-------------------------|-------------------------------------------|
-| `js/staff-hierarchy.js` | Source unique des rôles & permissions     |
-| `js/admin.js`           | Panneau Administration + chargement rôles |
-| `js/staff-messages.js`  | Messagerie Staff (groupe + exception Amiral) |
-| `js/staff-events.js`    | Événements officiels + pipeline validation |
-| `js/staff-visibility.js`| Visibilité carte & fiches                 |
-| `js/staff-profile.js`   | Profil limité Staff                       |
-| `js/staff-restrictions.js` | Masquage boutons / agenda              |
-| `map-markers.js`        | Staff invisible aux users                 |
+| Fichier                    | Rôle                                      |
+|----------------------------|-------------------------------------------|
+| `js/staff-hierarchy.js`    | Source unique des rôles & permissions     |
+| `js/admin.js`              | Panneau Administration (Amiral uniquement)|
+| `js/staff-messages.js`     | Messagerie Staff                          |
+| `js/staff-events.js`       | Événements officiels + validation         |
+| `js/staff-visibility.js`   | Visibilité carte & fiches                 |
+| `js/staff-profile.js`      | Profil limité (n'écrit pas le rôle)       |
+| `js/staff-restrictions.js` | Masquage boutons / agenda                 |
+| `js/staff-msg-unlock.js`   | Déblocage messagerie Staff                |
+| `map-markers.js`           | Staff invisible aux users                 |
 
-Chargement : `index.html` → `app.js` → `map-markers.js` → `js/staff-hierarchy.js` → `js/admin.js` → staff-*.js
+Chargement : `index.html` → `app.js` → `map-markers.js` → `js/staff-hierarchy.js` → `js/admin.js` → modules staff-*.js
