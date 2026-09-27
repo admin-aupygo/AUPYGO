@@ -1,8 +1,7 @@
-/* AUPYGO — staff-ui.js v4
+/* AUPYGO — staff-ui.js v4.1
  * - Accueil : masquer Amis + Abonnement
- * - Header : Messages + bouclier Staff (hors page Admin)
- * - Badge Staff PRÉCIS (Major Staff / Sergent Staff / Major Mod / Sergent Mod)
- * - Premium forcé + stop clignotement messages
+ * - Badge grade PRÉCIS + re-sync DB fréquent
+ * - Header Messages + bouclier Staff
  */
 (function () {
   'use strict';
@@ -20,7 +19,6 @@
     return false;
   }
 
-  /** Label précis du grade selon la spec */
   function getPreciseStaffLabel() {
     var role = (typeof getNormalizedRole === 'function') ? getNormalizedRole() : 'user';
     var shortMap = {
@@ -63,7 +61,6 @@
         el.style.pointerEvents = 'none';
       }
     });
-
     ['homeBtnMessages', 'homeBtnEvents', 'homeBtnAgenda', 'homeBtnMap', 'homeBtnProfile'].forEach(function (id) {
       var el = document.getElementById(id);
       if (!el) return;
@@ -79,7 +76,6 @@
       if (typeof getTotalUnreadCount === 'function') total = getTotalUnreadCount() || 0;
     } catch (e) {}
     if (total > 0) return;
-
     document.querySelectorAll(
       '#navMessages, #bottomNavMessages, [data-nav="messages"], #homeBtnMessages, #headerMessagesBtn'
     ).forEach(function (el) {
@@ -108,7 +104,6 @@
   function applyStaffBadges() {
     if (!staffReady()) return;
     forceStaffPremium();
-
     var label = getPreciseStaffLabel();
 
     var badge = document.getElementById('headerPlanBadge');
@@ -136,15 +131,16 @@
       premiumBadge.style.display = 'block';
       premiumBadge.textContent = label;
     }
+
+    var lab = document.getElementById('staffHeaderLabel');
+    if (lab) lab.textContent = label;
   }
 
   function rebuildMoreMenuForStaff() {
     if (!staffReady()) return;
     var list = document.querySelector('.more-sheet-list');
     if (!list) return;
-
     list.innerHTML = '';
-
     function addItem(icon, label, page) {
       var btn = document.createElement('button');
       btn.type = 'button';
@@ -156,7 +152,6 @@
       };
       list.appendChild(btn);
     }
-
     addItem('👤', 'Profil', 'profile');
     addItem('💬', 'Messages', 'messages');
     addItem('🎉', 'Sorties', 'events');
@@ -170,13 +165,11 @@
     if (!staffReady()) return;
     var actions = document.querySelector('.header-actions');
     if (!actions) return;
-
     var existing = document.getElementById('headerMessagesBtn');
     if (existing) {
       existing.style.display = '';
       return;
     }
-
     var btn = document.createElement('button');
     btn.type = 'button';
     btn.id = 'headerMessagesBtn';
@@ -189,7 +182,6 @@
       e.stopPropagation();
       if (typeof go === 'function') go('messages');
     };
-
     var lang = actions.querySelector('.lang-select') || actions.querySelector('#language');
     var shield = document.getElementById('staffHeaderWrap');
     if (shield && shield.parentNode === actions) {
@@ -221,9 +213,7 @@
     if (!staffReady()) return;
     var actions = document.querySelector('.header-actions');
     if (!actions) return;
-
     var wrap = document.getElementById('staffHeaderWrap');
-
     if (isAdminPage()) {
       if (wrap) {
         wrap.style.display = 'none';
@@ -231,17 +221,14 @@
       }
       return;
     }
-
     if (wrap) {
       wrap.style.display = '';
       wrap.removeAttribute('hidden');
     }
-
     if (!wrap) {
       wrap = document.createElement('div');
       wrap.id = 'staffHeaderWrap';
       wrap.style.cssText = 'position:relative;display:inline-flex;align-items:center;margin-right:8px;';
-
       var btn = document.createElement('button');
       btn.type = 'button';
       btn.id = 'staffHeaderBtn';
@@ -252,31 +239,21 @@
         var m = document.getElementById('staffQuickMenu');
         if (m) m.style.display = m.style.display === 'none' ? 'block' : 'none';
       };
-
       var menu = document.createElement('div');
       menu.id = 'staffQuickMenu';
       menu.style.cssText = 'display:none;position:absolute;top:110%;right:0;min-width:180px;background:#fff;border:1px solid #e2e8f0;border-radius:14px;box-shadow:0 12px 40px rgba(0,0,0,.12);padding:8px;z-index:10000;';
-
       function qItem(label, page) {
         return '<button type="button" class="staff-qitem" data-go="' + page + '">' + label + '</button>';
       }
-      var html = qItem('💬 Messages', 'messages') +
-        qItem('🎉 Sorties', 'events') +
-        qItem('📅 Agenda', 'agenda');
-      if (typeof isAmiral === 'function' && isAmiral()) {
-        html += qItem('🛡️ Administration', 'admin');
-      }
+      var html = qItem('💬 Messages', 'messages') + qItem('🎉 Sorties', 'events') + qItem('📅 Agenda', 'agenda');
+      if (typeof isAmiral === 'function' && isAmiral()) html += qItem('🛡️ Administration', 'admin');
       menu.innerHTML = html;
-
       if (!document.getElementById('staffQuickMenuStyle')) {
         var st = document.createElement('style');
         st.id = 'staffQuickMenuStyle';
-        st.textContent =
-          '.staff-qitem{display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:transparent;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;color:#1e293b}' +
-          '.staff-qitem:hover{background:#f1f5f9}';
+        st.textContent = '.staff-qitem{display:block;width:100%;text-align:left;padding:10px 12px;border:0;background:transparent;border-radius:10px;font-weight:600;font-size:13px;cursor:pointer;color:#1e293b}.staff-qitem:hover{background:#f1f5f9}';
         document.head.appendChild(st);
       }
-
       menu.querySelectorAll('.staff-qitem').forEach(function (item) {
         item.onclick = function () {
           menu.style.display = 'none';
@@ -284,20 +261,16 @@
           if (typeof go === 'function') go(page);
         };
       });
-
       wrap.appendChild(btn);
       wrap.appendChild(menu);
-
       var lang = actions.querySelector('.lang-select') || actions.querySelector('#language');
       if (lang) actions.insertBefore(wrap, lang);
       else actions.appendChild(wrap);
-
       document.addEventListener('click', function () {
         var m = document.getElementById('staffQuickMenu');
         if (m) m.style.display = 'none';
       });
     }
-
     var lab = document.getElementById('staffHeaderLabel');
     if (lab) lab.textContent = getPreciseStaffLabel();
   }
@@ -309,15 +282,11 @@
       var prev = window.go;
       window.go = function (page) {
         if (page === 'plans') {
-          if (typeof showToast === 'function') {
-            showToast('Compte Staff — privilèges Premium inclus (pas d\'abonnement).', 'success');
-          }
+          if (typeof showToast === 'function') showToast('Compte Staff — privilèges Premium inclus (pas d\'abonnement).', 'success');
           return prev('home');
         }
         if (page === 'reconnect') {
-          if (typeof showToast === 'function') {
-            showToast('Page Amis indisponible pour le Staff.', 'error');
-          }
+          if (typeof showToast === 'function') showToast('Page Amis indisponible pour le Staff.', 'error');
           return;
         }
         prev(page);
@@ -348,7 +317,6 @@
         if (staffReady()) applyStaffBadges();
       };
     }
-
     if (typeof window.updateMessagesBadge === 'function' && !window._staffMsgBadgePatched) {
       window._staffMsgBadgePatched = true;
       var _origBadge = window.updateMessagesBadge;
@@ -358,7 +326,6 @@
         stopMessageBlinkIfRead();
       };
     }
-
     if (typeof window.markConversationRead === 'function' && !window._staffMarkReadPatched) {
       window._staffMarkReadPatched = true;
       var _origMark = window.markConversationRead;
@@ -369,6 +336,15 @@
         return r;
       };
     }
+  }
+
+  async function resyncRoleThenBadges() {
+    try {
+      if (typeof window.syncStaffRoleFromProfile === 'function') {
+        await window.syncStaffRoleFromProfile();
+      }
+    } catch (e) {}
+    if (staffReady()) applyStaffBadges();
   }
 
   function tick() {
@@ -389,9 +365,17 @@
     blockStaffNav();
     setTimeout(tick, 400);
     setTimeout(tick, 1200);
+    setTimeout(resyncRoleThenBadges, 1500);
+    setTimeout(resyncRoleThenBadges, 4000);
     setInterval(function () {
-      if (staffReady()) tick();
+      if (staffReady()) {
+        tick();
+      }
     }, 3000);
+    // Re-sync grade depuis DB toutes les 20s (après changement Amiral)
+    setInterval(function () {
+      resyncRoleThenBadges();
+    }, 20000);
   }
 
   if (document.readyState === 'loading') {
@@ -400,5 +384,5 @@
     init();
   }
 
-  console.log('[AUPYGO] staff-ui.js v4 (badges précis)');
+  console.log('[AUPYGO] staff-ui.js v4.1 (badges + re-sync grade)');
 })();
