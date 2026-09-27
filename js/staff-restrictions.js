@@ -1,6 +1,7 @@
-/* AUPYGO staff-restrictions.js v2
+/* AUPYGO staff-restrictions.js v3
  * - Masque création sorties utilisateur pour le Staff
- * - Autorise Major / Sergent / Amiral à créer des événements Aupygo GRATUITS
+ * - Injecte bouton « Créer événement Aupygo » (gratuit) pour Amiral / Major / Sergent
+ * - Payants uniquement Amiral (géré dans staff-events.js)
  */
 (function () {
   'use strict';
@@ -10,7 +11,6 @@
   }
 
   function canCreateAupygoEvents() {
-    // Amiral + Major + Sergent (les deux branches)
     if (typeof isAmiral === 'function' && isAmiral()) return true;
     if (typeof isMajor === 'function' && isMajor()) return true;
     if (typeof isSergent === 'function' && isSergent()) return true;
@@ -22,10 +22,8 @@
 
     document.querySelectorAll('button, a, .btn, [role="button"]').forEach(function (btn) {
       var t = (btn.textContent || '').trim().toLowerCase();
-      var oc = (btn.getAttribute('onclick') || '') + (btn.getAttribute('href') || '');
 
-      // Garder les boutons « spécial Aupygo »
-      if (/spécial aupygo|special aupygo|événement spécial|evenement special/i.test(t)) {
+      if (/spécial aupygo|special aupygo|événement spécial|evenement special|événement aupygo|evenement aupygo|créer événement aupygo/i.test(t)) {
         if (canCreateAupygoEvents()) {
           btn.style.display = '';
           btn.disabled = false;
@@ -35,13 +33,13 @@
         return;
       }
 
-      // Masquer création sorties communautaires / entre amis
       if (/organiser une sortie|sortie entre amis|créer une sortie|nouvelle sortie|créer un événement|creer un evenement/i.test(t)) {
-        btn.style.display = 'none';
+        if (!/aupygo|spécial|special/i.test(t)) {
+          btn.style.display = 'none';
+        }
       }
     });
 
-    // IDs connus de création utilisateur
     ['#btnCreateEvent', '#btnCreateFriendsEvent', '#btnOrgUser', '#btnOrgFriends',
       '#createEventBtn', '#btnOpenCreateEvent', '#agendaCreateBtn'].forEach(function (sel) {
       var el = document.querySelector(sel);
@@ -57,15 +55,86 @@
       el.style.display = 'none';
     });
 
-    // Sur Agenda : pas de création utilisateur ; le Staff crée depuis Sorties
     if (typeof getActivePage === 'function' && getActivePage() === 'agenda') {
       document.querySelectorAll('#agenda button, #agenda .btn').forEach(function (btn) {
         var t = (btn.textContent || '').toLowerCase();
         if (/créer|organiser|nouvelle sortie|nouvel événement/i.test(t) &&
-            !/spécial aupygo|special aupygo/i.test(t)) {
+            !/spécial aupygo|special aupygo|aupygo/i.test(t)) {
           btn.style.display = 'none';
         }
       });
+    }
+  }
+
+  function injectStaffCreateEventBtn() {
+    if (!staffReady() || !canCreateAupygoEvents()) return;
+
+    var page = document.getElementById('events');
+    if (!page) return;
+    if (document.getElementById('staffCreateAupygoBtn')) {
+      var existing = document.getElementById('staffCreateAupygoBtn');
+      existing.style.display = '';
+      existing.disabled = false;
+      return;
+    }
+
+    var btn = document.createElement('button');
+    btn.type = 'button';
+    btn.id = 'staffCreateAupygoBtn';
+    btn.className = 'btn btn-primary';
+    btn.style.cssText = 'margin:12px 0;width:100%;max-width:420px;font-weight:700;';
+    btn.textContent = '🛡️ Créer un événement Aupygo (gratuit)';
+    btn.onclick = function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      var openers = [
+        document.getElementById('btnOpenCreateEvent'),
+        document.getElementById('createEventBtn'),
+        document.querySelector('[onclick*="openCreateEvent"]'),
+        document.querySelector('[onclick*="showCreateEvent"]')
+      ];
+      var opened = false;
+      for (var i = 0; i < openers.length; i++) {
+        if (openers[i]) {
+          try {
+            openers[i].style.display = '';
+            openers[i].click();
+            opened = true;
+            break;
+          } catch (err) {}
+        }
+      }
+      if (!opened && typeof window.openCreateEvent === 'function') {
+        window.openCreateEvent();
+        opened = true;
+      }
+      if (!opened) {
+        var form = document.getElementById('createEventForm') || document.querySelector('#createEventModal, .create-event-modal');
+        if (form) {
+          form.style.display = '';
+          form.classList.add('active', 'show');
+          opened = true;
+        }
+      }
+      if (!opened && typeof showToast === 'function') {
+        showToast('Ouvre Sorties puis utilise le formulaire de création d\'événement.', 'success');
+      }
+      setTimeout(function () {
+        var paidFree = document.querySelector('input[name="eventPaid"][value="free"]');
+        if (paidFree) paidFree.checked = true;
+        var vis = document.getElementById('createEventVisibility');
+        if (vis) {
+          try { vis.value = 'public'; } catch (e2) {}
+        }
+      }, 300);
+    };
+
+    var anchor = page.querySelector('.section-title') || page.firstChild;
+    if (anchor && anchor.parentNode) {
+      if (anchor.nextSibling) anchor.parentNode.insertBefore(btn, anchor.nextSibling);
+      else anchor.parentNode.appendChild(btn);
+    } else {
+      page.insertBefore(btn, page.firstChild);
     }
   }
 
@@ -94,6 +163,7 @@
     if (!staffReady()) return;
     hideStaffCreateButtons();
     hideParticipationRequests();
+    injectStaffCreateEventBtn();
   }
 
   if (typeof window.go === 'function' && !window._staffRestrictGo) {
@@ -111,5 +181,5 @@
   setTimeout(tick, 800);
   setInterval(tick, 2500);
 
-  console.log('[AUPYGO] staff-restrictions.js v2 (Major/Sergent = events Aupygo gratuits)');
+  console.log('[AUPYGO] staff-restrictions.js v3 (bouton Créer événement Aupygo)');
 })();
