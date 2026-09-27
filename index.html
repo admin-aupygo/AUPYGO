@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=20260926[^"']*/g, '?v=20260927staff');
+  html = html.replace(/\?v=2026092[67][^"']*/g, '?v=20260927staff2');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace(
@@ -57,7 +57,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=20260927staff"><\/script>\n';
+    inject += '<script src="' + src + '?v=20260927staff2"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 

@@ -1,9 +1,7 @@
-/* AUPYGO — staff-groups-fix.js
- * Cahier des charges messagerie :
- * - Tout Staff invité dans un groupe (ex. Team France) le voit dans sa liste
- * - openStaffAnyGroup accessible à tout membre (plus seulement Amiral)
- * - loadStaffMembers avec les rôles officiels (amiral, major_*, sergent_*)
- * - markRead renforcé (stop clignotement)
+/* AUPYGO — staff-groups-fix.js v2
+ * - Sans role.eq.admin (évite 400 enum app_role)
+ * - loadStaffMembers en 2 requêtes
+ * - openStaffAnyGroup pour tout membre Staff
  */
 (function () {
   'use strict';
@@ -16,7 +14,6 @@
     return String(s || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
   }
 
-  /** Tous les groupes dont l'utilisateur est membre */
   async function loadMyStaffGroups() {
     if (!window.currentUser) return [];
     try {
@@ -39,27 +36,27 @@
     }
   }
 
-  /** Liste Staff avec rôles officiels + legacy */
   async function loadStaffMembersFixed() {
     try {
-      var res = await supabaseClient
-        .from('profiles')
-        .select('id, display_name, role, is_admin, is_online, last_seen, city, country')
-        .or(
-          'is_admin.eq.true,' +
-          'role.eq.amiral,' +
-          'role.eq.major_staff,' +
-          'role.eq.sergent_staff,' +
-          'role.eq.major_moderateur,' +
-          'role.eq.sergent_moderateur,' +
-          'role.eq.admin_general,' +
-          'role.eq.host,' +
-          'role.eq.moderator,' +
-          'role.eq.admin'
-        )
-        .limit(150);
-      return res.data || [];
+      var results = await Promise.all([
+        supabaseClient
+          .from('profiles')
+          .select('id, display_name, role, is_admin, is_online, last_seen, city, country')
+          .eq('is_admin', true)
+          .limit(20),
+        supabaseClient
+          .from('profiles')
+          .select('id, display_name, role, is_admin, is_online, last_seen, city, country')
+          .in('role', ['amiral', 'major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur', 'admin_general', 'host', 'moderator'])
+          .limit(150)
+      ]);
+      var map = {};
+      results.forEach(function (res) {
+        ((res && res.data) || []).forEach(function (p) { if (p && p.id) map[p.id] = p; });
+      });
+      return Object.keys(map).map(function (k) { return map[k]; });
     } catch (e) {
+      console.warn('[Staff] loadStaffMembersFixed', e);
       return [];
     }
   }
@@ -86,11 +83,9 @@
     });
   }
 
-  // openStaffAnyGroup : tout Staff membre peut ouvrir
   window.openStaffAnyGroup = async function (gid, title) {
     if (!staffReady()) return;
     if (!gid) return;
-    // Vérifie appartenance
     try {
       var mem = await supabaseClient
         .from('conversation_members')
@@ -113,15 +108,11 @@
       name: title || 'Groupe',
       conversationId: gid
     };
-    if (typeof renderStaffChat === 'function') {
-      // renderStaffChat may not be global — use loadConversationHistory path
-    }
     try {
       if (typeof window.loadConversationHistory === 'function') {
         await window.loadConversationHistory(gid);
       }
     } catch (e2) {}
-    // Render via staff-messages internals if available
     try {
       var box = document.getElementById('chatMessages');
       if (box) {
@@ -154,21 +145,18 @@
       console.warn('[Staff] open group', e3);
     }
 
-    // Header
     var header = document.getElementById('chatHeader');
     if (header) {
       header.removeAttribute('data-i18n');
       header.innerHTML = '<span style="font-weight:700">' + (title || 'Groupe') + '</span>';
     }
 
-    // Mark read + stop blink
     if (typeof markConversationRead === 'function') markConversationRead(gid, null);
     if (window.unreadByConversation) window.unreadByConversation[gid] = 0;
     if (typeof updateMessagesBadge === 'function') updateMessagesBadge();
     stopAllMessageBlink();
   };
 
-  /** Enrichit la liste groupes pour TOUT staff (pas seulement Amiral) */
   async function enrichGroupsList() {
     if (!staffReady()) return;
     var groupsList = document.getElementById('convGroupsList');
@@ -181,7 +169,6 @@
     var html = '';
     var seen = {};
 
-    // Conserver le canal officiel en premier s'il existe déjà dans le DOM
     var existingOfficial = groupsList.querySelector('[onclick*="openStaffGroup"]');
     if (existingOfficial) {
       html += existingOfficial.outerHTML;
@@ -215,14 +202,6 @@
     if (html) groupsList.innerHTML = html;
   }
 
-  // Patch applyStaffMessagesUI si présent
-  function patchApply() {
-    if (typeof window.applyStaffMessagesUI === 'function' && !window._staffGroupsApplyPatched) {
-      // applyStaffMessagesUI n'est pas forcément sur window — on hooke via interval
-    }
-  }
-
-  // Après chaque rendu messages staff, enrichir les groupes
   if (typeof window.go === 'function' && !window._staffGroupsGo) {
     window._staffGroupsGo = true;
     var prevGo = window.go;
@@ -236,7 +215,6 @@
     };
   }
 
-  // Patch renderConversationSidebar
   if (typeof window.renderConversationSidebar === 'function' && !window._staffGroupsSidebar) {
     window._staffGroupsSidebar = true;
     var orig = window.renderConversationSidebar;
@@ -247,13 +225,11 @@
     };
   }
 
-  // Interval de secours
   setInterval(function () {
     if (!staffReady()) return;
     if (typeof getActivePage === 'function' && getActivePage() === 'messages') {
       enrichGroupsList();
     }
-    // Stop blink si 0 non-lus
     try {
       if (typeof getTotalUnreadCount === 'function' && getTotalUnreadCount() === 0) {
         stopAllMessageBlink();
@@ -264,5 +240,5 @@
   setTimeout(enrichGroupsList, 1500);
   setTimeout(enrichGroupsList, 3000);
 
-  console.log('[AUPYGO] staff-groups-fix.js chargé');
+  console.log('[AUPYGO] staff-groups-fix.js v2 chargé');
 })();
