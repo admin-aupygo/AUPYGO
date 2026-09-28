@@ -649,8 +649,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       .maybeSingle();
 
     // Mode Fantôme / admin : flag DB prioritaire, email en secours
-    currentUserIsAdmin = !!(profile && profile.is_admin === true) ||
-      !!(user.email && user.email.toLowerCase() === ADMIN_EMAIL);
+    currentUserIsAdmin = !!(profile && profile.is_admin === true);
 
     if (profile && profile.subscription) {
       currentPlan = profile.subscription;
@@ -2202,7 +2201,6 @@ Continuer ?`
    SORTIES & ÉVÉNEMENTS (RÉELS)
 ========================= */
 
-const ADMIN_EMAIL = 'aupygo@protonmail.com';
 let selectedEventEmoji = '☕';
 let selectedEventType = 'cafe';
 let cachedEvents = [];
@@ -2213,9 +2211,7 @@ let pendingEventInviteIds = new Set();
 let currentUserIsAdmin = false;
 
 function isAdmin() {
-  if (currentUserIsAdmin) return true;
-  return !!(currentUser && currentUser.email &&
-    currentUser.email.toLowerCase() === ADMIN_EMAIL);
+  return !!currentUserIsAdmin;
 }
 
 /* =========================
@@ -2729,7 +2725,7 @@ function openSpecialInviteModal(eventId) {
     '<div class="special-invite-avatar">' + emoji + '</div>' +
     '<div class="si-badge">⭐ Invitation spéciale AUPYGO</div>' +
     '<h3>' + escapeHtml(ev.title || 'Événement spécial') + '</h3>' +
-    '<p class="si-meta" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" style="cursor:pointer">📍 ' + escapeHtml(ev.address || '') + '</p>' +
+    '<p class="si-meta event-address-link" data-address="' + escapeAttr(ev.address) + '" style="cursor:pointer" role="link" tabindex="0">📍 ' + escapeHtml(ev.address || '') + '</p>' +
     '<p class="si-meta">🕐 ' + dateStr + '</p>' +
     (ev.description ? '<p class="si-desc">' + escapeHtml(ev.description) + '</p>' : '') +
     '<div class="special-invite-actions">' + actions + '</div>';
@@ -3006,7 +3002,7 @@ function buildEventCardHtml(ev, locked) {
     '<div class="event-cover">' + (ev.emoji || '🎉') + '</div><div class="event-body">' +
     '<span class="badge">' + typeLabel + (visBadge ? ' · ' + visBadge : '') + priceBadge + '</span>' +
     '<h3>' + escapeHtml(ev.title) + '</h3>' +
-    '<p class="event-details event-address-link" role="link" tabindex="0" onclick="openEventLocation(\'' + String(ev.address || '').replace(/\\/g,'\\\\').replace(/'/g,"\\'") + '\',event)" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
+    '<p class="event-details event-address-link" role="link" tabindex="0" data-address="' + escapeAttr(ev.address) + '" title="Ouvrir dans Google Maps">📍 ' + escapeHtml(ev.address || '') + ' ↗</p>' +
     '<p class="event-details">🕐 ' + dateStr + ' · 👥 ' + (ev.max_participants || '?') + '</p>' +
     (showPrice && isPaidEv ? '<p class="event-details">💶 ' + priceLabel + '</p>' : '') +
     (!isPast ? '<p class="event-seats">' + seatsText + '</p>' : '') +
@@ -3129,6 +3125,26 @@ function openEventLocation(address, ev) {
   }
   window.open(url, '_blank', 'noopener,noreferrer');
 }
+
+// Clic délégué sécurisé pour les adresses (évite XSS via onclick)
+if (!window.__aupygoAddressClickBound) {
+  window.__aupygoAddressClickBound = true;
+  document.addEventListener('click', function (e) {
+    var el = e.target.closest && e.target.closest('[data-address]');
+    if (!el) return;
+    e.preventDefault();
+    e.stopPropagation();
+    openEventLocation(el.getAttribute('data-address'), e);
+  });
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    var el = e.target.closest && e.target.closest('[data-address]');
+    if (!el) return;
+    e.preventDefault();
+    openEventLocation(el.getAttribute('data-address'), e);
+  });
+}
+
 
 function formatEventDate(iso) {
   if (!iso) return '';
@@ -3585,7 +3601,7 @@ function updateMyAgendaList() {
     return `<div class="agenda-item ${role} urgency-${urg}" data-event-id="${ev.id}" style="padding:10px 12px;border-radius:10px;margin-bottom:8px;border-bottom:1px solid var(--border,#eee)">
       <strong>${ev.emoji || '🎉'} ${escapeHtml(ev.title)}</strong>
       <span class="agenda-role-pill">${roleLabel}</span><br>
-      <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · <a href="#" class="event-address-link" onclick="openEventLocation('${String(ev.address||'').replace(/'/g, "\'")}', event); return false;">📍 ${escapeHtml(ev.address || '')}</a></span><br>
+      <span style="font-size:13px;color:var(--muted)">${formatEventDate(ev.event_date)} · <a href="#" class="event-address-link" data-address="${escapeAttr(ev.address)}">📍 ${escapeHtml(ev.address || '')}</a></span><br>
       <span class="event-seats">${remaining} place${remaining > 1 ? 's' : ''} restante${remaining > 1 ? 's' : ''}</span>
     </div>`;
   }).join('');
@@ -3934,7 +3950,12 @@ function escapeHtml(s) {
 }
 
 function escapeAttr(str) {
-  return String(str == null ? '' : str).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  return String(str == null ? '' : str)
+    .replace(/&/g, '&amp;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
 }
 
 /* =========================
@@ -5085,7 +5106,7 @@ function renderGroupFriendsPick() {
       '<label class="group-pick-item' + (checked ? ' selected' : '') + '">' +
         '<input type="checkbox" ' + (checked ? 'checked' : '') + ' onchange="toggleGroupPick(\'' + f.id + '\', this.checked)">' +
         '<span style="font-size:20px">' + emoji + '</span>' +
-        '<span>' + (f.display_name || 'Ami') + '</span>' +
+        '<span>' + escapeHtml(f.display_name || 'Ami') + '</span>' +
       '</label>'
     );
   }).join('');
