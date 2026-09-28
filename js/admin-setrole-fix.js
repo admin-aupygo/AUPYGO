@@ -1,11 +1,11 @@
-/* AUPYGO admin-setrole-fix.js
- * Changement de grade Staff via RPC admin_set_staff_role (fiable).
- * Fallback UPDATE classique si la RPC n'existe pas encore.
+/* AUPYGO admin-setrole-fix.js v3
+ * Verrouille adminSetRole (RPC) pour qu'il ne soit plus écrasé par l'ancien admin.js
  */
 (function () {
   'use strict';
 
   var STAFF_RANKS = ['major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur'];
+  var INSTALL_TAG = 'admin-setrole-v3';
 
   function norm(role) {
     if (typeof window.normalizeStaffRole === 'function') return window.normalizeStaffRole(role);
@@ -59,7 +59,7 @@
     }
   }
 
-  window.adminSetRole = async function (userId, newRole) {
+  async function adminSetRoleLocked(userId, newRole) {
     if (typeof isAmiral === 'function' && !isAmiral()) {
       if (typeof showToast === 'function') showToast('Réservé à l\'Amiral', 'error');
       return;
@@ -73,6 +73,12 @@
       return;
     }
 
+    var client = window.supabaseClient || window.supabase;
+    if (!client) {
+      if (typeof showToast === 'function') showToast('Supabase non initialisé', 'error');
+      return;
+    }
+
     var target = null;
     try {
       if (typeof adminUsersCache !== 'undefined' && Array.isArray(adminUsersCache)) {
@@ -81,11 +87,9 @@
     } catch (e0) {}
 
     if (!target) {
-      var tr = await supabaseClient
-        .from('profiles')
+      var tr = await client.from('profiles')
         .select('id, display_name, role, is_admin, staff_branch, subscription')
-        .eq('id', userId)
-        .maybeSingle();
+        .eq('id', userId).maybeSingle();
       if (tr.error || !tr.data) {
         if (typeof showToast === 'function') showToast('Membre introuvable', 'error');
         return;
@@ -111,81 +115,95 @@
     if (!confirm('Changer le grade de « ' + (target.display_name || '') + ' » → « ' + label + ' » ?')) return;
 
     try {
-      // 1) RPC dédiée (contourne RLS/trigger proprement)
-      var rpc = await supabaseClient.rpc('admin_set_staff_role', {
+      console.log('[Admin setRole] RPC', userId, newRole);
+
+      var rpc = await client.rpc('admin_set_staff_role', {
         target_id: userId,
         new_role: newRole
       });
 
-      if (!rpc.error && rpc.data) {
-        var saved = typeof rpc.data === 'string' ? JSON.parse(rpc.data) : rpc.data;
-        if (saved && saved.role) {
-          syncCaches(userId, saved);
-          if (typeof window.adminRefresh === 'function') window.adminRefresh();
-          if (typeof showToast === 'function') {
-            showToast('✓ Grade « ' + labelOf(saved.role) + ' » enregistré', 'success');
-          }
-          return;
-        }
-      }
-
-      // RPC absente ou erreur → message clair
       if (rpc.error) {
-        console.warn('[Admin setRole] RPC', rpc.error);
-        var em = rpc.error.message || String(rpc.error);
-        if (/function .* does not exist|PGRST202|42883/i.test(em)) {
-          // Fallback UPDATE classique
-        } else if (/FORBIDDEN|42501|NOT_AUTHENTICATED/i.test(em)) {
-          if (typeof showToast === 'function') showToast('Refusé : ' + em, 'error');
-          return;
-        } else if (/22P02|invalid input value for enum/i.test(em)) {
-          if (typeof showToast === 'function') showToast('Enum role incomplet — exécute SUPABASE_ADMIN_SET_ROLE.sql', 'error');
-          return;
-        } else {
-          if (typeof showToast === 'function') showToast('Erreur RPC: ' + em, 'error');
-          return;
-        }
-      }
-
-      // 2) Fallback UPDATE direct
-      var branch = (newRole === 'major_staff' || newRole === 'sergent_staff')
-        ? 'evenementiel' : 'moderation';
-
-      var upd = await supabaseClient
-        .from('profiles')
-        .update({
-          role: newRole,
-          is_admin: false,
-          subscription: 'PREMIUM',
-          staff_branch: branch
-        })
-        .eq('id', userId)
-        .select('id, role, is_admin, staff_branch, subscription, display_name');
-
-      if (upd.error) {
-        console.error('[Admin setRole] update', upd.error);
-        if (typeof showToast === 'function') showToast('Erreur: ' + (upd.error.message || upd.error), 'error');
-        return;
-      }
-
-      var rows = upd.data || [];
-      if (!rows.length) {
+        console.error('[Admin setRole] RPC error', rpc.error);
         if (typeof showToast === 'function') {
-          showToast('Échec : exécute SUPABASE_ADMIN_SET_ROLE.sql dans Supabase, puis réessaie.', 'error');
+          showToast('Erreur: ' + (rpc.error.message || rpc.error), 'error');
         }
         return;
       }
 
-      syncCaches(userId, rows[0]);
-      if (typeof window.adminRefresh === 'function') window.adminRefresh();
-      if (typeof showToast === 'function') {
-        showToast('✓ Grade « ' + labelOf(rows[0].role) + ' » enregistré', 'success');
+      var saved = rpc.data;
+      if (typeof saved === 'string') {
+        try { saved = JSON.parse(saved); } catch (e) {}
       }
+
+      if (!saved || !saved.role) {
+        if (typeof showToast === 'function') showToast('Réponse RPC invalide', 'error');
+        return;
+      }
+
+      // Vérification DB obligatoire avant toast succès
+      var ver = await client.from('profiles')
+        .select('id, role, is_admin, staff_branch, subscription, display_name')
+        .eq('id', userId).maybeSingle();
+
+      if (ver.error || !ver.data) {
+        if (typeof showToast === 'function') showToast('Impossible de vérifier en base', 'error');
+        return;
+      }
+
+      var dbRole = norm(ver.data.role);
+      if (dbRole !== newRole && String(ver.data.role).toLowerCase() !== newRole) {
+        console.warn('[Admin setRole] DB role mismatch', ver.data.role, newRole);
+        if (typeof showToast === 'function') {
+          showToast('Non enregistré en base (toujours « ' + labelOf(ver.data.role) + ' »). Vérifie la RPC SQL.', 'error');
+        }
+        if (typeof window.adminRefresh === 'function') window.adminRefresh();
+        return;
+      }
+
+      syncCaches(userId, ver.data);
+      if (typeof window.adminRefresh === 'function') window.adminRefresh();
+
+      if (typeof showToast === 'function') {
+        showToast('✓ Grade « ' + labelOf(ver.data.role) + ' » enregistré en base', 'success');
+      }
+      console.log('[Admin setRole] OK', ver.data);
     } catch (e) {
       console.error('[Admin setRole]', e);
       if (typeof showToast === 'function') showToast('Erreur: ' + (e.message || e), 'error');
     }
-  };
+  }
 
-  console.log('[AUPYGO] admin-setrole-fix.js v2 (RPC)');
+  // Tag pour détecter si on a encore notre fonction
+  adminSetRoleLocked._aupygo = INSTALL_TAG;
+
+  function install() {
+    window.adminSetRole = adminSetRoleLocked;
+    // Empêche une réécriture simple sans tag
+    try {
+      Object.defineProperty(window, 'adminSetRole', {
+        configurable: true,
+        enumerable: true,
+        get: function () { return adminSetRoleLocked; },
+        set: function (fn) {
+          // Autoriser uniquement si c'est encore notre fix (ou un plus récent)
+          if (fn && fn._aupygo === INSTALL_TAG) {
+            adminSetRoleLocked = fn;
+          } else {
+            console.warn('[AUPYGO] tentative d\'écrasement de adminSetRole ignorée');
+          }
+        }
+      });
+    } catch (e) {
+      window.adminSetRole = adminSetRoleLocked;
+    }
+  }
+
+  install();
+  // Réinstalle après les chargements tardifs de admin.js (CDN)
+  setTimeout(install, 300);
+  setTimeout(install, 1000);
+  setTimeout(install, 2500);
+  setTimeout(install, 5000);
+
+  console.log('[AUPYGO] admin-setrole-fix.js v3 verrouillé');
 })();
