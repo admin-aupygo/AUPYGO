@@ -24,11 +24,14 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=staff-vis-v2');
+  html = html.replace(/\?v=[^"']*/g, '?v=staff-map-black');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
+
+  // Retirer ancienne map-markers pour la recharger en dernier
+  html = html.replace(/<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi, '');
 
   var scripts = [
     'js/realtime-fix.js',
@@ -45,7 +48,8 @@
     'js/staff-msg-badge-fix.js',
     'js/staff-visibility.js',
     'js/staff-restrictions.js',
-    'js/staff-msg-unlock.js'
+    'js/staff-msg-unlock.js',
+    'map-markers.js'
   ];
 
   scripts.concat(['js/staff-hierarchy.js', 'js/admin.js']).forEach(function (src) {
@@ -55,7 +59,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=staff-vis-v2"><\/script>\n';
+    inject += '<script src="' + src + '?v=staff-map-black"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
