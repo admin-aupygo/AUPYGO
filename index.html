@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=admin-setrole-v3');
+  html = html.replace(/\?v=[^"']*/g, '?v=staff-vis-v2');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -55,7 +55,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=admin-setrole-v3"><\/script>\n';
+    inject += '<script src="' + src + '?v=staff-vis-v2"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
