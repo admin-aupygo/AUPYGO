@@ -673,7 +673,7 @@ async function refreshAuthUI(redirectPage = 'profile') {
       document.getElementById('bio').value = profile.bio || '';
       if (document.getElementById('city')) document.getElementById('city').value = profile.city || '';
       if (document.getElementById('hostCountry')) document.getElementById('hostCountry').value = profile.host_country || '';
-      if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = profile.stay_end || '';
+      if (document.getElementById('stayEnd')) document.getElementById('stayEnd').value = toMonthInputValue(profile.stay_end);
       if (document.getElementById('otherLanguage')) document.getElementById('otherLanguage').value = profile.other_language || '';
 
       if (profile.gender) {
@@ -3957,6 +3957,46 @@ function escapeAttr(str) {
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;');
 }
+
+/** Normalise une date de fin de séjour vers yyyy-MM (input type=month). */
+function toMonthInputValue(raw) {
+  if (raw == null || raw === '') return '';
+  var s = String(raw).trim();
+  // Déjà yyyy-MM ou yyyy-MM-dd
+  var m = s.match(/^(\d{4})-(\d{2})(?:-\d{2})?/);
+  if (m) return m[1] + '-' + m[2];
+  // Timestamp ISO
+  var d = new Date(s);
+  if (!isNaN(d.getTime()) && s.match(/\d{4}/)) {
+    var mm = String(d.getMonth() + 1).padStart(2, '0');
+    return d.getFullYear() + '-' + mm;
+  }
+  // Français: "septembre 2027", "sept. 2027", etc.
+  var months = {
+    janvier: '01', jan: '01',
+    fevrier: '02', février: '02', fev: '02', fév: '02',
+    mars: '03',
+    avril: '04', avr: '04',
+    mai: '05',
+    juin: '06',
+    juillet: '07', juil: '07',
+    aout: '08', août: '08',
+    septembre: '09', sept: '09',
+    octobre: '10', oct: '10',
+    novembre: '11', nov: '11',
+    decembre: '12', décembre: '12', dec: '12', déc: '12'
+  };
+  var lower = s.toLowerCase().replace(/\./g, '').replace(/\s+/g, ' ');
+  var parts = lower.split(' ');
+  if (parts.length >= 2) {
+    var mon = months[parts[0]];
+    var year = parts[1].match(/\d{4}/);
+    if (mon && year) return year[0] + '-' + mon;
+  }
+  // "2027-09" déjà ok, sinon vide pour éviter le warning console
+  return '';
+}
+
 
 /* =========================
    QUOTA MESSAGES
