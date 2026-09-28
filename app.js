@@ -204,7 +204,7 @@ function declineGeoConsent() {
   try {
     localStorage.setItem('aupygo_geo_declined', '1');
   } catch (e) {}
-  showToast('Position non activée. Tu peux réessayer via « Autour de moi ».', 'error');
+  showToast(t('toast.geo_declined'), 'error');
   if (cb) cb(false);
 }
 
@@ -343,9 +343,9 @@ async function handleSignup() {
     const errTxt = String(error.message || '') + ' ' + String(error.details || '');
     if (/EMAIL_BLOCKED|MAX_SIGNUPS|Adresse mail invalide ou bloquée|email.*block/i.test(errTxt)) {
       alert('Adresse mail invalide ou bloquée');
-      showToast('Adresse mail invalide ou bloquée', 'error');
+      showToast(t('toast.email_blocked'), 'error');
     } else {
-      showToast('Erreur : ' + error.message, 'error');
+      showToast(t('toast.error_prefix') + error.message, 'error');
     }
     return;
   }
@@ -469,7 +469,7 @@ async function handleLogin() {
     } else if (/captcha/i.test(msg)) {
       showToast(t('toast.captcha_required') || 'Valide le captcha puis réessaie.', 'error');
     } else {
-      showToast('Erreur : ' + msg, 'error');
+      showToast(t('toast.error_prefix') + msg, 'error');
     }
     return;
   }
@@ -1190,7 +1190,7 @@ async function selectPlan(plan, billing) {
 
     if (error) {
       console.error(error);
-      showToast('Erreur lors de la sauvegarde du forfait : ' + error.message, 'error');
+      showToast(t('toast.plan_save_error') + error.message, 'error');
       return;
     }
     showToast(t('plans.free_active') || 'Forfait FREE activé', 'success');
@@ -1207,13 +1207,13 @@ async function selectPlan(plan, billing) {
 
   // Message clair pour l’utilisateur
   if (plan === 'STANDARD' && bill === 'pass6') {
-    showToast('STANDARD Pass 6 mois — 24,90 € — Paiement bientôt disponible', 'success');
+    showToast(t('plans.pay_soon_standard_pass'), 'success');
   } else if (plan === 'STANDARD') {
-    showToast('STANDARD — 4,90 €/mois — Paiement bientôt disponible', 'success');
+    showToast(t('plans.pay_soon_standard'), 'success');
   } else if (plan === 'PREMIUM' && bill === 'pass6') {
-    showToast('PREMIUM Pass 6 mois — 51,60 € — Paiement bientôt disponible', 'success');
+    showToast(t('plans.pay_soon_premium_pass'), 'success');
   } else {
-    showToast('PREMIUM — 9,90 €/mois — Paiement bientôt disponible', 'success');
+    showToast(t('plans.pay_soon_premium'), 'success');
   }
 
   // Plus tard : ici tu ouvriras Stripe Checkout
@@ -1614,14 +1614,14 @@ function messageMember(memberId) {
     return;
   }
   if (st === 'pending') {
-    showToast('⏳ Demande d’ami en attente — impossible de discuter pour l’instant.', 'error');
+    showToast(t('toast.friend_pending_chat'), 'error');
     return;
   }
   if (st === 'refused' || st === 'rejected' || st === 'declined') {
-    showToast('Cette personne a refusé ta demande d’ami. Messagerie indisponible.', 'error');
+    showToast(t('toast.friend_refused_chat'), 'error');
     return;
   }
-  showToast('🤝 Envoie d’abord une demande d’ami. La messagerie s’ouvre seulement après acceptation.', 'error');
+  showToast(t('toast.friend_required_chat'), 'error');
 }
 
 
@@ -1791,7 +1791,7 @@ function toggleLanguage(btn, code) {
     btn.classList.remove('selected');
   } else {
     if (selectedLanguages.length >= 3) {
-      showToast('Maximum 3 langues', 'error');
+      showToast(t('toast.max_languages'), 'error');
       return;
     }
     selectedLanguages.push(code);
@@ -1978,7 +1978,7 @@ async function saveProfile() {
 
   if (error) {
     console.error(error);
-    showToast('Erreur : ' + error.message, 'error');
+    showToast(t('toast.error_prefix') + error.message, 'error');
     return;
   }
 
@@ -2053,8 +2053,7 @@ Continuer ?`
 
   try {
 
-    showToast(
-      'Suppression du compte...',
+    showToast(t('toast.account_deleting'),
       'success'
     );
 
@@ -2170,7 +2169,7 @@ Continuer ?`
     }
 
     showToast(
-      'Compte supprimé définitivement',
+      t('toast.account_deleted'),
       'success'
     );
 
@@ -2185,10 +2184,7 @@ Continuer ?`
 
   } catch (err) {
     console.error(err);
-    showToast(
-      'Erreur : ' + err.message,
-      'error'
-    );
+    showToast(t('toast.error_prefix') + err.message, 'error');
   }
 }
 
@@ -2305,22 +2301,22 @@ function eventWizardRender() {
 function eventWizardValidate(stepName) {
   if (stepName === 'title') {
     const v = (document.getElementById('createEventTitleInput').value || '').trim();
-    if (!v) { showToast('Donne un nom à ta sortie.', 'error'); return false; }
+    if (!v) { showToast(t('toast.event_name_required'), 'error'); return false; }
     return true;
   }
   if (stepName === 'date') {
     const dateVal = document.getElementById('createEventDate').value;
-    if (!dateVal) { showToast('Choisis une date et une heure.', 'error'); return false; }
+    if (!dateVal) { showToast(t('toast.event_date_required'), 'error'); return false; }
     const eventDate = new Date(dateVal);
     if (isNaN(eventDate.getTime()) || eventDate.getTime() < Date.now() - 3600000) {
-      showToast('Choisis une date/heure valide dans le futur.', 'error');
+      showToast(t('toast.event_date_future'), 'error');
       return false;
     }
     return true;
   }
   if (stepName === 'address') {
     const v = (document.getElementById('createEventAddress').value || '').trim();
-    if (!v) { showToast('Indique une adresse.', 'error'); return false; }
+    if (!v) { showToast(t('toast.event_address_required'), 'error'); return false; }
     return true;
   }
   if (stepName === 'max') {
@@ -2328,7 +2324,7 @@ function eventWizardValidate(stepName) {
     if (vis === 'friends') {
       const ids = getSelectedFriendIdsForEvent();
       if (!ids.length) {
-        showToast('Sélectionne au moins un ami à inviter.', 'error');
+        showToast(t('toast.event_invite_friend'), 'error');
         return false;
       }
       return true;
@@ -2346,13 +2342,13 @@ function eventWizardValidate(stepName) {
       const cb = document.getElementById('restaurantReservationDone');
       if (!cb || !cb.checked) {
         const ok = confirm(
-          '🍝 Sortie restaurant limitée à 10 AupyGo.\n\n' +
+          t('confirm.restaurant_limit') +
           'As-tu bien fait la réservation au restaurant ?\n\n' +
           'OK = oui, réservation faite — continuer\n' +
           'Annuler = non, je confirme d’abord la réservation'
         );
         if (!ok) {
-          showToast('Merci de confirmer la réservation avant de continuer.', 'error');
+          showToast(t('toast.event_reservation_confirm'), 'error');
           return false;
         }
         if (cb) cb.checked = true;
@@ -2367,7 +2363,7 @@ function eventWizardValidate(stepName) {
       const priceEl = document.getElementById('createEventPrice');
       const price = parseFloat(priceEl && priceEl.value);
       if (!price || price <= 0 || price > 9999) {
-        showToast('Indique un montant valide (€) pour une sortie payante.', 'error');
+        showToast(t('toast.event_price_invalid'), 'error');
         return false;
       }
     }
@@ -2407,7 +2403,7 @@ function openCreateEventModal(visibility) {
     return;
   }
   if (visibility === 'admin' && !isAdmin()) {
-    showToast('Réservé à l’administrateur AUPYGO.', 'error');
+    showToast(t('toast.admin_only'), 'error');
     return;
   }
   document.getElementById('createEventVisibility').value = visibility;
@@ -2471,7 +2467,7 @@ async function submitCreateEvent() {
   const visibility = document.getElementById('createEventVisibility').value || 'public';
 
   if (!title || !address || !dateVal) {
-    showToast('Remplis le nom, la date et l’adresse.', 'error');
+    showToast(t('toast.event_fill_required'), 'error');
     return;
   }
   const isRest = selectedEventType === 'restaurant';
@@ -2484,11 +2480,11 @@ async function submitCreateEvent() {
     const cb = document.getElementById('restaurantReservationDone');
     if (!cb || !cb.checked) {
       const ok = confirm(
-        '🍝 Merci de confirmer la réservation au restaurant avant de continuer.\n\n' +
+        t('confirm.restaurant_reservation') +
         'OK = réservation faite — publier\nAnnuler = revenir en arrière'
       );
       if (!ok) {
-        showToast('Merci de confirmer la réservation avant de continuer.', 'error');
+        showToast(t('toast.event_reservation_confirm'), 'error');
         return;
       }
       if (cb) cb.checked = true;
@@ -2496,11 +2492,11 @@ async function submitCreateEvent() {
   }
   const eventDate = new Date(dateVal);
   if (isNaN(eventDate.getTime()) || eventDate.getTime() < Date.now() - 3600000) {
-    showToast('Choisis une date/heure valide dans le futur.', 'error');
+    showToast(t('toast.event_date_future'), 'error');
     return;
   }
   if (visibility === 'admin' && !isAdmin()) {
-    showToast('Réservé à l’admin.', 'error');
+    showToast(t('toast.admin_only_short'), 'error');
     return;
   }
 
@@ -2516,7 +2512,7 @@ async function submitCreateEvent() {
     const isFriends = visibility === 'friends';
     const friendIds = isFriends ? getSelectedFriendIdsForEvent() : [];
     if (isFriends && !friendIds.length) {
-      showToast('Sélectionne au moins un ami à inviter.', 'error');
+      showToast(t('toast.event_invite_friend'), 'error');
       return;
     }
     const isRest = selectedEventType === 'restaurant';
@@ -2546,9 +2542,9 @@ async function submitCreateEvent() {
       console.error(error);
       // Table manquante ?
       if (/relation.*does not exist|schema cache/i.test(error.message || '')) {
-        showToast('Table « events » absente. Exécute le SQL fourni dans Supabase (voir instructions).', 'error');
+        showToast(t('toast.events_table_missing'), 'error');
       } else {
-        showToast('Erreur : ' + (error.message || 'impossible de créer'), 'error');
+        showToast(t('toast.error_prefix') + (error.message || 'impossible de créer'), 'error');
       }
       return;
     }
@@ -2573,7 +2569,7 @@ async function submitCreateEvent() {
         try {
           const { error: invErr } = await supabaseClient.from('event_invitations').insert(invites);
           if (invErr) console.warn('invitations:', invErr);
-          else showToast('📨 Invitations envoyées à ' + ids.length + ' ami(s)', 'success');
+          else showToast(t('toast.invites_sent') + ids.length + ' ami(s)', 'success');
         } catch (e) {
           console.warn(e);
         }
@@ -2581,11 +2577,11 @@ async function submitCreateEvent() {
     }
 
     closeCreateEventModal();
-    showToast('✅ Sortie créée !', 'success');
+    showToast(t('toast.event_created'), 'success');
     await loadAndRenderEvents();
   } catch (e) {
     console.error(e);
-    showToast('Erreur réseau.', 'error');
+    showToast(t('toast.network_error'), 'error');
   }
 }
 
@@ -2622,12 +2618,12 @@ function refuseEvent(eventId) {
             .eq('user_id', currentUser.id);
         }
       } catch (e) {}
-      showToast('Sortie refusée — elle ne s’affichera plus.', 'success');
+      showToast(t('toast.event_refused'), 'success');
       await loadAndRenderEvents();
     })();
     return;
   }
-  showToast('Sortie refusée — elle ne s’affichera plus.', 'success');
+  showToast(t('toast.event_refused'), 'success');
   if (typeof loadAndRenderEvents === 'function') loadAndRenderEvents();
 }
 
@@ -2753,12 +2749,12 @@ async function openEventGuestList(eventId) {
   }
   const ev = (cachedEvents || []).find(e => e.id === eventId);
   if (!ev) {
-    showToast('Événement introuvable.', 'error');
+    showToast(t('toast.event_not_found'), 'error');
     return;
   }
   const isCreator = ev.creator_id === currentUser.id;
   if (!isCreator && !(typeof isAdmin === 'function' && isAdmin())) {
-    showToast('Réservé à l\u2019organisateur.', 'error');
+    showToast(t('toast.organizer_only'), 'error');
     return;
   }
 
@@ -2773,7 +2769,7 @@ async function openEventGuestList(eventId) {
     parts = data || [];
   } catch (e) {
     console.error('guest list participants:', e);
-    showToast('Impossible de charger les participants.', 'error');
+    showToast(t('toast.participants_load_error'), 'error');
     return;
   }
 
@@ -2887,7 +2883,7 @@ function copySpecialGuestList() {
   const full = title + '\\n\\n' + body;
   if (navigator.clipboard && navigator.clipboard.writeText) {
     navigator.clipboard.writeText(full).then(function () {
-      showToast('Liste copiée ✓', 'success');
+      showToast(t('toast.list_copied'), 'success');
     }).catch(function () {
       fallbackCopyGuestList(full);
     });
@@ -2906,9 +2902,9 @@ function fallbackCopyGuestList(text) {
     ta.select();
     document.execCommand('copy');
     document.body.removeChild(ta);
-    showToast('Liste copiée ✓', 'success');
+    showToast(t('toast.list_copied'), 'success');
   } catch (e) {
-    showToast('Copie impossible', 'error');
+    showToast(t('toast.copy_failed'), 'error');
   }
 }
 
@@ -3120,7 +3116,7 @@ function openEventLocation(address, ev) {
   if (ev && ev.stopPropagation) ev.stopPropagation();
   const url = googleMapsUrl(address);
   if (!url || url === '#') {
-    showToast('Adresse manquante', 'error');
+    showToast(t('toast.address_missing'), 'error');
     return;
   }
   window.open(url, '_blank', 'noopener,noreferrer');
@@ -3222,10 +3218,10 @@ async function editRealEvent(eventId) {
       description: (newDesc || '').trim() || null
     }).eq('id', eventId).eq('creator_id', currentUser.id);
     if (error) throw error;
-    showToast('✅ Sortie mise à jour', 'success');
+    showToast(t('toast.event_updated'), 'success');
     await loadAndRenderEvents();
   } catch (e) {
-    showToast('Erreur : ' + (e.message || e), 'error');
+    showToast(t('toast.error_prefix') + (e.message || e), 'error');
   }
 }
 
@@ -3291,14 +3287,14 @@ async function respondEventInvitation(inviteId, eventId, status) {
         event_id: eventId,
         user_id: currentUser.id
       });
-      showToast('🎉 Invitation acceptée — ajoutée à ton agenda !', 'success');
+      showToast(t('toast.invite_accepted'), 'success');
     } else {
-      showToast('Invitation refusée.', 'success');
+      showToast(t('toast.invite_declined'), 'success');
     }
     await loadEventInvitations();
     await loadAndRenderEvents();
   } catch (e) {
-    showToast('Erreur : ' + (e.message || e), 'error');
+    showToast(t('toast.error_prefix') + (e.message || e), 'error');
   }
 }
 
@@ -3310,7 +3306,7 @@ async function joinRealEvent(eventId) {
   }
   const evCheck = (cachedEvents || []).find(e => e.id === eventId);
   if (evCheck && (getEventUrgency(evCheck) === 'past' || getEventUrgency(evCheck) === 'expired')) {
-    showToast('Cet événement est terminé.', 'error');
+    showToast(t('toast.event_ended'), 'error');
     return;
   }
   if (currentPlan === 'FREE') {
@@ -3324,7 +3320,7 @@ async function joinRealEvent(eventId) {
     const priceLabel = Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €';
     // Placeholder paiement (PayPal / CB à brancher plus tard)
     const goPay = confirm(
-      '💶 Cette sortie est payante : ' + priceLabel + '\n\n' +
+      t('confirm.paid_event') + priceLabel + '\n\n' +
       'Le paiement en ligne (PayPal / carte bancaire) sera bientôt disponible.\n\n' +
       'Continuer pour réserver ta place ? (simulation — aucun débit)'
     );
@@ -3340,9 +3336,9 @@ async function joinRealEvent(eventId) {
     });
     if (error) {
       if (/duplicate|unique/i.test(error.message || '')) {
-        showToast('Tu participes déjà.', 'success');
+        showToast(t('toast.already_joined'), 'success');
       } else {
-        showToast('Erreur : ' + error.message, 'error');
+        showToast(t('toast.error_prefix') + error.message, 'error');
         return;
       }
     } else {
@@ -3350,7 +3346,7 @@ async function joinRealEvent(eventId) {
     }
     await loadAndRenderEvents();
   } catch (e) {
-    showToast('Erreur réseau.', 'error');
+    showToast(t('toast.network_error'), 'error');
   }
 }
 
@@ -3373,7 +3369,7 @@ function onEventPaidChange() {
 async function leaveRealEvent(eventId) {
   if (!currentUser) return;
   const ev = (cachedEvents || []).find(e => e.id === eventId);
-  const ok = confirm('Annuler ta participation à « ' + (ev ? ev.title : 'cette sortie') + ' » ?');
+  const ok = confirm(t('confirm.cancel_participation') + (ev ? ev.title : 'cette sortie') + ' » ?');
   if (!ok) return;
   try {
     const { error } = await supabaseClient
@@ -3382,11 +3378,11 @@ async function leaveRealEvent(eventId) {
       .eq('event_id', eventId)
       .eq('user_id', currentUser.id);
     if (error) throw error;
-    showToast('Participation annulée.', 'success');
+    showToast(t('toast.participation_cancelled'), 'success');
     await loadAndRenderEvents();
   } catch (e) {
     console.error('leaveRealEvent:', e);
-    showToast('Erreur : ' + (e.message || e), 'error');
+    showToast(t('toast.error_prefix') + (e.message || e), 'error');
   }
 }
 
@@ -3398,10 +3394,10 @@ async function deleteRealEvent(eventId) {
   const ev = (cachedEvents || []).find(e => e.id === eventId);
   if (!ev) return;
   if (ev.creator_id !== currentUser.id) {
-    showToast('Seul le créateur peut supprimer cette sortie.', 'error');
+    showToast(t('toast.creator_only_delete'), 'error');
     return;
   }
-  const ok = confirm('Supprimer définitivement « ' + ev.title + ' » ?\n\nCette action est irréversible et retirera tous les participants.');
+  const ok = confirm(t('confirm.delete_event') + ev.title + ' » ?\n\nCette action est irréversible et retirera tous les participants.');
   if (!ok) return;
   try {
     const { error } = await supabaseClient
@@ -3410,11 +3406,11 @@ async function deleteRealEvent(eventId) {
       .eq('id', eventId)
       .eq('creator_id', currentUser.id);
     if (error) throw error;
-    showToast('Sortie supprimée.', 'success');
+    showToast(t('toast.event_deleted'), 'success');
     await loadAndRenderEvents();
   } catch (e) {
     console.error('deleteRealEvent:', e);
-    showToast('Erreur suppression : ' + (e.message || e), 'error');
+    showToast(t('toast.delete_error_prefix') + (e.message || e), 'error');
   }
 }
 
@@ -3693,10 +3689,10 @@ function startEventUrgencyWatch() {
 
 // Compatibility stubs (anciens boutons)
 function joinEvent(name) {
-  showToast('Utilise les sorties réelles ci-dessus.', 'success');
+  showToast(t('toast.use_real_events'), 'success');
 }
 function joinRestaurantEvent() {
-  showToast('Utilise les sorties réelles ci-dessus.', 'success');
+  showToast(t('toast.use_real_events'), 'success');
 }
 function paidEvent() {
   if (isAdmin()) openCreateEventModal('admin');
@@ -3842,7 +3838,7 @@ async function getOrCreateDmConversation(friendId) {
     .insert({ created_by: currentUser.id })
     .select()
     .single();
-  if (e4) { console.error(e4); showToast('Erreur création conversation : ' + e4.message, 'error'); return null; }
+  if (e4) { console.error(e4); showToast(t('toast.conv_create_error') + e4.message, 'error'); return null; }
 
   const { error: e5 } = await supabaseClient
     .from('conversation_members')
@@ -3850,7 +3846,7 @@ async function getOrCreateDmConversation(friendId) {
       { conversation_id: conv.id, user_id: currentUser.id },
       { conversation_id: conv.id, user_id: friendId }
     ]);
-  if (e5) { console.error(e5); showToast('Erreur création conversation : ' + e5.message, 'error'); return null; }
+  if (e5) { console.error(e5); showToast(t('toast.conv_create_error') + e5.message, 'error'); return null; }
 
   dmConversationCache[friendId] = conv.id;
   friendIdByConversation[conv.id] = friendId;
@@ -3873,7 +3869,7 @@ async function loadConversationHistory(conversationId) {
   if (error) {
     console.error('loadConversationHistory:', error);
     box.innerHTML = '';
-    showToast('Erreur chargement messages : ' + error.message, 'error');
+    showToast(t('toast.messages_load_error') + error.message, 'error');
     return;
   }
 
@@ -4615,12 +4611,12 @@ async function acceptFriendRequest(reqId) {
 
   if (error) {
     console.error('acceptFriendRequest:', error);
-    showToast('Erreur acceptation : ' + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
+    showToast(t('toast.accept_error') + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
     return;
   }
 
   const p = getProfileById(req.from_id);
-  showToast('💚 Tu es maintenant ami(e) avec ' + ((p && p.display_name) || 'cet AUPYGO'), 'success');
+  showToast(t('toast.now_friends_with') + ((p && p.display_name) || 'cet AUPYGO'), 'success');
   await loadFriendshipsFromDB();
   await renderFriendsUI();
   if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
@@ -4655,11 +4651,11 @@ async function refuseFriendRequest(reqId) {
 
   if (error) {
     console.error('refuseFriendRequest:', error);
-    showToast('Erreur refus ami : ' + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
+    showToast(t('toast.friend_refuse_error') + (error.message || '400 — exécute le SQL friendships-fix'), 'error');
     return;
   }
 
-  showToast('Demande refusée', 'success');
+  showToast(t('toast.request_declined'), 'success');
   await loadFriendshipsFromDB();
   await renderFriendsUI();
   if (typeof renderMarkers === 'function') {
@@ -4672,7 +4668,7 @@ async function removeFriend(friendId) {
   if (!currentUser || !friendId) return;
   const p = getProfileById(friendId);
   const name = (p && p.display_name) || 'cet AUPYGO';
-  const ok = confirm('Supprimer ' + name + ' de tes amis ?\n\nTous les messages privés avec cette personne seront définitivement supprimés.');
+  const ok = confirm(t('confirm.delete_prefix') + name + ' de tes amis ?\n\nTous les messages privés avec cette personne seront définitivement supprimés.');
   if (!ok) return;
 
   try {
@@ -4694,7 +4690,7 @@ async function removeFriend(friendId) {
       }
     });
 
-    showToast('Ami et messages privés supprimés', 'success');
+    showToast(t('toast.friend_and_dm_removed'), 'success');
     await renderFriendsUI();
     if (typeof renderConversationSidebar === 'function') renderConversationSidebar();
     updateMessagesBadge();
@@ -4710,7 +4706,7 @@ async function removeFriend(friendId) {
     }
   } catch (e) {
     console.error('removeFriend:', e);
-    showToast('Erreur suppression ami : ' + (e.message || e), 'error');
+    showToast(t('toast.friend_remove_error') + (e.message || e), 'error');
   }
 }
 
@@ -4741,7 +4737,7 @@ async function sendFriendRequestToMember(memberId) {
     } catch (e) { console.warn(e); }
   }
   if (memberId === currentUser.id) {
-    showToast('Tu ne peux pas t’ajouter toi-même', 'error');
+    showToast(t('toast.cannot_add_self'), 'error');
     return;
   }
 
@@ -4756,24 +4752,24 @@ async function sendFriendRequestToMember(memberId) {
 
   if (checkError) {
     console.error('sendFriendRequestToMember (check):', checkError);
-    showToast('Erreur : ' + checkError.message, 'error');
+    showToast(t('toast.error_prefix') + checkError.message, 'error');
     return;
   }
 
   const existing = (existingRows || [])[0];
   if (existing) {
     if (existing.status === 'refused') {
-      showToast('🚫 Demande impossible (déjà refusée)', 'error');
+      showToast(t('toast.friend_already_refused'), 'error');
       closeMemberProfile();
       return;
     }
     if (existing.status === 'accepted') {
-      showToast('💚 Vous êtes déjà amis', 'success');
+      showToast(t('toast.already_friends'), 'success');
       closeMemberProfile();
       return;
     }
     if (existing.status === 'pending') {
-      showToast('Demande déjà envoyée', 'success');
+      showToast(t('toast.request_already_sent'), 'success');
       closeMemberProfile();
       return;
     }
@@ -4789,7 +4785,7 @@ async function sendFriendRequestToMember(memberId) {
 
   if (error) {
     console.error('sendFriendRequestToMember (insert):', error);
-    showToast('Erreur : ' + error.message, 'error');
+    showToast(t('toast.error_prefix') + error.message, 'error');
     return;
   }
 
@@ -4843,11 +4839,11 @@ async function openConversation(type, id, name) {
     const st = getFriendshipStatusWith(id);
     if (st !== 'accepted') {
       if (st === 'pending') {
-        showToast('⏳ Demande d’ami en attente.', 'error');
+        showToast(t('toast.friend_pending'), 'error');
       } else if (st === 'refused' || st === 'rejected' || st === 'declined') {
-        showToast('Demande d’ami refusée — messagerie indisponible.', 'error');
+        showToast(t('toast.friend_declined_msg'), 'error');
       } else {
-        showToast('🤝 Vous devez être amis pour discuter. Envoie une demande d’ami d’abord.', 'error');
+        showToast(t('toast.must_be_friends'), 'error');
       }
       return;
     }
@@ -4935,7 +4931,7 @@ async function sendMessage() {
     return;
   }
   if (!activeConversation.conversationId) {
-    showToast('Conversation en cours de préparation, réessaie dans un instant.', 'error');
+    showToast(t('toast.conv_preparing'), 'error');
     return;
   }
 
@@ -4976,7 +4972,7 @@ async function sendMessage() {
     } else if (/QUOTA_DAILY_EXCEEDED|quota.*STANDARD|journalier/i.test(errTxt)) {
       showToast(t('messages.quota_reached_daily') || 'Limite de messages atteinte pour aujourd’hui.', 'error');
     } else {
-      showToast('Erreur : ' + error.message, 'error');
+      showToast(t('toast.error_prefix') + error.message, 'error');
     }
     return;
   }
@@ -5156,7 +5152,7 @@ function renderGroupFriendsPick() {
 function toggleGroupPick(id, checked) {
   if (checked) {
     if (groupPickIds.length >= 4) {
-      showToast('Maximum 4 amis (+ toi = 5 personnes max)', 'error');
+      showToast(t('toast.group_max_friends'), 'error');
       renderGroupFriendsPick();
       return;
     }
@@ -5171,15 +5167,15 @@ async function createGroupChat() {
   const titleEl = document.getElementById('groupTitleInput');
   const title = (titleEl && titleEl.value.trim()) || '';
   if (!title) {
-    showToast('Donne un titre au groupe (ex. Café team)', 'error');
+    showToast(t('toast.group_title_required'), 'error');
     return;
   }
   if (groupPickIds.length < 1) {
-    showToast('Choisis au moins 1 ami', 'error');
+    showToast(t('toast.group_pick_friend'), 'error');
     return;
   }
   if (groupPickIds.length > 4) {
-    showToast('Maximum 5 personnes (toi inclus)', 'error');
+    showToast(t('toast.group_max_5'), 'error');
     return;
   }
 
@@ -5209,10 +5205,10 @@ async function createGroupChat() {
     closeCreateGroupModal();
     renderConversationSidebar();
     openConversation('group', convId, title.slice(0, 40));
-    showToast('Groupe « ' + title.slice(0, 40) + ' » créé — invitations envoyées', 'success');
+    showToast(t('toast.group_created_prefix') + title.slice(0, 40) + t('toast.group_created_suffix'), 'success');
   } catch (e) {
     console.error('createGroupChat:', e);
-    showToast('Erreur création groupe : ' + (e.message || e), 'error');
+    showToast(t('toast.group_create_error') + (e.message || e), 'error');
   }
 }
 async function loadMyGroups() {
@@ -5516,7 +5512,7 @@ async function doDeleteGroup(convId) {
   const { error } = await supabaseClient.rpc('delete_group_conversation', { p_conv_id: convId });
   if (error) {
     console.error('deleteGroup:', error);
-    showToast('Erreur suppression groupe : ' + (error.message || error), 'error');
+    showToast(t('toast.group_delete_error') + (error.message || error), 'error');
     return;
   }
 
@@ -5533,7 +5529,7 @@ async function doDeleteGroup(convId) {
     if (box) box.innerHTML = '<div class="chat-placeholder"><p>Sélectionne une conversation</p></div>';
   }
   renderConversationSidebar();
-  showToast('Groupe supprimé', 'success');
+  showToast(t('toast.group_deleted'), 'success');
 }
 
 // Alias pour compatibilité
@@ -5545,7 +5541,7 @@ async function leaveGroup(convId) {
   if (!currentUser || !convId) return;
   const g = myGroups.find(x => x.id === convId);
   const title = (g && g.title) || 'ce groupe';
-  const ok = confirm('Quitter le groupe « ' + title + ' » ?\n\nSi tu es le dernier membre, tous les messages seront définitivement supprimés.');
+  const ok = confirm(t('confirm.leave_group') + title + ' » ?\n\nSi tu es le dernier membre, tous les messages seront définitivement supprimés.');
   if (!ok) return;
 
   try {
@@ -5570,13 +5566,13 @@ async function leaveGroup(convId) {
     renderConversationSidebar();
 
     if (data && data.group_deleted) {
-      showToast('Groupe et messages supprimés (plus de membres)', 'success');
+      showToast(t('toast.group_empty_deleted'), 'success');
     } else {
-      showToast('Tu as quitté le groupe', 'success');
+      showToast(t('toast.group_left'), 'success');
     }
   } catch (e) {
     console.error('leaveGroup:', e);
-    showToast('Erreur en quittant le groupe : ' + (e.message || e), 'error');
+    showToast(t('toast.group_leave_error') + (e.message || e), 'error');
   }
 }
 
@@ -5655,23 +5651,23 @@ async function respondGroupInvite(accept) {
     console.error('respondGroupInvite:', error);
     const txt = String(error.message || '');
     if (/GROUP_FULL/.test(txt)) {
-      showToast('Ce groupe est complet (5 personnes max).', 'error');
+      showToast(t('toast.group_full'), 'error');
       removeInv();
     } else if (/INVITATION_NOT_FOUND/.test(txt)) {
       removeInv();
     } else {
-      showToast('Erreur : ' + txt, 'error');
+      showToast(t('toast.error_prefix') + txt, 'error');
       removeInv();
     }
   } else {
     removeInv();
     if (accept) {
-      showToast('Tu as rejoint « ' + (inv.title || 'le groupe') + ' »', 'success');
+      showToast(t('toast.group_joined_prefix') + (inv.title || 'le groupe')  + ' »', 'success');
       await refreshMyConversationIds();
       await loadMyGroups();
       renderConversationSidebar();
     } else {
-      showToast('Invitation refusée', 'success');
+      showToast(t('toast.invitation_declined'), 'success');
     }
   }
   showNextGroupInvite(); // enchaîne sur l'invitation suivante
