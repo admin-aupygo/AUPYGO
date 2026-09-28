@@ -1,6 +1,6 @@
 /* AUPYGO admin-setrole-fix.js
- * Corrige uniquement le changement de grade Staff (Amiral).
- * Ne modifie rien d'autre.
+ * Changement de grade Staff via RPC admin_set_staff_role (fiable).
+ * Fallback UPDATE classique si la RPC n'existe pas encore.
  */
 (function () {
   'use strict';
@@ -34,6 +34,31 @@
     return STAFF_RANKS.indexOf(n) !== -1 || n === 'amiral';
   }
 
+  function syncCaches(userId, saved) {
+    try {
+      if (typeof adminUsersCache !== 'undefined' && Array.isArray(adminUsersCache)) {
+        adminUsersCache.forEach(function (u) {
+          if (u && u.id === userId) {
+            u.role = saved.role;
+            u.is_admin = !!saved.is_admin;
+            u.staff_branch = saved.staff_branch;
+            u.subscription = saved.subscription || 'PREMIUM';
+          }
+        });
+      }
+    } catch (e1) {}
+    if (Array.isArray(window.profiles)) {
+      window.profiles.forEach(function (p) {
+        if (p && p.id === userId) {
+          p.role = saved.role;
+          p.is_admin = !!saved.is_admin;
+          p.staff_branch = saved.staff_branch;
+          p.subscription = saved.subscription || 'PREMIUM';
+        }
+      });
+    }
+  }
+
   window.adminSetRole = async function (userId, newRole) {
     if (typeof isAmiral === 'function' && !isAmiral()) {
       if (typeof showToast === 'function') showToast('Réservé à l\'Amiral', 'error');
@@ -48,7 +73,6 @@
       return;
     }
 
-    // Cible depuis le cache admin si dispo, sinon lecture DB
     var target = null;
     try {
       if (typeof adminUsersCache !== 'undefined' && Array.isArray(adminUsersCache)) {
@@ -86,10 +110,47 @@
     var label = labelOf(newRole);
     if (!confirm('Changer le grade de « ' + (target.display_name || '') + ' » → « ' + label + ' » ?')) return;
 
-    var branch = (newRole === 'major_staff' || newRole === 'sergent_staff')
-      ? 'evenementiel' : 'moderation';
-
     try {
+      // 1) RPC dédiée (contourne RLS/trigger proprement)
+      var rpc = await supabaseClient.rpc('admin_set_staff_role', {
+        target_id: userId,
+        new_role: newRole
+      });
+
+      if (!rpc.error && rpc.data) {
+        var saved = typeof rpc.data === 'string' ? JSON.parse(rpc.data) : rpc.data;
+        if (saved && saved.role) {
+          syncCaches(userId, saved);
+          if (typeof window.adminRefresh === 'function') window.adminRefresh();
+          if (typeof showToast === 'function') {
+            showToast('✓ Grade « ' + labelOf(saved.role) + ' » enregistré', 'success');
+          }
+          return;
+        }
+      }
+
+      // RPC absente ou erreur → message clair
+      if (rpc.error) {
+        console.warn('[Admin setRole] RPC', rpc.error);
+        var em = rpc.error.message || String(rpc.error);
+        if (/function .* does not exist|PGRST202|42883/i.test(em)) {
+          // Fallback UPDATE classique
+        } else if (/FORBIDDEN|42501|NOT_AUTHENTICATED/i.test(em)) {
+          if (typeof showToast === 'function') showToast('Refusé : ' + em, 'error');
+          return;
+        } else if (/22P02|invalid input value for enum/i.test(em)) {
+          if (typeof showToast === 'function') showToast('Enum role incomplet — exécute SUPABASE_ADMIN_SET_ROLE.sql', 'error');
+          return;
+        } else {
+          if (typeof showToast === 'function') showToast('Erreur RPC: ' + em, 'error');
+          return;
+        }
+      }
+
+      // 2) Fallback UPDATE direct
+      var branch = (newRole === 'major_staff' || newRole === 'sergent_staff')
+        ? 'evenementiel' : 'moderation';
+
       var upd = await supabaseClient
         .from('profiles')
         .update({
@@ -102,84 +163,23 @@
         .select('id, role, is_admin, staff_branch, subscription, display_name');
 
       if (upd.error) {
-        console.error('[Admin setRole]', upd.error);
-        var msg = upd.error.message || String(upd.error);
-        if (/FORBIDDEN|42501|policy|permission|row-level/i.test(msg)) {
-          msg = 'Refusé par RLS. En SQL : select public.is_amiral(); doit être true.';
-        }
-        if (/22P02|invalid input value for enum/i.test(msg)) {
-          msg = 'Enum role incomplet — exécute SUPABASE_STAFF_RLS.sql';
-        }
-        if (typeof showToast === 'function') showToast('Erreur: ' + msg, 'error');
+        console.error('[Admin setRole] update', upd.error);
+        if (typeof showToast === 'function') showToast('Erreur: ' + (upd.error.message || upd.error), 'error');
         return;
       }
 
       var rows = upd.data || [];
-      // Cas fréquent : RLS bloque l'UPDATE sans renvoyer d'error → data vide
       if (!rows.length) {
         if (typeof showToast === 'function') {
-          showToast('Échec : 0 ligne mise à jour (RLS). select public.is_amiral(); en SQL.', 'error');
+          showToast('Échec : exécute SUPABASE_ADMIN_SET_ROLE.sql dans Supabase, puis réessaie.', 'error');
         }
         return;
       }
 
-      // Vérification indépendante en base
-      var ver = await supabaseClient
-        .from('profiles')
-        .select('id, role, is_admin, staff_branch, subscription')
-        .eq('id', userId)
-        .maybeSingle();
-
-      var finalRole = (ver.data && ver.data.role) || rows[0].role;
-      var nFinal = norm(finalRole);
-
-      if (nFinal !== newRole && String(finalRole).toLowerCase() !== newRole) {
-        if (typeof showToast === 'function') {
-          showToast('Non enregistré (DB: ' + (finalRole || '?') + '). Vérifie RLS/trigger.', 'error');
-        }
-        if (typeof window.adminRefresh === 'function') window.adminRefresh();
-        return;
-      }
-
-      // Sync cache
-      target.role = finalRole;
-      target.is_admin = false;
-      target.staff_branch = (ver.data && ver.data.staff_branch) || branch;
-      target.subscription = (ver.data && ver.data.subscription) || 'PREMIUM';
-
-      try {
-        if (typeof adminUsersCache !== 'undefined' && Array.isArray(adminUsersCache)) {
-          adminUsersCache.forEach(function (u) {
-            if (u && u.id === userId) {
-              u.role = target.role;
-              u.is_admin = false;
-              u.staff_branch = target.staff_branch;
-              u.subscription = target.subscription;
-            }
-          });
-        }
-      } catch (e1) {}
-
-      if (Array.isArray(window.profiles)) {
-        window.profiles.forEach(function (p) {
-          if (p && p.id === userId) {
-            p.role = target.role;
-            p.is_admin = false;
-            p.staff_branch = target.staff_branch;
-            p.subscription = target.subscription;
-          }
-        });
-      }
-
-      if (typeof window.adminRefresh === 'function') {
-        window.adminRefresh();
-      } else if (typeof window.adminOnFilter === 'function') {
-        // force re-render via filtre courant
-        try { window.adminOnFilter(document.getElementById('adminFilterSelect') && document.getElementById('adminFilterSelect').value || 'all'); } catch (e2) {}
-      }
-
+      syncCaches(userId, rows[0]);
+      if (typeof window.adminRefresh === 'function') window.adminRefresh();
       if (typeof showToast === 'function') {
-        showToast('✓ Grade « ' + labelOf(finalRole) + ' » enregistré', 'success');
+        showToast('✓ Grade « ' + labelOf(rows[0].role) + ' » enregistré', 'success');
       }
     } catch (e) {
       console.error('[Admin setRole]', e);
@@ -187,5 +187,5 @@
     }
   };
 
-  console.log('[AUPYGO] admin-setrole-fix.js chargé');
+  console.log('[AUPYGO] admin-setrole-fix.js v2 (RPC)');
 })();
