@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=staff-stable-admin');
+  html = html.replace(/\?v=[^"']*/g, '?v=admin-setrole-1');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace(
@@ -38,6 +38,7 @@
     'js/agenda-week-nav.js',
     'js/staff-hierarchy.js',
     'js/admin.js',
+    'js/admin-setrole-fix.js',
     'js/staff-ui.js',
     'js/staff-profile.js',
     'js/staff-profile-layout-fix.js',
@@ -57,7 +58,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=staff-stable-admin"><\/script>\n';
+    inject += '<script src="' + src + '?v=admin-setrole-1"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
