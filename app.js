@@ -1174,39 +1174,51 @@ async function selectPlan(plan, billing) {
   // billing: 'monthly' | 'pass6' | undefined (FREE)
   if (!currentUser) {
     showToast(t('plans.need_login'), 'error');
-    document.getElementById('authCard').scrollIntoView({ behavior:'smooth', block:'center' });
+    document.getElementById('authCard')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     return;
   }
 
-  currentPlan = plan;
+  // FREE reste autorisé (le trigger force déjà FREE à l’INSERT)
+  if (plan === 'FREE') {
+    currentPlan = 'FREE';
+    localStorage.setItem('aupygo_plan', 'FREE');
+    localStorage.removeItem('aupygo_billing');
+    updatePlanUI();
+
+    const { error } = await supabaseClient
+      .from('profiles')
+      .upsert({ id: currentUser.id, subscription: 'FREE' }, { onConflict: 'id' });
+
+    if (error) {
+      console.error(error);
+      showToast('Erreur lors de la sauvegarde du forfait : ' + error.message, 'error');
+      return;
+    }
+    showToast(t('plans.free_active') || 'Forfait FREE activé', 'success');
+    return;
+  }
+
+  // Plans payants : on n’écrit PLUS en base tant que le paiement n’est pas confirmé
+  // (Stripe webhook le fera plus tard en service_role)
+  currentPlan = plan; // affichage temporaire côté client uniquement
   localStorage.setItem('aupygo_plan', plan);
-  const bill = billing || (plan === 'FREE' ? null : 'monthly');
-  if (bill) localStorage.setItem('aupygo_billing', bill);
-  else localStorage.removeItem('aupygo_billing');
+  const bill = billing || 'monthly';
+  localStorage.setItem('aupygo_billing', bill);
   updatePlanUI();
 
-  const { error } = await supabaseClient
-    .from('profiles')
-    .upsert({ id: currentUser.id, subscription: plan }, { onConflict:'id' });
-
-  if (error) {
-    console.error(error);
-    showToast('Erreur lors de la sauvegarde du forfait : ' + error.message, 'error');
-    return;
-  }
-
-  // Paiement Stripe à brancher plus tard — pour l’instant activation + message tarif
-  if (plan === 'FREE') {
-    showToast(t('plans.free_active'), 'success');
-  } else if (plan === 'STANDARD' && bill === 'pass6') {
-    showToast(t('plans.standard_pass_active') || 'STANDARD Pass 6 mois — 24,90 € (paiement bientôt)', 'success');
+  // Message clair pour l’utilisateur
+  if (plan === 'STANDARD' && bill === 'pass6') {
+    showToast('STANDARD Pass 6 mois — 24,90 € — Paiement bientôt disponible', 'success');
   } else if (plan === 'STANDARD') {
-    showToast(t('plans.standard_active') || 'STANDARD — 4,90 €/mois (paiement bientôt)', 'success');
+    showToast('STANDARD — 4,90 €/mois — Paiement bientôt disponible', 'success');
   } else if (plan === 'PREMIUM' && bill === 'pass6') {
-    showToast(t('plans.premium_pass_active') || 'PREMIUM Pass 6 mois — 51,60 € (paiement bientôt)', 'success');
+    showToast('PREMIUM Pass 6 mois — 51,60 € — Paiement bientôt disponible', 'success');
   } else {
-    showToast(t('plans.premium_active') || 'PREMIUM — 9,90 €/mois (paiement bientôt)', 'success');
+    showToast('PREMIUM — 9,90 €/mois — Paiement bientôt disponible', 'success');
   }
+
+  // Plus tard : ici tu ouvriras Stripe Checkout
+  // et le webhook mettra à jour profiles.subscription
 }
 
 
