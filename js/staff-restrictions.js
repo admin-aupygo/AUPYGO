@@ -1,7 +1,9 @@
-/* AUPYGO staff-restrictions.js v3
+/* AUPYGO staff-restrictions.js v4
  * - Masque création sorties utilisateur pour le Staff
  * - Injecte bouton « Créer événement Aupygo » (gratuit) pour Amiral / Major / Sergent
- * - Payants uniquement Amiral (géré dans staff-events.js)
+ * - RETIRE de la liste le bouton « Événement spécial AUPYGO » pour tous les users
+ *   (réservé Staff via le bouton dédié uniquement)
+ * - Masque l'option ⭐ Spécial dans le wizard de création pour les non-Staff
  */
 (function () {
   'use strict';
@@ -17,6 +19,56 @@
     return staffReady();
   }
 
+  /** Toujours retirer le bouton Événement spécial de la liste users */
+  function hideSpecialEventButton() {
+    var adminBtn = document.getElementById('btnOrgAdmin');
+    if (adminBtn) {
+      // Jamais visible pour les users ; Staff utilise staffCreateAupygoBtn
+      if (!canCreateAupygoEvents()) {
+        adminBtn.style.display = 'none';
+        adminBtn.setAttribute('hidden', 'hidden');
+        adminBtn.setAttribute('aria-hidden', 'true');
+        adminBtn.disabled = true;
+        adminBtn.onclick = function (e) {
+          if (e) { e.preventDefault(); e.stopPropagation(); }
+          return false;
+        };
+      } else {
+        // Staff : on laisse caché aussi — le flux officiel passe par staffCreateAupygoBtn
+        adminBtn.style.display = 'none';
+        adminBtn.setAttribute('hidden', 'hidden');
+      }
+    }
+
+    // Masquer tout bouton texte « Événement spécial » hors Staff dédié
+    document.querySelectorAll('button, a, .btn, [role="button"]').forEach(function (btn) {
+      if (btn.id === 'staffCreateAupygoBtn') return;
+      var t = (btn.textContent || '').trim().toLowerCase();
+      if (/événement spécial aupygo|evenement special aupygo|⭐\s*événement spécial|\bspécial aupygo\b/i.test(t)) {
+        if (!canCreateAupygoEvents() || btn.id === 'btnOrgAdmin') {
+          btn.style.display = 'none';
+          btn.setAttribute('hidden', 'hidden');
+          btn.disabled = true;
+        }
+      }
+    });
+  }
+
+  /** Masquer l'option ⭐ Spécial dans le wizard pour les non-Staff */
+  function hideSpecialEmojiPick() {
+    document.querySelectorAll('#eventEmojiPicker .emoji-pick[data-type="special"], #eventEmojiPicker [data-type="special"]').forEach(function (el) {
+      if (!canCreateAupygoEvents()) {
+        el.style.display = 'none';
+        el.setAttribute('hidden', 'hidden');
+        el.disabled = true;
+      } else {
+        el.style.display = '';
+        el.removeAttribute('hidden');
+        el.disabled = false;
+      }
+    });
+  }
+
   function hideStaffCreateButtons() {
     if (!staffReady()) return;
 
@@ -24,6 +76,12 @@
       var t = (btn.textContent || '').trim().toLowerCase();
 
       if (/spécial aupygo|special aupygo|événement spécial|evenement special|événement aupygo|evenement aupygo|créer événement aupygo/i.test(t)) {
+        if (btn.id === 'staffCreateAupygoBtn') return;
+        // Staff : masquer l'ancien bouton admin, garder le flux dédié
+        if (btn.id === 'btnOrgAdmin') {
+          btn.style.display = 'none';
+          return;
+        }
         if (canCreateAupygoEvents()) {
           btn.style.display = '';
           btn.disabled = false;
@@ -41,15 +99,12 @@
     });
 
     ['#btnCreateEvent', '#btnCreateFriendsEvent', '#btnOrgUser', '#btnOrgFriends',
-      '#createEventBtn', '#btnOpenCreateEvent', '#agendaCreateBtn'].forEach(function (sel) {
+      '#btnOrgPublic', '#createEventBtn', '#btnOpenCreateEvent', '#agendaCreateBtn'].forEach(function (sel) {
       var el = document.querySelector(sel);
       if (!el) return;
       var t = (el.textContent || '').toLowerCase();
       if (/spécial|special|aupygo/i.test(t)) {
-        if (canCreateAupygoEvents()) {
-          el.style.display = '';
-          el.disabled = false;
-        }
+        el.style.display = 'none';
         return;
       }
       el.style.display = 'none';
@@ -87,6 +142,11 @@
     btn.onclick = function (e) {
       e.preventDefault();
       e.stopPropagation();
+      if (typeof openCreateEventModal === 'function') {
+        try {
+          openCreateEventModal('public');
+        } catch (err) {}
+      }
       var openers = [
         document.getElementById('btnOpenCreateEvent'),
         document.getElementById('createEventBtn'),
@@ -159,7 +219,26 @@
     });
   }
 
+  /** Bloque openCreateEventModal('admin') pour les non-Staff */
+  function patchOpenCreateEventModal() {
+    if (typeof window.openCreateEventModal !== 'function' || window._specialEventBlocked) return;
+    window._specialEventBlocked = true;
+    var orig = window.openCreateEventModal;
+    window.openCreateEventModal = function (visibility) {
+      if (visibility === 'admin' && !canCreateAupygoEvents()) {
+        if (typeof showToast === 'function') {
+          showToast('Les événements spéciaux AUPYGO sont réservés à l\'équipe.', 'error');
+        }
+        return;
+      }
+      return orig.apply(this, arguments);
+    };
+  }
+
   function tick() {
+    hideSpecialEventButton();
+    hideSpecialEmojiPick();
+    patchOpenCreateEventModal();
     if (!staffReady()) return;
     hideStaffCreateButtons();
     hideParticipationRequests();
@@ -178,8 +257,9 @@
     };
   }
 
-  setTimeout(tick, 800);
+  setTimeout(tick, 400);
+  setTimeout(tick, 1200);
   setInterval(tick, 2500);
 
-  console.log('[AUPYGO] staff-restrictions.js v3 (bouton Créer événement Aupygo)');
+  console.log('[AUPYGO] staff-restrictions.js v4 (Événement spécial retiré de la liste users)');
 })();
