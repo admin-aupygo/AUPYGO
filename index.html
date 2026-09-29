@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=staff-map-black');
+  html = html.replace(/\?v=[^"']*/g, '?v=no-special-btn');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -59,7 +59,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=staff-map-black"><\/script>\n';
+    inject += '<script src="' + src + '?v=no-special-btn"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
