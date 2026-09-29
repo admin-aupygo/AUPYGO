@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=no-special-btn');
+  html = html.replace(/\?v=[^"']*/g, '?v=join-fix');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -49,6 +49,7 @@
     'js/staff-visibility.js',
     'js/staff-restrictions.js',
     'js/staff-msg-unlock.js',
+    'js/join-events-fix.js',
     'map-markers.js'
   ];
 
@@ -59,7 +60,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=no-special-btn"><\/script>\n';
+    inject += '<script src="' + src + '?v=join-fix"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
