@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=cdc7');
+  html = html.replace(/\?v=[^"']*/g, '?v=staff-notify');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -52,6 +52,7 @@
     'js/events-publish-fix.js',
     'js/priority-fixes.js',
     'js/cdc-fixes.js',
+    'js/staff-event-notify.js',
     'map-markers.js'
   ];
 
@@ -62,7 +63,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=cdc7"><\/script>\n';
+    inject += '<script src="' + src + '?v=staff-notify"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
