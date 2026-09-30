@@ -2,8 +2,8 @@
  * Corrige PLAN_REQUIRED / join_locked sur les sorties communautaires.
  * - Rafraîchit le forfait depuis Supabase avant le check
  * - FREE peut rejoindre les sorties publiques gratuites (communauté)
+ * - FREE peut voir et accepter les événements PAYANTS créés par le staff
  * - STANDARD / PREMIUM : tout (public + friends + payant)
- * - Friends / payant restent STANDARD+
  */
 (function () {
   'use strict';
@@ -59,10 +59,30 @@
     return !paid;
   }
 
+  function isStaffCreatedEvent(ev) {
+    if (!ev) return false;
+    if (ev.is_special_aupygo === true) return true;
+    if (ev.visibility === 'admin' || ev.visibility === 'admin_only') return true;
+    var creator = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
+    if (!creator) return false;
+    if (creator.is_admin === true) return true;
+    var r = String(creator.role || '').toLowerCase();
+    return [
+      'amiral', 'admin_general', 'admin', 'host', 'moderator',
+      'major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur'
+    ].indexOf(r) !== -1;
+  }
+
+  function isStaffPaidEvent(ev) {
+    return !!(ev && isStaffCreatedEvent(ev) && ev.is_paid && Number(ev.price) > 0);
+  }
+
   function canJoinWithPlan(plan, ev) {
     if (plan === 'STANDARD' || plan === 'PREMIUM') return true;
-    // FREE : uniquement sorties communautaires publiques gratuites
-    return isCommunityFreeEvent(ev);
+    // FREE : sorties communautaires publiques gratuites OU événements payants staff
+    if (isCommunityFreeEvent(ev)) return true;
+    if (isStaffPaidEvent(ev)) return true;
+    return false;
   }
 
   function patchJoin() {
@@ -89,6 +109,13 @@
       var plan = await refreshPlanFromDb();
       var ev = getEvent(eventId);
 
+      // Délègue aux modals priority-fixes pour les payants (prix + clause)
+      if (ev && (isStaffPaidEvent(ev) || (ev.is_paid && Number(ev.price) > 0))) {
+        if (typeof window.openPaidAcceptModal === 'function') {
+          return window.openPaidAcceptModal(ev);
+        }
+      }
+
       if (!canJoinWithPlan(plan, ev)) {
         if (typeof showToast === 'function') {
           showToast(
@@ -100,14 +127,10 @@
         return;
       }
 
-      // Contourne le check FREE trop strict de l'app.js d'origine
-      // en forçant temporairement un plan autorisé pour l'appel orig,
-      // uniquement si on a déjà validé canJoinWithPlan.
       var prevPlan = typeof currentPlan !== 'undefined' ? currentPlan : window.currentPlan;
       var prevWin = window.currentPlan;
       try {
-        if (plan === 'FREE' && isCommunityFreeEvent(ev)) {
-          // L'orig refuse FREE → on passe STANDARD le temps de l'insert
+        if (plan === 'FREE' && (isCommunityFreeEvent(ev) || isStaffPaidEvent(ev))) {
           try { currentPlan = 'STANDARD'; } catch (e1) {}
           window.currentPlan = 'STANDARD';
         } else {
@@ -122,7 +145,7 @@
       }
     };
 
-    console.log('[AUPYGO] join-events-fix.js : sorties communautaires OK');
+    console.log('[AUPYGO] join-events-fix.js : communauté + staff payants OK');
     return true;
   }
 
