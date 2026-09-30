@@ -1,7 +1,5 @@
 -- ============================================================================
 -- AUPYGO — FIX 403 inscription événements
--- 1) Policies RLS propres sur event_participants
--- 2) RPC security definer join_event() (contourne les policies cassées)
 -- Coller TOUT dans Supabase → SQL Editor → RUN
 -- ============================================================================
 
@@ -11,7 +9,6 @@ grant select, insert, delete on table public.event_participants to authenticated
 
 alter table public.event_participants enable row level security;
 
--- Wipe policies
 do $$
 declare r record;
 begin
@@ -38,10 +35,11 @@ create policy "ep_delete_self"
   to authenticated
   using (user_id = auth.uid());
 
--- ---------------------------------------------------------------------------
--- RPC : inscription fiable (security definer = ignore RLS cassée)
--- ---------------------------------------------------------------------------
-create or replace function public.join_event(p_event_id uuid)
+-- OBLIGATOIRE avant recreate (évite ERROR 42P13)
+drop function if exists public.join_event(uuid);
+drop function if exists public.join_event(text);
+
+create function public.join_event(p_event_id uuid)
 returns json
 language plpgsql
 security definer
@@ -49,15 +47,13 @@ set search_path = public
 as $$
 declare
   uid uuid := auth.uid();
-  ev public.events%rowtype;
   already boolean;
 begin
   if uid is null then
     return json_build_object('ok', false, 'error', 'not_authenticated');
   end if;
 
-  select * into ev from public.events where id = p_event_id;
-  if not found then
+  if not exists (select 1 from public.events where id = p_event_id) then
     return json_build_object('ok', false, 'error', 'event_not_found');
   end if;
 
@@ -85,7 +81,6 @@ $$;
 revoke all on function public.join_event(uuid) from public;
 grant execute on function public.join_event(uuid) to authenticated;
 
--- Données : flags payants / AUPYGO
 update public.events
 set is_paid = true
 where coalesce(price, 0) > 0 and coalesce(is_paid, false) is not true;
@@ -102,7 +97,3 @@ where e.creator_id in (
 );
 
 notify pgrst, 'reload schema';
-
--- Test après login (optionnel dans SQL n'aura pas auth.uid) :
--- select policyname, cmd from pg_policies where tablename = 'event_participants';
--- select proname from pg_proc where proname = 'join_event';
