@@ -1,20 +1,24 @@
 -- ============================================================
 -- AUPYGO — RLS Messagerie (conversations / members / messages)
--- Supabase → SQL Editor → Run (idempotent)
+-- Supabase → SQL Editor → Run TOUT le fichier d'un coup
 --
 -- Corrige l'erreur 42501 / 403 :
 --   "new row violates row-level security policy for table
 --    conversation_members"
--- lors de getOrCreateDmConversation (ajout de soi + de l'ami).
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 0. Tables (si absentes)
+-- 0. DROP fonctions existantes (évite ERROR 42P13 nom de param)
+-- ------------------------------------------------------------
+drop function if exists public.is_conversation_member(uuid) cascade;
+drop function if exists public.is_conversation_creator(uuid) cascade;
+
+-- ------------------------------------------------------------
+-- 1. Tables (si absentes)
 -- ------------------------------------------------------------
 create table if not exists public.conversations (
   id          uuid primary key default gen_random_uuid(),
-  type        text not null default 'dm'
-              check (type in ('dm', 'group')),
+  type        text not null default 'dm',
   title       text,
   created_by  uuid references auth.users(id) on delete set null,
   created_at  timestamptz not null default now()
@@ -36,7 +40,6 @@ create table if not exists public.messages (
   created_at       timestamptz not null default now()
 );
 
--- Colonnes manquantes (idempotent)
 alter table public.conversations
   add column if not exists type text,
   add column if not exists title text,
@@ -55,7 +58,7 @@ create index if not exists messages_conv_idx
   on public.messages (conversation_id, created_at);
 
 -- ------------------------------------------------------------
--- 1. Helper : membre de la conversation ?
+-- 2. Helpers (recréés propres)
 -- ------------------------------------------------------------
 create or replace function public.is_conversation_member(cid uuid)
 returns boolean
@@ -91,7 +94,7 @@ grant execute on function public.is_conversation_member(uuid) to authenticated;
 grant execute on function public.is_conversation_creator(uuid) to authenticated;
 
 -- ------------------------------------------------------------
--- 2. RLS CONVERSATIONS
+-- 3. RLS CONVERSATIONS
 -- ------------------------------------------------------------
 alter table public.conversations enable row level security;
 
@@ -129,7 +132,7 @@ create policy "conversations_delete_creator"
 grant select, insert, update, delete on public.conversations to authenticated;
 
 -- ------------------------------------------------------------
--- 3. RLS CONVERSATION_MEMBERS  ← fix 403 / 42501
+-- 4. RLS CONVERSATION_MEMBERS  ← fix 403 / 42501
 -- ------------------------------------------------------------
 alter table public.conversation_members enable row level security;
 
@@ -144,7 +147,6 @@ begin
   end loop;
 end $$;
 
--- Lire les membres des conversations où je suis
 create policy "cm_select_same_conv"
   on public.conversation_members for select to authenticated
   using (
@@ -153,8 +155,7 @@ create policy "cm_select_same_conv"
     or public.is_conversation_creator(conversation_id)
   );
 
--- INSERT : (1) m'ajouter moi-même  OU  (2) créateur ajoute d'autres membres
--- C'est le cas de getOrCreateDmConversation qui insert [moi, ami]
+-- INSERT : m'ajouter OU créateur ajoute les autres (moi + ami en DM)
 create policy "cm_insert_self_or_creator"
   on public.conversation_members for insert to authenticated
   with check (
@@ -162,13 +163,11 @@ create policy "cm_insert_self_or_creator"
     or public.is_conversation_creator(conversation_id)
   );
 
--- UPDATE : uniquement ma propre ligne (last_read_at)
 create policy "cm_update_own"
   on public.conversation_members for update to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
--- DELETE : me retirer, ou créateur retire quelqu'un
 create policy "cm_delete_self_or_creator"
   on public.conversation_members for delete to authenticated
   using (
@@ -179,7 +178,7 @@ create policy "cm_delete_self_or_creator"
 grant select, insert, update, delete on public.conversation_members to authenticated;
 
 -- ------------------------------------------------------------
--- 4. RLS MESSAGES
+-- 5. RLS MESSAGES
 -- ------------------------------------------------------------
 alter table public.messages enable row level security;
 
@@ -217,8 +216,5 @@ grant select, insert, delete on public.messages to authenticated;
 notify pgrst, 'reload schema';
 
 -- ============================================================
--- Vérifications
--- ============================================================
--- select tablename, policyname, cmd from pg_policies
---   where tablename in ('conversations','conversation_members','messages');
+-- OK si aucune erreur. Puis reteste un DM dans l'app.
 -- ============================================================
