@@ -1,9 +1,8 @@
 /* AUPYGO join-events-fix.js
- * Corrige PLAN_REQUIRED / join_locked sur les sorties communautaires.
- * - Rafraîchit le forfait depuis Supabase avant le check
- * - FREE peut rejoindre les sorties publiques gratuites (communauté)
- * - FREE peut voir et accepter les événements PAYANTS créés par le staff
- * - STANDARD / PREMIUM : tout (public + friends + payant)
+ * FREE :
+ *   - voit toutes les sorties (communauté + AUPYGO)
+ *   - rejoint UNIQUEMENT les événements AUPYGO staff PAYANTS
+ * STANDARD / PREMIUM : rejoignent librement
  */
 (function () {
   'use strict';
@@ -16,31 +15,18 @@
 
   async function refreshPlanFromDb() {
     try {
-      if (typeof supabaseClient === 'undefined' || !supabaseClient) return normalizePlan(window.currentPlan || currentPlan);
+      var client = window.supabaseClient || window.supabase;
       var user = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
-      if (!user || !user.id) {
-        var ur = await supabaseClient.auth.getUser();
-        user = ur.data && ur.data.user;
-      }
       if (!user || !user.id) return normalizePlan(window.currentPlan || (typeof currentPlan !== 'undefined' ? currentPlan : 'FREE'));
-
-      var res = await supabaseClient
-        .from('profiles')
-        .select('subscription')
-        .eq('id', user.id)
-        .maybeSingle();
-
+      if (!client) return normalizePlan(window.currentPlan || 'FREE');
+      var res = await client.from('profiles').select('subscription').eq('id', user.id).maybeSingle();
       var sub = res.data && res.data.subscription;
       var plan = normalizePlan(sub || 'FREE');
-      try {
-        window.currentPlan = plan;
-        if (typeof currentPlan !== 'undefined') currentPlan = plan;
-        localStorage.setItem('aupygo_plan', plan);
-        if (typeof updatePlanUI === 'function') updatePlanUI();
-      } catch (e) {}
+      try { currentPlan = plan; } catch (e) {}
+      window.currentPlan = plan;
+      try { localStorage.setItem('aupygo_plan', plan); } catch (e2) {}
       return plan;
     } catch (e) {
-      console.warn('[AUPYGO] refreshPlanFromDb', e);
       return normalizePlan(window.currentPlan || (typeof currentPlan !== 'undefined' ? currentPlan : 'FREE'));
     }
   }
@@ -49,38 +35,30 @@
     return (window.cachedEvents || []).find(function (e) { return e && e.id === eventId; }) || null;
   }
 
-  function isCommunityFreeEvent(ev) {
-    if (!ev) return false;
-    var vis = String(ev.visibility || 'public').toLowerCase();
-    if (vis !== 'public') return false;
-    if (ev.is_special_aupygo === true) return false;
-    if (vis === 'admin' || vis === 'admin_only') return false;
-    var paid = !!(ev.is_paid && Number(ev.price) > 0);
-    return !paid;
-  }
-
   function isStaffCreatedEvent(ev) {
     if (!ev) return false;
-    if (ev.is_special_aupygo === true) return true;
+    if (ev.is_special_aupygo === true || ev.is_special_aupygo === 'true') return true;
     if (ev.visibility === 'admin' || ev.visibility === 'admin_only') return true;
-    var creator = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
-    if (!creator) return false;
-    if (creator.is_admin === true) return true;
-    var r = String(creator.role || '').toLowerCase();
-    return [
-      'amiral', 'admin_general', 'admin', 'host', 'moderator',
-      'major_staff', 'sergent_staff', 'major_moderateur', 'sergent_moderateur'
-    ].indexOf(r) !== -1;
+    if (String(ev.type || '') === 'special') return true;
+    var d = String(ev.description || '');
+    if (d.indexOf('[STAFF_EVENT]') !== -1 || d.indexOf('[STAFF_PRESENCE]') !== -1) return true;
+    try {
+      var c = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
+      if (c && (c.is_admin === true ||
+          ['amiral','admin_general','admin','major_staff','sergent_staff',
+           'major_moderateur','sergent_moderateur','host','moderator']
+            .indexOf(String(c.role || '').toLowerCase()) !== -1)) return true;
+    } catch (e) {}
+    return false;
   }
 
   function isStaffPaidEvent(ev) {
-    return !!(ev && isStaffCreatedEvent(ev) && ev.is_paid && Number(ev.price) > 0);
+    return !!(ev && isStaffCreatedEvent(ev) && (ev.is_paid === true || ev.is_paid === 'true') && Number(ev.price) > 0);
   }
 
   function canJoinWithPlan(plan, ev) {
     if (plan === 'STANDARD' || plan === 'PREMIUM') return true;
-    // FREE : sorties communautaires publiques gratuites OU événements payants staff
-    if (isCommunityFreeEvent(ev)) return true;
+    // FREE : uniquement AUPYGO staff PAYANT
     if (isStaffPaidEvent(ev)) return true;
     return false;
   }
@@ -101,7 +79,6 @@
         return;
       }
 
-      // Staff : laisser le patch staff-events gérer
       if (typeof isStaff === 'function' && isStaff()) {
         return orig.apply(this, arguments);
       }
@@ -109,8 +86,11 @@
       var plan = await refreshPlanFromDb();
       var ev = getEvent(eventId);
 
-      // Délègue aux modals priority-fixes pour les payants (prix + clause)
-      if (ev && (isStaffPaidEvent(ev) || (ev.is_paid && Number(ev.price) > 0))) {
+      // Payant AUPYGO → modal si dispo (staff-event-notify / cdc)
+      if (ev && isStaffPaidEvent(ev)) {
+        if (typeof window.openSpecialInviteModal === 'function') {
+          return window.openSpecialInviteModal(eventId);
+        }
         if (typeof window.openPaidAcceptModal === 'function') {
           return window.openPaidAcceptModal(ev);
         }
@@ -119,33 +99,31 @@
       if (!canJoinWithPlan(plan, ev)) {
         if (typeof showToast === 'function') {
           showToast(
-            (typeof t === 'function' && t('events.join_locked')) ||
-              '🔒 Passe à STANDARD pour rejoindre les sorties privées ou payantes.',
+            '🔒 FREE : tu vois toutes les sorties. ' +
+            'Tu peux participer uniquement aux événements AUPYGO payants. ' +
+            'Passe en STANDARD pour les sorties gratuites.',
             'error'
           );
         }
         return;
       }
 
+      // FREE + AUPYGO payant : contourne le check app.js
       var prevPlan = typeof currentPlan !== 'undefined' ? currentPlan : window.currentPlan;
       var prevWin = window.currentPlan;
       try {
-        if (plan === 'FREE' && (isCommunityFreeEvent(ev) || isStaffPaidEvent(ev))) {
+        if (plan === 'FREE' && isStaffPaidEvent(ev)) {
           try { currentPlan = 'STANDARD'; } catch (e1) {}
           window.currentPlan = 'STANDARD';
-        } else {
-          try { currentPlan = plan; } catch (e2) {}
-          window.currentPlan = plan;
         }
         return await orig.apply(this, arguments);
       } finally {
         try { currentPlan = prevPlan; } catch (e3) {}
         window.currentPlan = prevWin || plan;
-        try { localStorage.setItem('aupygo_plan', plan); } catch (e4) {}
       }
     };
 
-    console.log('[AUPYGO] join-events-fix.js : communauté + staff payants OK');
+    console.log('[AUPYGO] join-events-fix : FREE → AUPYGO payant seulement');
     return true;
   }
 
@@ -162,5 +140,4 @@
   } else {
     boot();
   }
-  setTimeout(boot, 800);
 })();
