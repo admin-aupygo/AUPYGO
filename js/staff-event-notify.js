@@ -1,39 +1,33 @@
 /* ==========================================================================
- * AUPYGO — staff-event-notify.js
+ * AUPYGO — staff-event-notify.js (sécurisé)
  *
- * Règle métier permanente (pas de forçage temporaire) :
+ * Sécurité :
+ *   - Seul l'AMIRAL peut créer un événement PAYANT (UI + contrôle submit).
+ *   - Le SQL (SUPABASE_STAFF_EVENTS_SECURE.sql) refuse is_paid côté DB
+ *     si le créateur n'est pas Amiral (trigger + RLS).
  *
- * 1. Quand le STAFF / Amiral crée un événement (gratuit OU payant) :
- *    → visibility = 'public'
- *    → is_special_aupygo = true
- *    → apparaît dans le bandeau « Invitation spéciale »
- *    → pop-up d'invitation pour chaque user (une fois / event / session)
- *
- * 2. Événement PAYANT staff :
- *    → TOUS les users informés (FREE / STANDARD / PREMIUM)
- *    → TOUS peuvent voir le prix et accepter (modal)
- *
- * 3. Événement GRATUIT staff :
- *    → TOUS informés
- *    → FREE : carte + invitation GRISEES (cadenas → STANDARD)
- *    → STANDARD / PREMIUM : peuvent rejoindre
- *
- * Prérequis SQL : SUPABASE_EVENTS_PUBLIC_SELECT.sql (visibility public lisible)
+ * Métier :
+ *   - Staff / Amiral crée un event → visibility=public + is_special_aupygo
+ *   - Users informés (bandeau + pop-up invitation)
+ *   - PAYANT → tous (FREE inclus) peuvent accepter
+ *   - GRATUIT staff → grisé pour FREE (cadenas STANDARD)
  * ========================================================================== */
 (function () {
   'use strict';
 
   var TAG = '[STAFF_EVENT]';
 
-  function isStaffUser() {
-    try { return typeof isStaff === 'function' && isStaff(); } catch (e) { return false; }
-  }
   function isAmiralUser() {
     try {
       if (typeof isAmiral === 'function' && isAmiral()) return true;
       if (typeof isAdmin === 'function' && isAdmin()) return true;
+      var p = window.currentUserProfile;
+      if (p && (p.is_admin === true || String(p.role || '').toLowerCase() === 'amiral')) return true;
     } catch (e) {}
     return false;
+  }
+  function isStaffUser() {
+    try { return typeof isStaff === 'function' && isStaff(); } catch (e) { return false; }
   }
   function plan() {
     try {
@@ -50,46 +44,79 @@
     if (!isPaid(ev)) return '';
     return Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €';
   }
-
-  /** Un event est « staff » s'il porte le flag spécial, le tag, ou visibility admin. */
   function isStaffEvent(ev) {
     if (!ev) return false;
     if (ev.is_special_aupygo === true) return true;
     if (ev.visibility === 'admin' || ev.visibility === 'admin_only') return true;
     if (ev.type === 'special') return true;
     var d = String(ev.description || '');
-    if (d.indexOf(TAG) !== -1 || d.indexOf('[STAFF_PRESENCE]') !== -1) return true;
-    return false;
+    return d.indexOf(TAG) !== -1 || d.indexOf('[STAFF_PRESENCE]') !== -1;
   }
-
-  /** FREE est verrouillé uniquement sur les events staff GRATUITS. */
   function isGreyedForFree(ev) {
-    if (plan() !== 'FREE') return false;
-    if (!isStaffEvent(ev)) return false;
-    return !isPaid(ev); // gratuit staff → grisé pour FREE
+    return plan() === 'FREE' && isStaffEvent(ev) && !isPaid(ev);
   }
 
-  /* --------------------------------------------------------------------
-   * Publication permanente à la création staff
-   * ------------------------------------------------------------------ */
+  function enforcePaidUiSecurity() {
+    var paidRadio = document.getElementById('eventPaidPaid');
+    var freeRadio = document.getElementById('eventPaidFree');
+    var priceWrap = document.getElementById('createEventPriceWrap');
+    var priceInput = document.getElementById('createEventPrice');
+    var paidLabel = paidRadio ? (paidRadio.closest('label') || paidRadio.parentElement) : null;
+
+    if (isAmiralUser()) {
+      if (paidLabel) paidLabel.style.display = '';
+      if (paidRadio) paidRadio.disabled = false;
+      return;
+    }
+
+    if (paidRadio) {
+      paidRadio.checked = false;
+      paidRadio.disabled = true;
+    }
+    if (freeRadio) {
+      freeRadio.checked = true;
+      freeRadio.disabled = false;
+    }
+    if (priceWrap) priceWrap.style.display = 'none';
+    if (priceInput) {
+      priceInput.value = '';
+      priceInput.disabled = true;
+    }
+    if (paidLabel) paidLabel.style.display = 'none';
+  }
+
   function patchSubmit() {
     if (typeof window.submitCreateEvent !== 'function') return false;
-    if (window._staffNotifySubmitPatched) return true;
-    window._staffNotifySubmitPatched = true;
+    if (window._staffSecureSubmitPatched) return true;
+    window._staffSecureSubmitPatched = true;
 
     var orig = window.submitCreateEvent;
     window.submitCreateEvent = async function () {
-      var wasStaff = isStaffUser();
+      var staff = isStaffUser();
+      var amiral = isAmiralUser();
       var paidRadio = document.querySelector('input[name="eventPaid"]:checked');
       var wantsPaid = !!(paidRadio && paidRadio.value === 'paid');
       var priceEl = document.getElementById('createEventPrice');
       var priceVal = priceEl ? parseFloat(priceEl.value) : 0;
 
+      if (wantsPaid && !amiral) {
+        if (typeof showToast === 'function') {
+          showToast('🔒 Seul l\'Amiral peut créer un événement payant.', 'error');
+        }
+        enforcePaidUiSecurity();
+        return;
+      }
+      if (wantsPaid && amiral && (!priceVal || priceVal <= 0)) {
+        if (typeof showToast === 'function') {
+          showToast('Indique un montant valide (€) pour un événement payant.', 'error');
+        }
+        return;
+      }
+
       await orig.apply(this, arguments);
 
-      if (!wasStaff || !window.currentUser) return;
+      if (!staff || !window.currentUser) return;
 
-      // Après insert : forcer public + is_special_aupygo (définitif en DB)
       setTimeout(async function () {
         try {
           var client = window.supabaseClient || window.supabase;
@@ -106,32 +133,39 @@
           var ev = res.data;
           if (!ev || !ev.id) return;
 
-          var desc = String(ev.description || '');
+          var desc = String(ev.description || '')
+            .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '')
+            .trim();
           if (desc.indexOf(TAG) === -1) desc = TAG + '\n' + desc;
-          // Retirer tag attente
-          desc = desc.replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '').trim();
 
           var payload = {
             visibility: 'public',
             is_special_aupygo: true,
             description: desc || null
           };
-          if (wantsPaid && priceVal > 0) {
+
+          if (amiral && wantsPaid && priceVal > 0) {
             payload.is_paid = true;
             payload.price = priceVal;
+          } else {
+            payload.is_paid = false;
+            payload.price = 0;
           }
 
-          var { error } = await client.from('events').update(payload).eq('id', ev.id);
-          if (error) {
-            console.warn('[staff-event-notify] publish', error);
+          var up = await client.from('events').update(payload).eq('id', ev.id);
+          if (up.error) {
+            console.warn('[staff-event-notify] publish', up.error);
+            if (typeof showToast === 'function') {
+              showToast('Publication : ' + (up.error.message || up.error), 'error');
+            }
             return;
           }
 
           if (typeof showToast === 'function') {
             showToast(
-              wantsPaid
-                ? '✅ Événement payant publié — tous les users sont informés'
-                : '✅ Événement publié — les users sont informés (FREE : grisé)',
+              payload.is_paid
+                ? '✅ Événement payant publié — tous les utilisateurs sont informés'
+                : '✅ Événement publié — les utilisateurs sont informés',
               'success'
             );
           }
@@ -144,20 +178,14 @@
     return true;
   }
 
-  /* --------------------------------------------------------------------
-   * Élargir renderSpecialEventsHero : tous les events staff (pas seulement type special)
-   * ------------------------------------------------------------------ */
   function patchSpecialHero() {
     if (typeof window.renderSpecialEventsHero !== 'function') return false;
     if (window._staffNotifyHeroPatched) return true;
     window._staffNotifyHeroPatched = true;
 
-    var orig = window.renderSpecialEventsHero;
     window.renderSpecialEventsHero = function (list) {
-      // Injecte is_special_aupygo virtuel pour que le filtre d'origine les garde,
-      // OU on remplace complètement l'affichage.
       var host = document.getElementById('specialEventsHero');
-      if (!host) return orig.apply(this, arguments);
+      if (!host) return;
 
       var declined = typeof getDeclinedEventIds === 'function' ? getDeclinedEventIds() : new Set();
       var myIds = window.myEventIds || new Set();
@@ -190,7 +218,8 @@
         );
       }).join('');
 
-      // Auto-ouvrir la 1re invitation non vue cette session
+      if (isStaffUser()) return;
+
       try {
         var first = specials[0];
         var key = 'aupygo_staff_invite_shown_' + first.id;
@@ -205,9 +234,6 @@
     return true;
   }
 
-  /* --------------------------------------------------------------------
-   * Modal d'invitation : prix + règles FREE
-   * ------------------------------------------------------------------ */
   function patchInviteModal() {
     if (typeof window.openSpecialInviteModal !== 'function') return false;
     if (window._staffNotifyModalPatched) return true;
@@ -230,11 +256,12 @@
       var pl = priceOf(ev);
 
       var actions = '';
-      if (grey) {
-        // FREE + event staff gratuit → grisé
+      if (isStaffUser()) {
+        actions = '<p style="font-size:13px;color:#64748b">Vue staff — pas d\'inscription</p>';
+      } else if (grey) {
         actions =
           '<button type="button" class="btn btn-accept" style="opacity:.85" onclick="closeSpecialInviteModal();go(\'plans\')">' +
-          '🔒 STANDARD pour participer (gratuit staff)</button>' +
+          '🔒 STANDARD pour participer (événement staff gratuit)</button>' +
           '<button type="button" class="btn btn-refuse" onclick="refuseEvent(\'' + ev.id + '\');closeSpecialInviteModal()">✖️ Refuser</button>';
       } else if (paid) {
         actions =
@@ -258,15 +285,19 @@
         .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]/g, '')
         .trim();
 
+      var title = (typeof escapeHtml === 'function' ? escapeHtml(ev.title || '') : (ev.title || ''));
+      var addr = (typeof escapeHtml === 'function' ? escapeHtml(ev.address || '') : (ev.address || ''));
+      var descHtml = desc ? (typeof escapeHtml === 'function' ? escapeHtml(desc) : desc) : '';
+
       card.innerHTML =
         '<button type="button" class="special-invite-close" onclick="closeSpecialInviteModal()" aria-label="Fermer">×</button>' +
         '<div class="special-invite-sparks" aria-hidden="true"><span></span><span></span><span></span><span></span></div>' +
         '<div class="special-invite-avatar">' + emoji + '</div>' +
         '<div class="si-badge">⭐ Invitation AUPYGO' + (paid ? ' · Payant' : ' · Gratuit') + '</div>' +
-        '<h3>' + (typeof escapeHtml === 'function' ? escapeHtml(ev.title || '') : (ev.title || '')) + '</h3>' +
-        '<p class="si-meta">📍 ' + (typeof escapeHtml === 'function' ? escapeHtml(ev.address || '') : (ev.address || '')) + '</p>' +
+        '<h3>' + title + '</h3>' +
+        '<p class="si-meta">📍 ' + addr + '</p>' +
         '<p class="si-meta">🕐 ' + dateStr + '</p>' +
-        (desc ? '<p class="si-desc">' + (typeof escapeHtml === 'function' ? escapeHtml(desc) : desc) + '</p>' : '') +
+        (descHtml ? '<p class="si-desc">' + descHtml + '</p>' : '') +
         '<div class="special-invite-actions">' + actions + '</div>';
 
       ov.classList.remove('open');
@@ -274,7 +305,7 @@
       ov.classList.add('open');
       document.body.style.overflow = 'hidden';
 
-      if (paid) {
+      if (paid && !isStaffUser()) {
         var btn = document.getElementById('staffInviteAcceptPaid');
         if (btn) {
           btn.onclick = function () {
@@ -286,7 +317,6 @@
               return;
             }
             if (typeof closeSpecialInviteModal === 'function') closeSpecialInviteModal();
-            // Join en contournant le lock FREE (event payant staff = autorisé)
             staffJoinPaid(ev.id);
           };
         }
@@ -300,7 +330,6 @@
       if (typeof go === 'function') go('plans');
       return;
     }
-    // Staff ne s'inscrit pas
     if (isStaffUser()) {
       if (typeof showToast === 'function') showToast('Les comptes Staff ne s\'inscrivent pas.', 'error');
       return;
@@ -311,12 +340,12 @@
     try {
       try { currentPlan = 'STANDARD'; } catch (e) {}
       window.currentPlan = 'STANDARD';
-      var { error } = await client.from('event_participants').insert({
+      var ins = await client.from('event_participants').insert({
         event_id: eventId,
         user_id: window.currentUser.id
       });
-      if (error && !/duplicate|unique|23505/i.test(String(error.message || '') + String(error.code || ''))) {
-        if (typeof showToast === 'function') showToast('Erreur : ' + (error.message || error), 'error');
+      if (ins.error && !/duplicate|unique|23505/i.test(String(ins.error.message || '') + String(ins.error.code || ''))) {
+        if (typeof showToast === 'function') showToast('Erreur : ' + (ins.error.message || ins.error), 'error');
         return;
       }
       if (typeof showToast === 'function') showToast('🎉 Place réservée (paiement simulé) !', 'success');
@@ -327,9 +356,6 @@
     }
   }
 
-  /* --------------------------------------------------------------------
-   * Cartes grille : griser FREE sur staff gratuit ; déverrouiller staff payant
-   * ------------------------------------------------------------------ */
   function applyCardRules() {
     (window.cachedEvents || []).forEach(function (ev) {
       if (!isStaffEvent(ev)) return;
@@ -337,7 +363,6 @@
         var paid = isPaid(ev);
         var grey = isGreyedForFree(ev);
 
-        // Badge prix / gratuit
         if (!card.querySelector('.staff-ev-badge')) {
           var b = document.createElement('p');
           b.className = 'event-details staff-ev-badge';
@@ -349,8 +374,6 @@
         if (grey) {
           card.style.opacity = '0.55';
           card.style.filter = 'grayscale(0.35)';
-          var lockedBtn = card.querySelector('.btn-locked, .event-upgrade, .event-join, .btn-primary');
-          // Remplacer actions par cadenas
           card.querySelectorAll('.event-join, .btn-primary').forEach(function (btn) {
             if (/refuser|delete|🗑️|participants/i.test(btn.textContent || '')) return;
             btn.className = 'btn btn-locked event-upgrade';
@@ -376,18 +399,13 @@
     });
   }
 
-  /* --------------------------------------------------------------------
-   * joinRealEvent : FREE peut rejoindre staff PAYANT uniquement
-   * ------------------------------------------------------------------ */
   function patchJoin() {
     if (typeof window.joinRealEvent !== 'function') return false;
     if (window._staffNotifyJoin === window.joinRealEvent) return true;
 
     var orig = window.joinRealEvent;
     window.joinRealEvent = async function (eventId) {
-      if (isStaffUser()) {
-        return orig.apply(this, arguments);
-      }
+      if (isStaffUser()) return orig.apply(this, arguments);
       var ev = getEv(eventId);
       if (ev && isStaffEvent(ev)) {
         if (isGreyedForFree(ev)) {
@@ -398,55 +416,16 @@
           return;
         }
         if (isPaid(ev)) {
-          // Ouvre le modal (prix + clause) plutôt que join direct
           if (typeof openSpecialInviteModal === 'function') {
             openSpecialInviteModal(eventId);
             return;
           }
-        }
-        // Staff gratuit + STANDARD/PREMIUM → join normal en contournant si besoin
-        if (plan() === 'FREE' && isPaid(ev)) {
-          return staffJoinPaid(eventId);
         }
       }
       return orig.apply(this, arguments);
     };
     window._staffNotifyJoin = window.joinRealEvent;
     return true;
-  }
-
-  /* --------------------------------------------------------------------
-   * Republier les anciens events staff encore en visibility admin
-   * ------------------------------------------------------------------ */
-  async function republishStaffAdminEvents() {
-    if (!isStaffUser() || !window.currentUser) return;
-    var client = window.supabaseClient || window.supabase;
-    if (!client) return;
-    try {
-      var res = await client
-        .from('events')
-        .select('id, visibility, description, is_special_aupygo')
-        .eq('creator_id', window.currentUser.id)
-        .in('visibility', ['admin', 'admin_only'])
-        .limit(30);
-      var rows = res.data || [];
-      for (var i = 0; i < rows.length; i++) {
-        var desc = String(rows[i].description || '')
-          .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '')
-          .trim();
-        if (desc.indexOf(TAG) === -1) desc = TAG + '\n' + desc;
-        await client.from('events').update({
-          visibility: 'public',
-          is_special_aupygo: true,
-          description: desc || null
-        }).eq('id', rows[i].id);
-      }
-      if (rows.length && typeof loadAndRenderEvents === 'function') {
-        await loadAndRenderEvents();
-      }
-    } catch (e) {
-      console.warn('[staff-event-notify] republish', e);
-    }
   }
 
   function patchLoad() {
@@ -468,7 +447,45 @@
     return true;
   }
 
+  async function republishMyStaffEvents() {
+    if (!isStaffUser() || !window.currentUser) return;
+    var client = window.supabaseClient || window.supabase;
+    if (!client) return;
+    try {
+      var res = await client
+        .from('events')
+        .select('id, visibility, description, is_paid, price, is_special_aupygo')
+        .eq('creator_id', window.currentUser.id)
+        .limit(40);
+      var rows = res.data || [];
+      for (var i = 0; i < rows.length; i++) {
+        var row = rows[i];
+        var desc = String(row.description || '')
+          .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '')
+          .trim();
+        if (desc.indexOf(TAG) === -1) desc = TAG + '\n' + desc;
+
+        var payload = {
+          visibility: 'public',
+          is_special_aupygo: true,
+          description: desc || null
+        };
+        if (!isAmiralUser() && row.is_paid) {
+          payload.is_paid = false;
+          payload.price = 0;
+        }
+        await client.from('events').update(payload).eq('id', row.id);
+      }
+      if (rows.length && typeof loadAndRenderEvents === 'function') {
+        await loadAndRenderEvents();
+      }
+    } catch (e) {
+      console.warn('[staff-event-notify] republish', e);
+    }
+  }
+
   function boot() {
+    enforcePaidUiSecurity();
     patchSubmit();
     patchSpecialHero();
     patchInviteModal();
@@ -484,13 +501,13 @@
   }
   setTimeout(boot, 600);
   setTimeout(boot, 1800);
-  setTimeout(republishStaffAdminEvents, 2500);
-  // Re-assert patches if other scripts overwrite join
+  setTimeout(republishMyStaffEvents, 2500);
   setInterval(function () {
+    enforcePaidUiSecurity();
     patchJoin();
     patchInviteModal();
     applyCardRules();
   }, 3000);
 
-  console.log('[AUPYGO] staff-event-notify.js — staff events → users informés');
+  console.log('[AUPYGO] staff-event-notify.js — Amiral seul payant · users informés');
 })();
