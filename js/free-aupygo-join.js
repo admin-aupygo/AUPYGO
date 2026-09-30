@@ -1,7 +1,7 @@
 /* ==========================================================================
- * AUPYGO — free-aupygo-join.js v3
- * FREE → rejoint seulement AUPYGO payant
- * UI : UN SEUL affichage du prix + case « paiement confirmé »
+ * AUPYGO — free-aupygo-join.js v4
+ * FREE → AUPYGO payant seulement
+ * Inscription via RPC join_event() (contourne 403 RLS)
  * ========================================================================== */
 (function () {
   'use strict';
@@ -114,6 +114,39 @@
       return;
     }
 
+    // 1) RPC join_event (security definer) — contourne 403 RLS
+    try {
+      var rpc = await sb.rpc('join_event', { p_event_id: eventId });
+      if (!rpc.error && rpc.data) {
+        var data = rpc.data;
+        if (typeof data === 'string') {
+          try { data = JSON.parse(data); } catch (e) {}
+        }
+        if (data && data.ok) {
+          if (typeof showToast === 'function') {
+            showToast(
+              data.already
+                ? 'Tu es déjà inscrit.'
+                : (paid ? '✅ Paiement confirmé — place réservée !' : '🎉 Tu es inscrit !'),
+              'success'
+            );
+          }
+          if (typeof loadAndRenderEvents === 'function') {
+            try { await loadAndRenderEvents(); } catch (e2) {}
+          }
+          return;
+        }
+        if (data && data.error) {
+          console.warn('[free-aupygo-join] rpc error payload', data);
+        }
+      } else if (rpc.error) {
+        console.warn('[free-aupygo-join] rpc', rpc.error);
+      }
+    } catch (e3) {
+      console.warn('[free-aupygo-join] rpc exception', e3);
+    }
+
+    // 2) Fallback INSERT direct
     var ins = await sb.from('event_participants').insert({
       event_id: eventId,
       user_id: user.id
@@ -121,12 +154,18 @@
 
     if (ins.error) {
       var msg = String(ins.error.message || ins.error.code || '');
-      if (/duplicate|unique|23505/i.test(msg)) {
+      var code = String(ins.error.code || ins.error.status || '');
+      if (/duplicate|unique|23505/i.test(msg + code)) {
         if (typeof showToast === 'function') showToast('Tu es déjà inscrit.', 'success');
-      } else if (/403|42501|row-level|policy|permission/i.test(msg + String(ins.error.code || ''))) {
+      } else if (/403|42501|row-level|policy|permission|JWT/i.test(msg + code)) {
         if (typeof showToast === 'function') {
-          showToast('Inscription refusée (droits base). Exécute SUPABASE_FIX_PARTICIPANTS_403.sql', 'error');
+          showToast(
+            'Inscription bloquée (403). Exécute SUPABASE_JOIN_EVENT_RPC.sql dans Supabase.',
+            'error'
+          );
         }
+        console.error('[free-aupygo-join] 403', ins.error);
+        return;
       } else {
         console.error('[free-aupygo-join] insert', ins.error);
         if (typeof showToast === 'function') showToast('Erreur inscription : ' + msg, 'error');
@@ -137,11 +176,10 @@
     }
 
     if (typeof loadAndRenderEvents === 'function') {
-      try { await loadAndRenderEvents(); } catch (e) {}
+      try { await loadAndRenderEvents(); } catch (e4) {}
     }
   }
 
-  /** Modal : un prix + une seule case de confirmation paiement */
   function openPaidModal(ev) {
     var old = document.getElementById('freeAupygoPaidOverlay');
     if (old) old.remove();
@@ -153,7 +191,10 @@
     var esc = typeof escapeHtml === 'function'
       ? escapeHtml
       : function (s) {
-          return String(s || '').replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>');
+          return String(s || '')
+            .replace(/&/g, '&')
+            .replace(/</g, '<')
+            .replace(/>/g, '>');
         };
 
     var ov = document.createElement('div');
@@ -251,35 +292,23 @@
     return true;
   }
 
-  /**
-   * Nettoie les doublons de prix sur une carte.
-   * Garde : badge type (sans prix répété) + UN bouton avec le prix.
-   */
   function cleanCardPrices(card, ev) {
-    // Supprimer toutes les lignes injectées par les autres patches
     card.querySelectorAll(
       '.cdc-price, .aupygo-price-line, .staff-ev-badge, [data-aupygo-price]'
     ).forEach(function (el) { el.remove(); });
 
-    // Supprimer les .event-details qui ne font qu'afficher un prix / « Payant »
-    var priceLines = [];
     card.querySelectorAll('.event-details, p, span, div').forEach(function (el) {
       if (el.closest('button')) return;
       if (el.querySelector && el.querySelector('button')) return;
       var t = (el.textContent || '').replace(/\s+/g, ' ').trim();
-      // Lignes du type « 23 € », « 💶 23 € », « Payant · 23 € »
       if (/^(💶\s*)?(Payant\s*[·•\-]?\s*)?\d+([.,]\d+)?\s*€$/i.test(t)) {
-        priceLines.push(el);
+        el.remove();
       }
     });
-    // Tout supprimer (le prix reste sur le bouton uniquement)
-    priceLines.forEach(function (el) { el.remove(); });
 
-    // Badge : « Événement AUPYGO » sans empiler le prix plusieurs fois
     var badge = card.querySelector('.badge');
     if (badge && isAupygoStaff(ev)) {
-      var paid = isPaid(ev);
-      badge.textContent = paid
+      badge.textContent = isPaid(ev)
         ? ('Événement AUPYGO · ' + priceLabel(ev))
         : 'Événement AUPYGO · Gratuit';
     }
@@ -304,7 +333,6 @@
             if (btn.disabled && /inscrit|complet/i.test(tx)) return;
             btn.disabled = false;
             btn.className = 'btn btn-primary event-join';
-            // UN SEUL libellé prix sur le bouton
             btn.textContent = priceLabel(ev);
             btn.onclick = function (e) {
               e.preventDefault();
@@ -313,7 +341,6 @@
             };
             done = true;
           });
-          // Si aucun bouton trouvé, en créer un
           if (!done) {
             var actions = card.querySelector('.event-actions-row') || card.querySelector('.event-body') || card;
             var b = document.createElement('button');
@@ -365,12 +392,7 @@
     window.buildEventCardHtml = function (ev, locked) {
       if (freeCanJoin(ev)) locked = false;
       else if (plan() === 'FREE') locked = true;
-      var html = orig.call(this, ev, locked);
-      // Nettoyage HTML : retirer lignes prix dupliquées dans le template
-      if (typeof html === 'string' && isPaid(ev)) {
-        // garde une seule occurrence éventuelle dans le body — le bouton portera le prix
-      }
-      return html;
+      return orig.call(this, ev, locked);
     };
     return true;
   }
@@ -412,5 +434,5 @@
     applyCards();
   }, 2500);
 
-  console.log('[AUPYGO] free-aupygo-join.js v3 — 1 prix + confirmation paiement');
+  console.log('[AUPYGO] free-aupygo-join.js v4 — RPC join_event + 1 prix');
 })();
