@@ -1,13 +1,13 @@
 /* ==========================================================================
  * AUPYGO — staff-event-notify.js
  *
- * Règles permanentes :
- * 1. Seul l'AMIRAL peut créer un événement PAYANT (UI + JS + SQL).
- * 2. Tout événement STAFF / AUPYGO → visibility public + is_special_aupygo.
- * 3. TOUS les comptes user (FREE, STANDARD, PREMIUM) peuvent PARTICIPER
- *    aux événements AUPYGO staff (gratuits ET payants).
- * 4. Badge permanent « Événement AUPYGO » sur ces cartes.
- * 5. Users informés (bandeau + pop-up invitation).
+ * Règles FREE :
+ *   ✅ Voir toutes les sorties communautaires + événements AUPYGO (staff)
+ *   ✅ Participer UNIQUEMENT aux événements AUPYGO PAYANTS (staff)
+ *   ❌ Pas de participation aux sorties gratuites (communauté ou staff)
+ *
+ * STANDARD / PREMIUM : participation libre (gratuit + payant AUPYGO)
+ * Amiral seul : création d'événements payants
  * ========================================================================== */
 (function () {
   'use strict';
@@ -35,7 +35,7 @@
     return (window.cachedEvents || []).find(function (e) { return e && e.id === id; }) || null;
   }
   function isPaid(ev) {
-    return !!(ev && ev.is_paid && Number(ev.price) > 0);
+    return !!(ev && (ev.is_paid === true || ev.is_paid === 'true') && Number(ev.price) > 0);
   }
   function priceOf(ev) {
     if (!isPaid(ev)) return '';
@@ -43,22 +43,32 @@
   }
   function isStaffEvent(ev) {
     if (!ev) return false;
-    if (ev.is_special_aupygo === true) return true;
+    if (ev.is_special_aupygo === true || ev.is_special_aupygo === 'true') return true;
     if (ev.visibility === 'admin' || ev.visibility === 'admin_only') return true;
-    if (ev.type === 'special') return true;
+    if (String(ev.type || '') === 'special') return true;
     var d = String(ev.description || '');
     if (d.indexOf(TAG) !== -1 || d.indexOf('[STAFF_PRESENCE]') !== -1) return true;
-    // Créateur staff connu dans profiles
     try {
       var c = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
-      if (c && (c.is_admin === true || ['amiral','admin_general','admin','major_staff','sergent_staff','major_moderateur','sergent_moderateur','host','moderator'].indexOf(String(c.role || '').toLowerCase()) !== -1)) {
+      if (c && (c.is_admin === true ||
+          ['amiral','admin_general','admin','major_staff','sergent_staff',
+           'major_moderateur','sergent_moderateur','host','moderator']
+            .indexOf(String(c.role || '').toLowerCase()) !== -1)) {
         return true;
       }
     } catch (e2) {}
     return false;
   }
+  /** FREE peut rejoindre seulement si AUPYGO staff + payant */
+  function freeCanJoin(ev) {
+    return isStaffEvent(ev) && isPaid(ev);
+  }
+  /** Carte verrouillée pour FREE ? (tout sauf AUPYGO payant) */
+  function freeIsLocked(ev) {
+    if (plan() !== 'FREE') return false;
+    return !freeCanJoin(ev);
+  }
 
-  /* ---------- UI payant : Amiral uniquement ---------- */
   function enforcePaidUiSecurity() {
     var paidRadio = document.getElementById('eventPaidPaid');
     var freeRadio = document.getElementById('eventPaidFree');
@@ -66,7 +76,6 @@
     var priceInput = document.getElementById('createEventPrice');
     var paidLabel = paidRadio ? (paidRadio.closest('label') || paidRadio.parentElement) : null;
     var priceStep = document.getElementById('wizardStep_price');
-
     if (isAmiralUser()) {
       if (paidLabel) paidLabel.style.display = '';
       if (paidRadio) paidRadio.disabled = false;
@@ -74,146 +83,126 @@
       return;
     }
     if (paidRadio) { paidRadio.checked = false; paidRadio.disabled = true; }
-    if (freeRadio) { freeRadio.checked = true; freeRadio.disabled = false; }
+    if (freeRadio) { freeRadio.checked = true; }
     if (priceWrap) priceWrap.style.display = 'none';
     if (priceInput) { priceInput.value = ''; priceInput.disabled = true; }
     if (paidLabel) paidLabel.style.display = 'none';
     if (priceStep) priceStep.style.display = 'none';
   }
 
-  /* ---------- buildEventCardHtml : JAMAIS de cadenas sur event AUPYGO ---------- */
   function patchBuildCard() {
     if (typeof window.buildEventCardHtml !== 'function') return false;
     if (window._aupygoCardPatched) return true;
     window._aupygoCardPatched = true;
-
     var orig = window.buildEventCardHtml;
     window.buildEventCardHtml = function (ev, locked) {
-      // AUPYGO staff → jamais locked pour les users
-      if (isStaffEvent(ev)) locked = false;
-
-      var html = orig.call(this, ev, locked);
-
-      // Forcer badge « Événement AUPYGO »
-      if (isStaffEvent(ev) && typeof html === 'string') {
-        // Si le badge type n'a pas déjà AUPYGO, on l'ajoute via data attribute post-process
-        // (le HTML est déjà construit ; applyCardBadges s'en charge sur le DOM)
-      }
-      return html;
+      // FREE : unlock uniquement AUPYGO payant
+      if (freeCanJoin(ev)) locked = false;
+      else if (plan() === 'FREE') locked = true;
+      return orig.call(this, ev, locked);
     };
     return true;
   }
 
-  /* ---------- loadAndRenderEvents : locked=false pour staff events ---------- */
   function patchLoad() {
     if (typeof window.loadAndRenderEvents !== 'function') return false;
     if (window._aupygoLoadPatched) return true;
     window._aupygoLoadPatched = true;
-
     var orig = window.loadAndRenderEvents;
     window.loadAndRenderEvents = async function () {
       var r = await orig.apply(this, arguments);
-
-      // Re-render grille : staff events sans lock
       try {
         var grid = document.getElementById('eventGrid');
         if (grid && typeof buildEventCardHtml === 'function' && Array.isArray(window.cachedEvents)) {
-          var locked = plan() === 'FREE';
           var list = typeof getEventsForSelectedDay === 'function'
             ? getEventsForSelectedDay(window.cachedEvents)
             : window.cachedEvents;
           if (list && list.length) {
             grid.innerHTML = list.map(function (ev) {
-              return buildEventCardHtml(ev, isStaffEvent(ev) ? false : locked);
+              return buildEventCardHtml(ev, freeIsLocked(ev));
             }).join('');
           }
         }
-      } catch (e) {
-        console.warn('[staff-event-notify] re-render', e);
-      }
-
+      } catch (e) {}
       try {
         if (typeof renderSpecialEventsHero === 'function') {
           renderSpecialEventsHero(window.cachedEvents || []);
         }
       } catch (e2) {}
-
-      setTimeout(applyCardBadgesAndUnlock, 50);
-      setTimeout(applyCardBadgesAndUnlock, 300);
+      setTimeout(applyDomRules, 50);
+      setTimeout(applyDomRules, 400);
       return r;
     };
     return true;
   }
 
-  /* ---------- DOM : badge AUPYGO + remplacer STANDARD par Participer ---------- */
-  function applyCardBadgesAndUnlock() {
+  function applyDomRules() {
     (window.cachedEvents || []).forEach(function (ev) {
-      if (!isStaffEvent(ev)) return;
       document.querySelectorAll('[data-event-id="' + ev.id + '"]').forEach(function (card) {
-        // Badge Événement AUPYGO
-        var badge = card.querySelector('.badge');
-        if (badge) {
-          var t = badge.textContent || '';
-          if (t.indexOf('AUPYGO') === -1 && t.indexOf('Événement AUPYGO') === -1) {
-            badge.textContent = 'Événement AUPYGO' +
-              (isPaid(ev) ? (' · 💶 ' + priceOf(ev)) : ' · Gratuit');
-          } else if (t.indexOf('Événement AUPYGO') === -1 && t.indexOf('AUPYGO') !== -1) {
-            badge.textContent = t.replace(/⭐\s*AUPYGO|AUPYGO/, 'Événement AUPYGO');
-          }
-        } else if (!card.querySelector('.aupygo-staff-badge')) {
-          var b = document.createElement('span');
-          b.className = 'badge aupygo-staff-badge';
-          b.style.cssText = 'display:inline-block;margin-bottom:6px;font-weight:800';
-          b.textContent = 'Événement AUPYGO' + (isPaid(ev) ? (' · 💶 ' + priceOf(ev)) : ' · Gratuit');
-          var body = card.querySelector('.event-body') || card;
-          body.insertBefore(b, body.firstChild);
-        }
-
-        // Prix visible
-        if (isPaid(ev) && !card.querySelector('.aupygo-price-line')) {
-          var p = document.createElement('p');
-          p.className = 'event-details aupygo-price-line';
-          p.style.cssText = 'font-weight:800;color:#7c3aed';
-          p.textContent = '💶 ' + priceOf(ev);
-          var seats = card.querySelector('.event-seats');
-          if (seats && seats.parentNode) seats.parentNode.insertBefore(p, seats);
-          else (card.querySelector('.event-body') || card).appendChild(p);
-        }
-
-        // Remplacer cadenas STANDARD → bouton rejoindre
-        card.querySelectorAll('.btn-locked, .event-upgrade').forEach(function (btn) {
-          if (/refuser/i.test(btn.textContent || '')) return;
-          btn.className = 'btn btn-primary event-join';
-          btn.style.opacity = '1';
-          btn.style.filter = 'none';
-          if (isPaid(ev)) {
-            btn.textContent = '💶 ' + priceOf(ev);
-          } else {
-            btn.textContent = '✨ Participer';
-          }
-          btn.onclick = function (e) {
-            e.preventDefault();
-            e.stopPropagation();
-            if (typeof openSpecialInviteModal === 'function') {
-              openSpecialInviteModal(ev.id);
-            } else if (typeof joinRealEvent === 'function') {
-              joinRealEvent(ev.id);
+        // Badge AUPYGO sur staff
+        if (isStaffEvent(ev)) {
+          var badge = card.querySelector('.badge');
+          if (badge) {
+            var txt = badge.textContent || '';
+            if (txt.indexOf('Événement AUPYGO') === -1) {
+              if (txt.indexOf('AUPYGO') !== -1) {
+                badge.textContent = txt.replace(/⭐\s*AUPYGO|AUPYGO/, 'Événement AUPYGO');
+              } else {
+                badge.textContent = 'Événement AUPYGO' +
+                  (isPaid(ev) ? (' · 💶 ' + priceOf(ev)) : ' · Gratuit');
+              }
             }
-          };
-        });
+          }
+        }
 
-        card.style.opacity = '1';
-        card.style.filter = 'none';
+        if (isPaid(ev) && !card.querySelector('.aupygo-price-line')) {
+          var pl = document.createElement('p');
+          pl.className = 'event-details aupygo-price-line';
+          pl.style.cssText = 'font-weight:800;color:#7c3aed';
+          pl.textContent = '💶 ' + priceOf(ev);
+          var seats = card.querySelector('.event-seats');
+          if (seats && seats.parentNode) seats.parentNode.insertBefore(pl, seats);
+        }
+
+        // Boutons selon règle FREE
+        if (freeCanJoin(ev)) {
+          // AUPYGO payant → déverrouiller
+          card.style.opacity = '1';
+          card.style.filter = 'none';
+          card.querySelectorAll('.btn-locked, .event-upgrade').forEach(function (btn) {
+            if (/refuser/i.test(btn.textContent || '')) return;
+            btn.className = 'btn btn-primary event-join';
+            btn.textContent = '💶 ' + priceOf(ev);
+            btn.onclick = function (e) {
+              e.preventDefault();
+              e.stopPropagation();
+              if (typeof openSpecialInviteModal === 'function') openSpecialInviteModal(ev.id);
+              else if (typeof joinRealEvent === 'function') joinRealEvent(ev.id);
+            };
+          });
+        } else if (plan() === 'FREE') {
+          // FREE + non payant AUPYGO → cadenas
+          card.querySelectorAll('.event-join, .btn-primary').forEach(function (btn) {
+            if (/refuser|delete|🗑️|participants|inscrit/i.test(btn.textContent || '')) return;
+            if (btn.disabled) return;
+            btn.className = 'btn btn-locked event-upgrade';
+            btn.textContent = '🔒 STANDARD';
+            btn.onclick = function (e) {
+              e.preventDefault();
+              if (typeof go === 'function') go('plans');
+            };
+          });
+        }
       });
     });
   }
 
-  /* ---------- joinRealEvent : FREE autorisé sur staff AUPYGO ---------- */
   function patchJoin() {
     if (typeof window.joinRealEvent !== 'function') return false;
-    if (window._aupygoJoin === window.joinRealEvent) return true;
+    // Toujours re-wrapper pour gagner sur join-events-fix
+    if (window._aupygoJoinFinal === window.joinRealEvent) return true;
 
-    var orig = window.joinRealEvent;
+    var prev = window.joinRealEvent;
     window.joinRealEvent = async function (eventId) {
       if (isStaffUser()) {
         if (typeof showToast === 'function') {
@@ -222,17 +211,39 @@
         return;
       }
       var ev = getEv(eventId);
-      if (ev && isStaffEvent(ev)) {
-        // Tous les plans peuvent rejoindre
-        if (isPaid(ev) && typeof openSpecialInviteModal === 'function') {
+      if (!ev) return prev.apply(this, arguments);
+
+      var p = plan();
+
+      // FREE + AUPYGO payant → OK
+      if (p === 'FREE' && freeCanJoin(ev)) {
+        if (typeof openSpecialInviteModal === 'function') {
           openSpecialInviteModal(eventId);
           return;
         }
-        return doJoin(eventId, isPaid(ev));
+        return doJoin(eventId, true);
       }
-      return orig.apply(this, arguments);
+
+      // FREE + le reste → refusé
+      if (p === 'FREE') {
+        if (typeof showToast === 'function') {
+          showToast(
+            '🔒 FREE : tu peux voir toutes les sorties. ' +
+            'Participation réservée aux événements AUPYGO payants, ou passe en STANDARD.',
+            'error'
+          );
+        }
+        return;
+      }
+
+      // STANDARD / PREMIUM
+      if (isStaffEvent(ev) && isPaid(ev) && typeof openSpecialInviteModal === 'function') {
+        openSpecialInviteModal(eventId);
+        return;
+      }
+      return prev.apply(this, arguments);
     };
-    window._aupygoJoin = window.joinRealEvent;
+    window._aupygoJoinFinal = window.joinRealEvent;
     return true;
   }
 
@@ -245,7 +256,6 @@
     if (!client) return;
     var prev = plan();
     try {
-      // Contourne le check FREE de app.js le temps de l'insert
       try { currentPlan = 'STANDARD'; } catch (e) {}
       window.currentPlan = 'STANDARD';
       var ins = await client.from('event_participants').insert({
@@ -266,7 +276,6 @@
     }
   }
 
-  /* ---------- Modal invitation ---------- */
   function patchInviteModal() {
     if (typeof window.openSpecialInviteModal !== 'function') return false;
     if (window._aupygoModalPatched) return true;
@@ -287,13 +296,22 @@
       var emoji = ev.emoji || '🎉';
       var pl = priceOf(ev);
       var esc = typeof escapeHtml === 'function' ? escapeHtml : function (s) { return String(s || ''); };
+      var p = plan();
 
       var actions = '';
       if (isStaffUser()) {
         actions = '<p style="font-size:13px;color:#64748b">Vue staff — pas d\'inscription</p>';
-      } else if (paid) {
+      } else if (p === 'FREE' && !paid) {
+        // FREE + AUPYGO gratuit → voir mais pas rejoindre
         actions =
-          '<div style="margin:0 0 10px;padding:10px;border-radius:10px;background:#faf5ff;border:1px solid #e9d5ff;font-weight:800;color:#7c3aed">💶 Payant — ' + pl + '</div>' +
+          '<div style="margin:0 0 10px;padding:10px;border-radius:10px;background:#f8fafc;border:1px solid #e2e8f0;font-size:13px;color:#475569">' +
+          '✅ Visible en FREE · Participation réservée au forfait STANDARD (événement gratuit)</div>' +
+          '<button type="button" class="btn btn-accept" onclick="closeSpecialInviteModal();go(\'plans\')">🔒 Passer à STANDARD</button>' +
+          '<button type="button" class="btn btn-refuse" onclick="refuseEvent(\'' + ev.id + '\');closeSpecialInviteModal()">✖️ Refuser</button>';
+      } else if (paid) {
+        // Payant AUPYGO : FREE + STANDARD + PREMIUM OK
+        actions =
+          '<div style="margin:0 0 10px;padding:10px;border-radius:10px;background:#faf5ff;border:1px solid #e9d5ff;font-weight:800;color:#7c3aed">💶 Événement AUPYGO payant — ' + pl + '</div>' +
           '<label style="display:flex;gap:8px;align-items:flex-start;font-size:12px;margin:0 0 12px;text-align:left;cursor:pointer">' +
           '<input type="checkbox" id="staffInviteNonRefund" style="margin-top:3px">' +
           '<span>J\'accepte la clause de non-remboursement (paiement non remboursable sauf obligation légale).</span></label>' +
@@ -307,11 +325,8 @@
       }
 
       var desc = String(ev.description || '')
-        .replace(/\[STAFF_EVENT\]/g, '')
-        .replace(/\[STAFF_PRESENCE\]/g, '')
-        .replace(/\[HOST_COUNTRY:[^\]]*\]/g, '')
-        .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]/g, '')
-        .trim();
+        .replace(/\[STAFF_EVENT\]/g, '').replace(/\[STAFF_PRESENCE\]/g, '')
+        .replace(/\[HOST_COUNTRY:[^\]]*\]/g, '').replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]/g, '').trim();
 
       card.innerHTML =
         '<button type="button" class="special-invite-close" onclick="closeSpecialInviteModal()" aria-label="Fermer">×</button>' +
@@ -352,12 +367,10 @@
     return true;
   }
 
-  /* ---------- Bandeau special ---------- */
   function patchHero() {
     if (typeof window.renderSpecialEventsHero !== 'function') return false;
     if (window._aupygoHeroPatched) return true;
     window._aupygoHeroPatched = true;
-
     window.renderSpecialEventsHero = function (list) {
       var host = document.getElementById('specialEventsHero');
       if (!host) return;
@@ -377,17 +390,15 @@
       host.style.display = 'block';
       host.innerHTML = specials.map(function (ev) {
         var paid = isPaid(ev);
-        var badge = paid ? ('💶 ' + priceOf(ev)) : '✅ Gratuit';
+        var badge = paid ? ('💶 ' + priceOf(ev)) : (plan() === 'FREE' ? '🔒 Voir · STANDARD pour rejoindre' : '✅ Gratuit');
         return (
           '<div class="special-event-banner" data-event-id="' + ev.id + '" style="cursor:pointer" ' +
           'onclick="openSpecialInviteModal(\'' + ev.id + '\')">' +
-          '<div style="position:relative;z-index:1;font-size:13px;font-weight:700;letter-spacing:.04em;opacity:.9">' +
-          '⭐ ÉVÉNEMENT AUPYGO · ' + badge + '</div>' +
+          '<div style="font-size:13px;font-weight:700;opacity:.9">⭐ ÉVÉNEMENT AUPYGO · ' + badge + '</div>' +
           '<h3>' + (ev.emoji || '🎉') + ' ' + (ev.title || '') + '</h3>' +
-          '<p style="position:relative;z-index:1;opacity:.9">Touche pour ouvrir l\'invitation</p></div>'
+          '<p style="opacity:.9">Touche pour ouvrir l\'invitation</p></div>'
         );
       }).join('');
-
       if (isStaffUser()) return;
       try {
         var first = specials[0];
@@ -403,12 +414,10 @@
     return true;
   }
 
-  /* ---------- Submit staff → public + special ; payant Amiral only ---------- */
   function patchSubmit() {
     if (typeof window.submitCreateEvent !== 'function') return false;
     if (window._aupygoSubmitPatched) return true;
     window._aupygoSubmitPatched = true;
-
     var orig = window.submitCreateEvent;
     window.submitCreateEvent = async function () {
       var staff = isStaffUser();
@@ -419,16 +428,12 @@
       var priceVal = priceEl ? parseFloat(priceEl.value) : 0;
 
       if (wantsPaid && !amiral) {
-        if (typeof showToast === 'function') {
-          showToast('🔒 Seul l\'Amiral peut créer un événement payant.', 'error');
-        }
+        if (typeof showToast === 'function') showToast('🔒 Seul l\'Amiral peut créer un événement payant.', 'error');
         enforcePaidUiSecurity();
         return;
       }
       if (wantsPaid && amiral && (!priceVal || priceVal <= 0)) {
-        if (typeof showToast === 'function') {
-          showToast('Indique un montant valide (€).', 'error');
-        }
+        if (typeof showToast === 'function') showToast('Indique un montant valide (€).', 'error');
         return;
       }
 
@@ -439,18 +444,13 @@
         try {
           var client = window.supabaseClient || window.supabase;
           if (!client) return;
-          var res = await client.from('events')
-            .select('id, description')
+          var res = await client.from('events').select('id, description')
             .eq('creator_id', window.currentUser.id)
-            .order('created_at', { ascending: false })
-            .limit(1).maybeSingle();
+            .order('created_at', { ascending: false }).limit(1).maybeSingle();
           var ev = res.data;
           if (!ev || !ev.id) return;
-
-          var desc = String(ev.description || '')
-            .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '').trim();
+          var desc = String(ev.description || '').replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '').trim();
           if (desc.indexOf(TAG) === -1) desc = TAG + '\n' + desc;
-
           var payload = {
             visibility: 'public',
             is_special_aupygo: true,
@@ -463,14 +463,9 @@
             payload.is_paid = false;
             payload.price = 0;
           }
-
-          var up = await client.from('events').update(payload).eq('id', ev.id);
-          if (up.error) {
-            console.warn('[staff-event-notify]', up.error);
-            return;
-          }
+          await client.from('events').update(payload).eq('id', ev.id);
           if (typeof showToast === 'function') {
-            showToast('✅ Événement AUPYGO publié — tous les utilisateurs peuvent participer', 'success');
+            showToast('✅ Événement AUPYGO publié', 'success');
           }
           if (typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
         } catch (err) {
@@ -481,37 +476,6 @@
     return true;
   }
 
-  async function republishStaffEvents() {
-    if (!isStaffUser() || !window.currentUser) return;
-    var client = window.supabaseClient || window.supabase;
-    if (!client) return;
-    try {
-      var res = await client.from('events')
-        .select('id, visibility, description, is_paid, is_special_aupygo')
-        .eq('creator_id', window.currentUser.id).limit(40);
-      var rows = res.data || [];
-      for (var i = 0; i < rows.length; i++) {
-        var row = rows[i];
-        var desc = String(row.description || '')
-          .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]\s*/g, '').trim();
-        if (desc.indexOf(TAG) === -1) desc = TAG + '\n' + desc;
-        var payload = {
-          visibility: 'public',
-          is_special_aupygo: true,
-          description: desc || null
-        };
-        if (!isAmiralUser() && row.is_paid) {
-          payload.is_paid = false;
-          payload.price = 0;
-        }
-        await client.from('events').update(payload).eq('id', row.id);
-      }
-      if (rows.length && typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
-    } catch (e) {
-      console.warn('[staff-event-notify] republish', e);
-    }
-  }
-
   function boot() {
     enforcePaidUiSecurity();
     patchBuildCard();
@@ -520,22 +484,18 @@
     patchInviteModal();
     patchHero();
     patchSubmit();
-    applyCardBadgesAndUnlock();
+    applyDomRules();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', boot);
-  } else {
-    boot();
-  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
   setTimeout(boot, 500);
   setTimeout(boot, 1500);
-  setTimeout(republishStaffEvents, 2500);
   setInterval(function () {
     enforcePaidUiSecurity();
     patchJoin();
-    applyCardBadgesAndUnlock();
+    applyDomRules();
   }, 2500);
 
-  console.log('[AUPYGO] staff-event-notify.js — AUPYGO staff = ouvert à TOUS les users');
+  console.log('[AUPYGO] staff-event-notify — FREE voit tout, rejoint seulement AUPYGO payant');
 })();
