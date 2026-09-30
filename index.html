@@ -24,13 +24,12 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=priority-fixes');
+  html = html.replace(/\?v=[^"']*/g, '?v=events-publish');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
 
-  // Retirer ancienne map-markers pour la recharger en dernier
   html = html.replace(/<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi, '');
 
   var scripts = [
@@ -51,17 +50,18 @@
     'js/staff-msg-unlock.js',
     'js/join-events-fix.js',
     'js/priority-fixes.js',
+    'js/events-publish-fix.js',
     'map-markers.js'
   ];
 
-  scripts.concat(['js/staff-hierarchy.js', 'js/admin.js', 'js/priority-fixes.js']).forEach(function (src) {
+  scripts.concat(['js/staff-hierarchy.js', 'js/admin.js', 'js/priority-fixes.js', 'js/events-publish-fix.js']).forEach(function (src) {
     var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
     html = html.replace(re, '');
   });
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=priority-fixes"><\/script>\n';
+    inject += '<script src="' + src + '?v=events-publish"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
