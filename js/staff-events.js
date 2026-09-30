@@ -1,4 +1,4 @@
-/* AUPYGO staff-events.js v4 — sans onglet Agenda Staff */
+/* AUPYGO staff-events.js v4.1 — sans onglet Agenda Staff */
 (function () {
   'use strict';
   if (typeof isStaff !== 'function') return;
@@ -159,7 +159,6 @@
         if (/accepter|refuser|rejoindre|participer|agenda staff/i.test(t)) btn.style.display = 'none';
       });
     }
-    // Supprimer explicitement les onglets Agenda Staff
     var tabs = document.getElementById('staffAgendaTabs');
     if (tabs) tabs.remove();
     var btnT = document.getElementById('staffAgendaTabTeam');
@@ -206,7 +205,8 @@
       var wantsPaid = !!(paidRadio && paidRadio.value === 'paid');
       var priceEl = document.getElementById('createEventPrice');
       var priceVal = priceEl ? parseFloat(priceEl.value) : 0;
-      var staffPaidPending = isStaff() && !(typeof isAdmin === 'function' && isAdmin()) && wantsPaid;
+      // Amiral : pas de file d'attente — publication immédiate
+      var staffPaidPending = isStaff() && !(typeof isAdmin === 'function' && isAdmin()) && !(typeof isAmiral === 'function' && isAmiral()) && wantsPaid;
 
       if (staffPaidPending) {
         if (!priceVal || priceVal <= 0) {
@@ -246,9 +246,13 @@
             showToast('Événement payant soumis — en attente de validation Admin.', 'success');
           } else {
             var payload = { description: desc.trim() };
-            if (typeof isAdmin === 'function' && isAdmin() && wantsPaid) {
-              payload.is_paid = true;
-              payload.price = priceVal;
+            // Amiral / Admin : publier en public pour que la RLS laisse passer les users
+            if (typeof isAdmin === 'function' && isAdmin()) {
+              payload.visibility = 'public';
+              if (wantsPaid) {
+                payload.is_paid = true;
+                payload.price = priceVal;
+              }
             }
             await supabaseClient.from('events').update(payload).eq('id', newest.id);
             if (staffPart) {
@@ -341,5 +345,5 @@
     }
   }, 1500);
 
-  console.log('[AUPYGO] staff-events.js v4 (sans Agenda Staff)');
+  console.log('[AUPYGO] staff-events.js v4.1 (Amiral publie en public)');
 })();
