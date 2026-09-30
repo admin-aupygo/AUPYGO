@@ -1,24 +1,23 @@
 -- ============================================================
 -- AUPYGO — RLS Messagerie (conversations / members / messages)
--- Supabase → SQL Editor → Run TOUT le fichier d'un coup
+-- Supabase → SQL Editor → Run (idempotent)
 --
 -- Corrige l'erreur 42501 / 403 :
 --   "new row violates row-level security policy for table
 --    conversation_members"
+-- lors de getOrCreateDmConversation (ajout de soi + de l'ami).
+--
+-- Correctif 42P13 : les fonctions helper utilisent le paramètre
+-- `conv_id` (même nom que la fonction déjà présente en base).
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 0. DROP fonctions existantes (évite ERROR 42P13 nom de param)
--- ------------------------------------------------------------
-drop function if exists public.is_conversation_member(uuid) cascade;
-drop function if exists public.is_conversation_creator(uuid) cascade;
-
--- ------------------------------------------------------------
--- 1. Tables (si absentes)
+-- 0. Tables (si absentes)
 -- ------------------------------------------------------------
 create table if not exists public.conversations (
   id          uuid primary key default gen_random_uuid(),
-  type        text not null default 'dm',
+  type        text not null default 'dm'
+              check (type in ('dm', 'group')),
   title       text,
   created_by  uuid references auth.users(id) on delete set null,
   created_at  timestamptz not null default now()
@@ -36,10 +35,11 @@ create table if not exists public.messages (
   id               uuid primary key default gen_random_uuid(),
   conversation_id  uuid not null references public.conversations(id) on delete cascade,
   sender_id        uuid not null references auth.users(id) on delete cascade,
-  body             text not null,
+  content          text not null,
   created_at       timestamptz not null default now()
 );
 
+-- Colonnes manquantes (idempotent)
 alter table public.conversations
   add column if not exists type text,
   add column if not exists title text,
@@ -58,9 +58,10 @@ create index if not exists messages_conv_idx
   on public.messages (conversation_id, created_at);
 
 -- ------------------------------------------------------------
--- 2. Helpers (recréés propres)
+-- 1. Helpers : membre / créateur de la conversation ?
+--    (paramètre nommé conv_id : obligatoire pour CREATE OR REPLACE)
 -- ------------------------------------------------------------
-create or replace function public.is_conversation_member(cid uuid)
+create or replace function public.is_conversation_member(conv_id uuid)
 returns boolean
 language sql
 stable
@@ -69,12 +70,12 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.conversation_members m
-    where m.conversation_id = cid
+    where m.conversation_id = conv_id
       and m.user_id = auth.uid()
   );
 $$;
 
-create or replace function public.is_conversation_creator(cid uuid)
+create or replace function public.is_conversation_creator(conv_id uuid)
 returns boolean
 language sql
 stable
@@ -83,7 +84,7 @@ set search_path = public
 as $$
   select exists (
     select 1 from public.conversations c
-    where c.id = cid
+    where c.id = conv_id
       and c.created_by = auth.uid()
   );
 $$;
@@ -94,7 +95,7 @@ grant execute on function public.is_conversation_member(uuid) to authenticated;
 grant execute on function public.is_conversation_creator(uuid) to authenticated;
 
 -- ------------------------------------------------------------
--- 3. RLS CONVERSATIONS
+-- 2. RLS CONVERSATIONS
 -- ------------------------------------------------------------
 alter table public.conversations enable row level security;
 
@@ -132,7 +133,7 @@ create policy "conversations_delete_creator"
 grant select, insert, update, delete on public.conversations to authenticated;
 
 -- ------------------------------------------------------------
--- 4. RLS CONVERSATION_MEMBERS  ← fix 403 / 42501
+-- 3. RLS CONVERSATION_MEMBERS  ← fix 403 / 42501
 -- ------------------------------------------------------------
 alter table public.conversation_members enable row level security;
 
@@ -147,6 +148,7 @@ begin
   end loop;
 end $$;
 
+-- Lire les membres des conversations où je suis
 create policy "cm_select_same_conv"
   on public.conversation_members for select to authenticated
   using (
@@ -155,7 +157,8 @@ create policy "cm_select_same_conv"
     or public.is_conversation_creator(conversation_id)
   );
 
--- INSERT : m'ajouter OU créateur ajoute les autres (moi + ami en DM)
+-- INSERT : (1) m'ajouter moi-même  OU  (2) créateur ajoute d'autres membres
+-- C'est le cas de getOrCreateDmConversation qui insert [moi, ami]
 create policy "cm_insert_self_or_creator"
   on public.conversation_members for insert to authenticated
   with check (
@@ -163,11 +166,13 @@ create policy "cm_insert_self_or_creator"
     or public.is_conversation_creator(conversation_id)
   );
 
+-- UPDATE : uniquement ma propre ligne (last_read_at)
 create policy "cm_update_own"
   on public.conversation_members for update to authenticated
   using (user_id = auth.uid())
   with check (user_id = auth.uid());
 
+-- DELETE : me retirer, ou créateur retire quelqu'un
 create policy "cm_delete_self_or_creator"
   on public.conversation_members for delete to authenticated
   using (
@@ -178,7 +183,7 @@ create policy "cm_delete_self_or_creator"
 grant select, insert, update, delete on public.conversation_members to authenticated;
 
 -- ------------------------------------------------------------
--- 5. RLS MESSAGES
+-- 4. RLS MESSAGES
 -- ------------------------------------------------------------
 alter table public.messages enable row level security;
 
@@ -216,5 +221,8 @@ grant select, insert, delete on public.messages to authenticated;
 notify pgrst, 'reload schema';
 
 -- ============================================================
--- OK si aucune erreur. Puis reteste un DM dans l'app.
+-- Vérifications
+-- ============================================================
+-- select tablename, policyname, cmd from pg_policies
+--   where tablename in ('conversations','conversation_members','messages');
 -- ============================================================
