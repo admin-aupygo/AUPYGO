@@ -128,27 +128,15 @@
     if (!isStaff() || !window.currentUser) return null;
     if (staffGroupIdCache) return staffGroupIdCache;
     try {
-      var all = await supabaseClient.from('conversations')
-        .select('id, title, created_at')
-        .eq('type', 'group')
-        .ilike('title', '%Équipe AUPYGO%')
-        .order('created_at', { ascending: true });
-      var rows = all.data || [];
-      if (rows.length) {
-        staffGroupIdCache = rows[0].id;
-      } else {
-        var created = await supabaseClient.from('conversations').insert({
-          created_by: currentUser.id, type: 'group', title: STAFF_GROUP_TITLE
-        }).select().single();
-        if (created.error || !created.data) return null;
-        staffGroupIdCache = created.data.id;
+      var res = await supabaseClient.rpc('get_or_create_staff_group');
+      if (res.error || !res.data) {
+        console.warn('[Staff] get_or_create_staff_group', res.error);
+        return null;
       }
-      await syncStaffMembers(staffGroupIdCache);
-      await safeAddMembers([{ conversation_id: staffGroupIdCache, user_id: currentUser.id }]);
+      staffGroupIdCache = res.data;
       return staffGroupIdCache;
     } catch (e) { return null; }
   }
-
   async function syncStaffMembers(convId) {
     if (!convId) return;
     try {
