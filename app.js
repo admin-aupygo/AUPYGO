@@ -1950,13 +1950,13 @@ async function saveProfile() {
   // Construction de l'objet à upsert
   // Si le profil est déjà figé, on n'envoie que les champs modifiables (bio + interests)
   // + on conserve les valeurs identité déjà présentes.
-  const profile = {
-    id: user.id,
+    const profile = {
     bio: bio,
-    interests: selectedHobbies.join(','),
-    subscription: currentPlan
+    interests: selectedHobbies.join(',')
+  };  const profile = {
+    bio: bio,
+    interests: selectedHobbies.join(',')
   };
-
   if (!profileSaved) {
     // Première sauvegarde : on enregistre aussi l'identité
     profile.display_name = name;
