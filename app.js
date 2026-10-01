@@ -1335,6 +1335,8 @@ function go(page) {
 ========================= */
 
 async function loadProfiles() {
+  const { data: sessionData } = await supabaseClient.auth.getSession();
+  if (!sessionData || !sessionData.session) return; // visiteur : pas de membres
   try {
     // Préfère la vue map_profiles (colonnes exposées + RLS adaptée carte,
     // qui masque désormais le compte Admin à tout le monde sauf lui-même).
