@@ -1995,8 +1995,7 @@ async function saveProfile() {
 
   // Re-upsert with extra fields (second write keeps things simple for prototype)
   try {
-    await supabaseClient.from('profiles').upsert({
-      id: user.id,
+        await supabaseClient.from('profiles').update({
       languages: selectedLanguages.join(','),
       other_language: otherLangVal,
       host_country: hostCountry,
@@ -2004,7 +2003,7 @@ async function saveProfile() {
       city: cityVal || null,
       interests: selectedHobbies.join(','),
       bio: bio
-    }, { onConflict: 'id' });
+    }).eq('id', user.id);
   } catch (e) { console.error(e); }
 
   updateProfileCard({
