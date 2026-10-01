@@ -1,0 +1,249 @@
+/* AUPYGO — admin-create-staff.js
+ * 1) Bouton « Agent staff » visible uniquement pour l'Amiral : crée un compte Staff
+ *    via la fonction Edge admin-create-staff (la clé service_role reste côté Supabase).
+ * 2) Modale « Définir mon mot de passe » quand l'agent ouvre le lien que l'Amiral lui a transmis.
+ * Aucun innerHTML avec des données saisies : tout passe par textContent / value.
+ */
+(function () {
+  'use strict';
+
+  var FN_NAME = 'admin-create-staff';
+  var GRADES = [
+    ['major_staff', 'Major Staff (événementiel · pays)'],
+    ['sergent_staff', 'Sergent Staff (événementiel · ville)'],
+    ['major_moderateur', 'Major Modérateur'],
+    ['sergent_moderateur', 'Sergent Modérateur']
+  ];
+  var ERRORS = {
+    not_authenticated: 'Session expirée, reconnecte-toi.',
+    forbidden: "Action réservée à l'Amiral.",
+    invalid_email: 'Adresse email invalide.',
+    invalid_display_name: "Nom d'affichage trop court (2 caractères minimum).",
+    invalid_role: 'Grade invalide.',
+    create_failed: 'Création impossible (email déjà utilisé ou bloqué ?).',
+    profile_failed: 'Profil non créé : le compte a été annulé.'
+  };
+
+  var isRecoveryLink = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
+  var passwordModalShown = false;
+
+  function client() { return window.supabaseClient || null; }
+
+  function toast(msg, type) {
+    if (typeof window.showToast === 'function') window.showToast(msg, type || 'info');
+    else window.alert(msg);
+  }
+
+  function h(tag, attrs, kids) {
+    var node = document.createElement(tag);
+    Object.keys(attrs || {}).forEach(function (k) {
+      if (k === 'style') node.style.cssText = attrs[k];
+      else if (k === 'text') node.textContent = attrs[k];
+      else if (k.slice(0, 2) === 'on') node.addEventListener(k.slice(2), attrs[k]);
+      else node.setAttribute(k, attrs[k]);
+    });
+    (kids || []).forEach(function (c) { if (c) node.appendChild(c); });
+    return node;
+  }
+
+  var INPUT_CSS = 'width:100%;box-sizing:border-box;padding:10px;margin:4px 0 12px;border:1px solid #cbd5e1;border-radius:8px;font-size:15px;background:#fff;color:#0f172a;';
+  var LABEL_CSS = 'font-size:13px;font-weight:600;color:#334155;';
+  var OVERLAY_CSS = 'position:fixed;inset:0;z-index:100000;background:rgba(15,23,42,.55);display:flex;align-items:center;justify-content:center;padding:16px;';
+  var CARD_CSS = 'background:#fff;color:#0f172a;border-radius:14px;padding:20px;width:100%;max-width:400px;max-height:90vh;overflow:auto;font-family:system-ui,sans-serif;';
+  var BTN_CSS = 'padding:10px 16px;border:0;border-radius:8px;font-size:15px;font-weight:600;cursor:pointer;';
+
+  function field(label, input) {
+    return h('div', {}, [h('label', { style: LABEL_CSS, text: label }), input]);
+  }
+
+  /* Affiche le lien de définition du mot de passe (à transmettre à l'agent) */
+  function showSetupLink(card, link, emailAddr, close, linkError) {
+    while (card.firstChild) card.removeChild(card.firstChild);
+    var closeBtn = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;', text: 'Fermer', onclick: close });
+    var kids = [h('h3', { style: 'margin:0 0 8px;font-size:18px;', text: 'Agent créé ✔' })];
+    if (link) {
+      var box = h('textarea', { readonly: 'readonly', rows: '5', style: INPUT_CSS + 'font-size:12px;' });
+      box.value = link;
+      var copy = h('button', {
+        style: BTN_CSS + 'background:#2563eb;color:#fff;margin-right:8px;',
+        text: 'Copier le lien',
+        onclick: function () {
+          box.select();
+          try {
+            navigator.clipboard.writeText(link).then(function () { toast('Lien copié.', 'success'); });
+          } catch (e) { document.execCommand('copy'); }
+        }
+      });
+      kids.push(
+        h('p', { style: 'margin:0 0 10px;font-size:13px;color:#475569;', text:
+          'Envoie ce lien uniquement à ' + emailAddr + ' (messagerie privée, SMS…). Il sert à choisir son mot de passe, ne fonctionne qu\'une fois et expire au bout d\'environ 1 heure.' }),
+        box,
+        h('div', { style: 'display:flex;justify-content:flex-end;' }, [copy, closeBtn])
+      );
+    } else {
+      kids.push(
+        h('p', { style: 'margin:0 0 10px;font-size:13px;color:#b91c1c;', text:
+          'Compte créé, mais le lien n\'a pas pu être généré (' + (linkError || 'erreur') +
+          '). Supabase → Authentication → Users → « Send password recovery ».' }),
+        h('div', { style: 'display:flex;justify-content:flex-end;' }, [closeBtn])
+      );
+    }
+    kids.forEach(function (k) { card.appendChild(k); });
+  }
+
+  /* ---------- 1. Création d'un agent staff (Amiral) ---------- */
+  function openCreateModal() {
+    if (document.getElementById('aupygoStaffModal')) return;
+
+    var email = h('input', { type: 'email', autocomplete: 'off', style: INPUT_CSS, placeholder: 'agent@exemple.com' });
+    var name = h('input', { type: 'text', maxlength: '40', style: INPUT_CSS, placeholder: 'Nom affiché' });
+    var role = h('select', { style: INPUT_CSS }, GRADES.map(function (g) {
+      return h('option', { value: g[0], text: g[1] });
+    }));
+    var country = h('input', { type: 'text', maxlength: '60', style: INPUT_CSS, placeholder: 'Pays (Major)' });
+    var city = h('input', { type: 'text', maxlength: '60', style: INPUT_CSS, placeholder: 'Ville (Sergent)' });
+    var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;' });
+
+    var overlay = h('div', { id: 'aupygoStaffModal', style: OVERLAY_CSS });
+    function close() { overlay.remove(); }
+
+    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: "Créer l'agent" });
+    var cancel = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;margin-right:8px;', text: 'Annuler', onclick: close });
+
+    submit.addEventListener('click', async function () {
+      msg.style.color = '#b91c1c';
+      msg.textContent = '';
+      var c = client();
+      if (!c) { msg.textContent = 'Connexion indisponible.'; return; }
+
+      submit.disabled = true;
+      submit.textContent = 'Création…';
+      try {
+        var res = await c.functions.invoke(FN_NAME, {
+          body: {
+            email: email.value,
+            display_name: name.value,
+            role: role.value,
+            staff_country: country.value,
+            staff_city: city.value
+          }
+        });
+        if (res.error) {
+          var code = '';
+          try { code = (await res.error.context.json()).error; } catch (e) { /* réponse non JSON */ }
+          msg.textContent = ERRORS[code] || res.error.message || 'Erreur inconnue.';
+          return;
+        }
+        var data = res.data || {};
+        if (typeof window.adminRefresh === 'function') { try { window.adminRefresh(); } catch (e) { /* ignore */ } }
+        showSetupLink(card, data.setup_link, email.value.trim(), close, data.link_error);
+      } catch (e) {
+        msg.textContent = (e && e.message) || 'Erreur réseau.';
+      } finally {
+        submit.disabled = false;
+        submit.textContent = "Créer l'agent";
+      }
+    });
+
+    var card = h('div', { style: CARD_CSS }, [
+      h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Nouvel agent staff' }),
+      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: "Le compte est créé ici ; tu reçois un lien à transmettre à l'agent pour qu'il choisisse son mot de passe." }),
+      field('Email', email),
+      field("Nom d'affichage", name),
+      field('Grade', role),
+      field('Pays (optionnel)', country),
+      field('Ville (optionnel)', city),
+      msg,
+      h('div', { style: 'display:flex;justify-content:flex-end;' }, [cancel, submit])
+    ]);
+    overlay.appendChild(card);
+    overlay.addEventListener('click', function (ev) { if (ev.target === overlay) close(); });
+    document.body.appendChild(overlay);
+    email.focus();
+  }
+
+  /* Bouton flottant : n'existe que si l'utilisateur connecté est Amiral */
+  var floatBtn = null;
+  function syncButton() {
+    var ok = typeof window.isAmiral === 'function' && window.isAmiral() && !!client();
+    if (ok && !floatBtn) {
+      floatBtn = h('button', {
+        id: 'aupygoCreateStaffBtn',
+        style: 'position:fixed;right:16px;bottom:90px;z-index:99999;' + BTN_CSS + 'background:#0f172a;color:#fff;box-shadow:0 4px 14px rgba(0,0,0,.3);',
+        text: '➕ Agent staff',
+        onclick: openCreateModal
+      });
+      document.body.appendChild(floatBtn);
+    } else if (!ok && floatBtn) {
+      floatBtn.remove();
+      floatBtn = null;
+    }
+  }
+  setInterval(syncButton, 1500);
+
+  /* ---------- 2. L'agent définit son mot de passe ---------- */
+  function openPasswordModal() {
+    if (passwordModalShown) return;
+    passwordModalShown = true;
+
+    var p1 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: '10 caractères minimum' });
+    var p2 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: 'Répète le mot de passe' });
+    var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;' });
+    var overlay = h('div', { id: 'aupygoPasswordModal', style: OVERLAY_CSS });
+    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: 'Enregistrer' });
+
+    submit.addEventListener('click', async function () {
+      msg.textContent = '';
+      if (p1.value.length < 10) { msg.textContent = 'Au moins 10 caractères.'; return; }
+      if (p1.value !== p2.value) { msg.textContent = 'Les deux mots de passe sont différents.'; return; }
+      var c = client();
+      if (!c) { msg.textContent = 'Connexion indisponible.'; return; }
+      submit.disabled = true;
+      try {
+        var res = await c.auth.updateUser({ password: p1.value });
+        if (res.error) { msg.textContent = res.error.message; return; }
+        toast('Mot de passe enregistré.', 'success');
+        overlay.remove();
+        try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
+      } catch (e) {
+        msg.textContent = (e && e.message) || 'Erreur réseau.';
+      } finally {
+        submit.disabled = false;
+      }
+    });
+
+    overlay.appendChild(h('div', { style: CARD_CSS }, [
+      h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Définis ton mot de passe' }),
+      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: 'Choisis le mot de passe que tu utiliseras pour te connecter à AUPYGO.' }),
+      field('Nouveau mot de passe', p1),
+      field('Confirmation', p2),
+      msg,
+      h('div', { style: 'display:flex;justify-content:flex-end;' }, [submit])
+    ]));
+    document.body.appendChild(overlay);
+    p1.focus();
+  }
+
+  function watchRecovery() {
+    var c = client();
+    if (!c) return false;
+    c.auth.onAuthStateChange(function (event) {
+      if (event === 'PASSWORD_RECOVERY') openPasswordModal();
+    });
+    return true;
+  }
+
+  var tries = 0;
+  var subscribed = false;
+  var timer = setInterval(function () {
+    tries++;
+    var c = client();
+    if (c && !subscribed) { subscribed = watchRecovery(); }
+    if (isRecoveryLink && c) {
+      c.auth.getSession().then(function (r) {
+        if (r && r.data && r.data.session) openPasswordModal();
+      });
+    }
+    if (tries > 40 || passwordModalShown) clearInterval(timer);
+  }, 500);
+})();
