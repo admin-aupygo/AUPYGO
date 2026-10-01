@@ -14,22 +14,6 @@
     ['major_moderateur', 'Major Modérateur'],
     ['sergent_moderateur', 'Sergent Modérateur']
   ];
-  var ERRORS = {/* AUPYGO — admin-create-staff.js
- * 1) Bouton « Agent staff » visible uniquement pour l'Amiral : crée un compte Staff
- *    via la fonction Edge admin-create-staff (la clé service_role reste côté Supabase).
- * 2) Modale « Définir mon mot de passe » quand l'agent ouvre le lien que l'Amiral lui a transmis.
- * Aucun innerHTML avec des données saisies : tout passe par textContent / value.
- */
-(function () {
-  'use strict';
-
-  var FN_NAME = 'admin-create-staff';
-  var GRADES = [
-    ['major_staff', 'Major Staff (événementiel · pays)'],
-    ['sergent_staff', 'Sergent Staff (événementiel · ville)'],
-    ['major_moderateur', 'Major Modérateur'],
-    ['sergent_moderateur', 'Sergent Modérateur']
-  ];
   var ERRORS = {
     not_authenticated: 'Session expirée, reconnecte-toi.',
     forbidden: "Action réservée à l'Amiral.",
