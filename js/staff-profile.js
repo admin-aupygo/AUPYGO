@@ -249,8 +249,7 @@
         return;
       }
 
-      var profile = {
-        id: user.id,
+          var changes = {
         display_name: name,
         age: ageNum,
         gender: selectedGender,
@@ -258,17 +257,13 @@
         city: city || ((typeof userLocation !== 'undefined' && userLocation.city) || ''),
         languages: langs,
         host_country: null,
-        identity_locked: true,
-        subscription: 'PREMIUM',
         bio: null,
         interests: null
       };
 
-      var result = await supabaseClient.from('profiles').upsert([profile], { onConflict: 'id' });
-      if (result.error) {
-        showToast('Erreur : ' + result.error.message, 'error');
-        console.error('[Staff] saveProfile', result.error);
-        return;
+      var result = await supabaseClient.from('profiles').update(changes).eq('id', user.id).select('id');
+      if (!result.error && (!result.data || result.data.length === 0)) {
+        result.error = { message: 'profil introuvable' };
       }
 
       window.profileSaved = true;
