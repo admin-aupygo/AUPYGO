@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=free-join8');
+  html = html.replace(/\?v=[^"']*/g, '?v=free-join9');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -33,15 +33,12 @@
   html = html.replace(/<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi, '');
 
   var scripts = [
-    'js/admin.js',
-    'js/admin-setrole-fix.js',
-    'js/admin-create-staff.js',
-    'js/staff-ui.js',
     'js/realtime-fix.js',
     'js/agenda-week-nav.js',
     'js/staff-hierarchy.js',
     'js/admin.js',
     'js/admin-setrole-fix.js',
+    'js/admin-create-staff.js',
     'js/staff-ui.js',
     'js/staff-profile.js',
     'js/staff-profile-layout-fix.js',
@@ -68,7 +65,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=free-join8"><\/script>\n';
+    inject += '<script src="' + src + '?v=free-join9"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
