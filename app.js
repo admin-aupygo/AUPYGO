@@ -1974,9 +1974,12 @@ async function saveProfile() {
     profile.stay_end = (document.getElementById('stayEnd') || {}).value || null;
   }
 
-  const { error } = await supabaseClient
+    const { data: savedRows, error: saveErr } = await supabaseClient
     .from('profiles')
-    .upsert([profile], { onConflict:'id' });
+    .update(profile)
+    .eq('id', user.id)
+    .select('id');
+  const error = saveErr || ((!savedRows || savedRows.length === 0) ? { message: 'profil introuvable' } : null);
 
   if (error) {
     console.error(error);
