@@ -1953,10 +1953,7 @@ async function saveProfile() {
     const profile = {
     bio: bio,
     interests: selectedHobbies.join(',')
-  };  const profile = {
-    bio: bio,
-    interests: selectedHobbies.join(',')
-  };
+  };  
   if (!profileSaved) {
     // Première sauvegarde : on enregistre aussi l'identité
     profile.display_name = name;
