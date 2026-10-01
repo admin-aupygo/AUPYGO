@@ -54,7 +54,6 @@
 
   function apply() {
     if (!isStaffUser()) {
-      // Compte qui n'est plus staff (déconnexion / changement de session) : on nettoie.
       BADGE_IDS.forEach(clearStaffBadge);
       return;
     }
