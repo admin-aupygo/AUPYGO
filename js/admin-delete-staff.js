@@ -1,4 +1,3 @@
-```javascript
 // Gestion de la suppression d'un membre du staff
 document.addEventListener('click', async (e) => {
   const button = e.target.closest('[data-user-id]');
@@ -45,7 +44,7 @@ document.addEventListener('click', async (e) => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${session.access_token}`,
+          'Authorization': 'Bearer ' + session.access_token,
           'apikey': SUPABASE_ANON_KEY
         },
         body: JSON.stringify({
@@ -67,7 +66,7 @@ document.addEventListener('click', async (e) => {
 
     alert("Staff supprimé avec succès.");
 
-    // Retirer la ligne de la liste si le bouton se trouve dans un <tr>
+    // Retirer la ligne de la liste
     button.closest('tr')?.remove();
 
   } catch (err) {
