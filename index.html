@@ -6,31 +6,83 @@
 <title>AUPYGO — chargement…</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="favicon.svg">
+
 <script>
 (async function () {
+
+  // ============================================================
+  // AUPYGO — chargement depuis la branche MAIN
+  // ============================================================
+
   var urls = [
-    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
-    'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
-    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html'
+    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@main/index.html',
+    'https://raw.githack.com/admin-aupygo/AUPYGO/main/index.html',
+    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/main/index.html'
   ];
+
   var html = null;
+
+  // ------------------------------------------------------------
+  // Récupération de index.html
+  // ------------------------------------------------------------
+
   for (var i = 0; i < urls.length; i++) {
     try {
-      var res = await fetch(urls[i], { cache: 'no-store' });
-      if (res.ok) { html = await res.text(); break; }
-    } catch (e) {}
+      var res = await fetch(urls[i], {
+        cache: 'no-store'
+      });
+
+      if (res.ok) {
+        html = await res.text();
+        break;
+      }
+    } catch (e) {
+      console.warn('Échec chargement source ' + (i + 1), e);
+    }
   }
+
+  // ------------------------------------------------------------
+  // Échec total
+  // ------------------------------------------------------------
+
   if (!html) {
-    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
+    document.body.innerHTML =
+      '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">' +
+      'Impossible de restaurer index.html.' +
+      '</p>';
+
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=staff-del1');
+
+  // ------------------------------------------------------------
+  // Cache-buster
+  // ------------------------------------------------------------
+
+  html = html.replace(/\?v=[^"']*/g, '?v=staff-del2');
+
+  // ------------------------------------------------------------
+  // Favicon
+  // ------------------------------------------------------------
 
   if (html.indexOf('favicon.svg') === -1) {
-    html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
+    html = html.replace(
+      '</head>',
+      '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>'
+    );
   }
 
-  html = html.replace(/<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi, '');
+  // ------------------------------------------------------------
+  // Suppression éventuelle de map-markers.js
+  // ------------------------------------------------------------
+
+  html = html.replace(
+    /<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi,
+    ''
+  );
+
+  // ------------------------------------------------------------
+  // Scripts AUPYGO
+  // ------------------------------------------------------------
 
   var scripts = [
     'js/realtime-fix.js',
@@ -61,24 +113,66 @@
     'map-markers.js'
   ];
 
+  // ------------------------------------------------------------
+  // Suppression des anciennes références aux scripts
+  // ------------------------------------------------------------
+
   scripts.forEach(function (src) {
-    var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
+
+    var re = new RegExp(
+      '<script[^>]*src="' +
+      src.replace(/\./g, '\\.') +
+      '[^"]*"[^>]*><\\/script>\\s*',
+      'gi'
+    );
+
     html = html.replace(re, '');
+
   });
 
+  // ------------------------------------------------------------
+  // Réinjection des scripts avec cache-buster
+  // ------------------------------------------------------------
+
   var inject = '';
+
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=staff-del1"><\/script>\n';
+
+    inject +=
+      '<script src="' +
+      src +
+      '?v=staff-del2"><\/script>\n';
+
   });
-  html = html.replace('</body>', inject + '</body>');
+
+  // ------------------------------------------------------------
+  // Injection avant </body>
+  // ------------------------------------------------------------
+
+  html = html.replace(
+    '</body>',
+    inject + '</body>'
+  );
+
+  // ------------------------------------------------------------
+  // Remplacement du document
+  // ------------------------------------------------------------
 
   document.open();
   document.write(html);
   document.close();
+
 })();
 </script>
+
 </head>
+
 <body>
-<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Chargement AUPYGO…</p>
+
+<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">
+  Chargement AUPYGO…
+</p>
+
 </body>
 </html>
+```
