@@ -28,7 +28,8 @@ var supabaseClient = null;
 ========================= */
 var currentUser = (typeof currentUser !== 'undefined') ? currentUser : null;
 var turnstileToken = (typeof turnstileToken !== 'undefined') ? turnstileToken : null;
-var currentPlan = (typeof currentPlan !== 'undefined') ? currentPlan : (localStorage.getItem('aupygo_plan') || 'FREE');
+// Le forfait vient UNIQUEMENT de profiles.subscription (chargé dans refreshAuthUI) — jamais du localStorage.
+var currentPlan = (typeof currentPlan !== 'undefined') ? currentPlan : 'FREE';
 var profileLocked = (typeof profileLocked !== 'undefined') ? profileLocked : false;
 var profileSaved = (typeof profileSaved !== 'undefined') ? profileSaved : false;
 var authIntent = (typeof authIntent !== 'undefined') ? authIntent : null;
@@ -218,7 +219,8 @@ function onMapClickForGeo() {
 }
 
 
-currentPlan = localStorage.getItem('aupygo_plan') || currentPlan || 'FREE';
+currentPlan = 'FREE'; // sera remplacé par profiles.subscription après connexion
+try { localStorage.removeItem('aupygo_plan'); localStorage.removeItem('aupygo_billing'); } catch (e) {}
 currentUser = null;
 profileLocked = false;
 profileSaved = false; // true uniquement si un profil existe déjà en base pour ce compte
@@ -294,7 +296,7 @@ async function handleSignup() {
     return;
   }
 
-  if (password.length < 6) {
+  if (password.length < 8) {
     showToast(t('toast.password_too_short'), 'error');
     return;
   }
@@ -1197,13 +1199,10 @@ async function selectPlan(plan, billing) {
     return;
   }
 
-  // Plans payants : on n’écrit PLUS en base tant que le paiement n’est pas confirmé
-  // (Stripe webhook le fera plus tard en service_role)
-  currentPlan = plan; // affichage temporaire côté client uniquement
-  localStorage.setItem('aupygo_plan', plan);
+  // Plans payants : AUCUN déblocage tant que le paiement n’est pas confirmé.
+  // Le forfait ne change que lorsque profiles.subscription est mis à jour côté serveur
+  // (webhook Stripe en service_role). On n'active rien dans le navigateur.
   const bill = billing || 'monthly';
-  localStorage.setItem('aupygo_billing', bill);
-  updatePlanUI();
 
   // Message clair pour l’utilisateur
   if (plan === 'STANDARD' && bill === 'pass6') {
@@ -3955,6 +3954,21 @@ function escapeAttr(str) {
     .replace(/>/g, '&gt;');
 }
 
+/**
+ * Argument texte SÛR pour un gestionnaire inline  onclick="fn('...')".
+ * 1) échappe la chaîne pour JavaScript (\ ' retours ligne, séparateurs unicode)
+ * 2) puis pour l'attribut HTML (le navigateur décode l'HTML AVANT d'exécuter le JS).
+ * À utiliser pour tout nom/titre venant d'un utilisateur (display_name, titre de groupe…).
+ */
+function jsArg(str) {
+  const js = String(str == null ? '' : str)
+    .replace(/\\/g, '\\\\')
+    .replace(/'/g, "\\'")
+    .replace(/\r?\n/g, ' ')
+    .replace(/\u2028|\u2029/g, ' ');
+  return escapeAttr(js);
+}
+
 /** Normalise une date de fin de séjour vers yyyy-MM (input type=month). */
 function toMonthInputValue(raw) {
   if (raw == null || raw === '') return '';
@@ -4556,7 +4570,7 @@ async function renderFriendsUI() {
         const meta = [f.age ? (f.age + ' ans') : '', f.city || ''].filter(Boolean).join(' · ');
         const card = document.createElement('div');
         card.className = 'card friend-card';
-        const nameSafe = String(f.name).replace(/'/g, "\\'");
+        const nameSafe = jsArg(f.name);
         let msgBtn;
                 // FREE / STANDARD / PREMIUM : message entre amis (quota à l'envoi)
         msgBtn = '<button class="btn btn-primary" style="width:100%" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">💬 Message</button>';
@@ -4575,7 +4589,7 @@ async function renderFriendsUI() {
           '</div>' +
           '<p style="font-size:13px;color:var(--muted);text-align:center;margin-bottom:12px">💚 Ami confirmé</p>' +
           '<div style="display:flex;flex-direction:column;gap:8px">' +
-            '<button class="btn btn-secondary" style="width:100%" onclick="showSharedEvents(\'' + String(f.name).replace(/'/g, "\\'") + '\')">Sorties en commun</button>' +
+            '<button class="btn btn-secondary" style="width:100%" onclick="showSharedEvents(\'' + jsArg(f.name) + '\')">Sorties en commun</button>' +
             msgBtn +
           '</div>';
         friendsGrid.appendChild(card);
@@ -5068,7 +5082,7 @@ function renderConversationSidebar() {
       const active = activeConversation && activeConversation.type === 'dm' && activeConversation.id === f.id ? ' active' : '';
       const unread = unreadByFriend[f.id] || 0;
       const isUnread = unread > 0;
-      const nameSafe = (f.display_name || 'Ami').replace(/'/g, "\\'");
+      const nameSafe = jsArg(f.display_name || 'Ami');
       return (
         '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'dm\',\'' + f.id + '\',\'' + nameSafe + '\')">' +
           '<div class="conv-avatar' + (isUnread ? ' conv-blink' : '') + '">' + emoji +
@@ -5090,7 +5104,7 @@ function renderConversationSidebar() {
       const unread = unreadByConversation[g.id] || 0;
       const isUnread = unread > 0;
       const count = g.memberCount != null ? g.memberCount : 0;
-      const titleSafe = (g.title || 'Groupe').replace(/'/g, "\\'");
+      const titleSafe = jsArg(g.title || 'Groupe');
       return (
         '<div class="conversation' + active + (isUnread ? ' has-unread' : '') + '" onclick="openConversation(\'group\',\'' + g.id + '\',\'' + titleSafe + '\')">' +
           '<div class="conv-avatar group' + (isUnread ? ' conv-blink' : '') + '">👥</div>' +
