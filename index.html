@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Impossible de restaurer index.html.</p>';
     return;
   }
-  html = html.replace(/\?v=[^"']*/g, '?v=free-join11');
+  html = html.replace(/\?v=[^"']*/g, '?v=xss-fix1');
 
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -56,6 +56,7 @@
     'js/staff-event-notify.js',
     'js/free-aupygo-join.js',
     'js/staff-status.js',
+    'js/xss-profile-card-fix.js',
     'map-markers.js'
   ];
 
@@ -66,7 +67,7 @@
 
   var inject = '';
   scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=free-join11"><\/script>\n';
+    inject += '<script src="' + src + '?v=xss-fix1"><\/script>\n';
   });
   html = html.replace('</body>', inject + '</body>');
 
