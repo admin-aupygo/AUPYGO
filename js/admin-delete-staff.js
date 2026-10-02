@@ -32,10 +32,31 @@ document.addEventListener('click', async (e) => {
         'Authorization': `Bearer ${session.access_token}`,
         'apikey': SUPABASE_ANON_KEY
       },
-      body: JSON.stringify({
-        target_user_id: targetUserId   // ← doit être une vraie UUID non vide
-      })
-    });
+     const button = e.target.closest('[data-user-id]');
+if (!button) return;
+
+const targetUserId = button.getAttribute('data-user-id');
+
+if (!targetUserId) {
+  console.error("Erreur : data-user-id manquant sur le bouton");
+  alert("Identifiant utilisateur introuvable");
+  return;
+}
+
+console.log("ID qui va être envoyé :", targetUserId); // pour vérifier
+
+const response = await fetch('https://zdjcjzsmoinrkcezgivs.supabase.co/functions/v1/admin-delete-staff', {
+  method: 'POST',
+  headers: {
+    'Content-Type': 'application/json',
+    'Authorization': `Bearer ${session.access_token}`,
+    'apikey': SUPABASE_ANON_KEY
+  },
+  body: JSON.stringify({
+    action: "request",
+    target_id: targetUserId      // ← important
+  })
+});
 
     const result = await response.json();
 
