@@ -74,4 +74,3 @@ document.addEventListener('click', async (e) => {
     alert("Erreur de connexion.");
   }
 });
-```
