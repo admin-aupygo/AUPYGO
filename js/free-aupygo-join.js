@@ -127,7 +127,7 @@
             showToast(
               data.already
                 ? 'Tu es déjà inscrit.'
-                : (paid ? '✅ Paiement confirmé — place réservée !' : '🎉 Tu es inscrit !'),
+                : (paid ? '🎉 Place réservée (paiement simulé — aucun débit) !' : '🎉 Tu es inscrit !'),
               'success'
             );
           }
@@ -138,6 +138,15 @@
         }
         if (data && data.error) {
           console.warn('[free-aupygo-join] rpc error payload', data);
+          // Réponses métier définitives : pas de repli sur l'INSERT direct
+          if (data.error === 'event_full') {
+            if (typeof showToast === 'function') showToast('Cette sortie est complète.', 'error');
+            return;
+          }
+          if (data.error === 'event_not_found') {
+            if (typeof showToast === 'function') showToast('Sortie introuvable ou non accessible.', 'error');
+            return;
+          }
         }
       } else if (rpc.error) {
         console.warn('[free-aupygo-join] rpc', rpc.error);
@@ -157,10 +166,13 @@
       var code = String(ins.error.code || ins.error.status || '');
       if (/duplicate|unique|23505/i.test(msg + code)) {
         if (typeof showToast === 'function') showToast('Tu es déjà inscrit.', 'success');
+      } else if (/EVENT_FULL/i.test(msg)) {
+        if (typeof showToast === 'function') showToast('Cette sortie est complète.', 'error');
+        return;
       } else if (/403|42501|row-level|policy|permission|JWT/i.test(msg + code)) {
         if (typeof showToast === 'function') {
           showToast(
-            'Inscription bloquée (403). Exécute SUPABASE_JOIN_EVENT_RPC.sql dans Supabase.',
+            'Inscription impossible pour cette sortie.',
             'error'
           );
         }
@@ -172,7 +184,7 @@
         return;
       }
     } else if (typeof showToast === 'function') {
-      showToast(paid ? '✅ Paiement confirmé — place réservée !' : '🎉 Tu es inscrit !', 'success');
+      showToast(paid ? '🎉 Place réservée (paiement simulé — aucun débit) !' : '🎉 Tu es inscrit !', 'success');
     }
 
     if (typeof loadAndRenderEvents === 'function') {
