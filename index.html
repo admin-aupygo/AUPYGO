@@ -2,176 +2,20 @@
 <html lang="fr">
 <head>
 <meta charset="UTF-8">
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+  <meta http-equiv="Pragma" content="no-cache">
+  <meta http-equiv="Expires" content="0">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUPYGO — chargement…</title>
+<title>AUPYGO — Meet. Go out. Make friends.</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
-<link rel="apple-touch-icon" href="favicon.svg">
 
-<script>
-(async function () {
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
 
-  // ============================================================
-  // AUPYGO — chargement depuis la branche MAIN
-  // ============================================================
-
-  var urls = [
-    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@main/index.html',
-    'https://raw.githack.com/admin-aupygo/AUPYGO/main/index.html',
-    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/main/index.html'
-  ];
-
-  var html = null;
-
-  // ------------------------------------------------------------
-  // Récupération de index.html
-  // ------------------------------------------------------------
-
-  for (var i = 0; i < urls.length; i++) {
-    try {
-      var res = await fetch(urls[i], {
-        cache: 'no-store'
-      });
-
-      if (res.ok) {
-        html = await res.text();
-        break;
-      }
-    } catch (e) {
-      console.warn('Échec chargement source ' + (i + 1), e);
-    }
-  }
-
-  // ------------------------------------------------------------
-  // Échec total
-  // ------------------------------------------------------------
-
-  if (!html) {
-    document.body.innerHTML =
-      '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">' +
-      'Impossible de restaurer index.html.' +
-      '</p>';
-
-    return;
-  }
-
-  // ------------------------------------------------------------
-  // Cache-buster
-  // ------------------------------------------------------------
-
-  html = html.replace(/\?v=[^"']*/g, '?v=staff-del2');
-
-  // ------------------------------------------------------------
-  // Favicon
-  // ------------------------------------------------------------
-
-  if (html.indexOf('favicon.svg') === -1) {
-    html = html.replace(
-      '</head>',
-      '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>'
-    );
-  }
-
-  // ------------------------------------------------------------
-  // Suppression éventuelle de map-markers.js
-  // ------------------------------------------------------------
-
-  html = html.replace(
-    /<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi,
-    ''
-  );
-
-  // ------------------------------------------------------------
-  // Scripts AUPYGO
-  // ------------------------------------------------------------
-
-  var scripts = [
-    'js/realtime-fix.js',
-    'js/agenda-week-nav.js',
-    'js/staff-hierarchy.js',
-    'js/admin.js',
-    'js/admin-setrole-fix.js',
-    'js/admin-create-staff.js',
-    'js/admin-delete-staff.js',
-    'js/staff-ui.js',
-    'js/staff-profile.js',
-    'js/staff-profile-layout-fix.js',
-    'js/staff-events.js',
-    'js/staff-messages.js',
-    'js/staff-groups-fix.js',
-    'js/staff-msg-badge-fix.js',
-    'js/staff-visibility.js',
-    'js/staff-restrictions.js',
-    'js/staff-msg-unlock.js',
-    'js/join-events-fix.js',
-    'js/events-publish-fix.js',
-    'js/priority-fixes.js',
-    'js/cdc-fixes.js',
-    'js/staff-event-notify.js',
-    'js/free-aupygo-join.js',
-    'js/staff-status.js',
-    'js/xss-profile-card-fix.js',
-    'map-markers.js'
-  ];
-
-  // ------------------------------------------------------------
-  // Suppression des anciennes références aux scripts
-  // ------------------------------------------------------------
-
-  scripts.forEach(function (src) {
-
-    var re = new RegExp(
-      '<script[^>]*src="' +
-      src.replace(/\./g, '\\.') +
-      '[^"]*"[^>]*><\\/script>\\s*',
-      'gi'
-    );
-
-    html = html.replace(re, '');
-
-  });
-
-  // ------------------------------------------------------------
-  // Réinjection des scripts avec cache-buster
-  // ------------------------------------------------------------
-
-  var inject = '';
-
-  scripts.forEach(function (src) {
-
-    inject +=
-      '<script src="' +
-      src +
-      '?v=staff-del2"><\/script>\n';
-
-  });
-
-  // ------------------------------------------------------------
-  // Injection avant </body>
-  // ------------------------------------------------------------
-
-  html = html.replace(
-    '</body>',
-    inject + '</body>'
-  );
-
-  // ------------------------------------------------------------
-  // Remplacement du document
-  // ------------------------------------------------------------
-
-  document.open();
-  document.write(html);
-  document.close();
-
-})();
-</script>
-
+<link rel="stylesheet" href="styles.css?v=fix-20261003"/>
 </head>
 
 <body>
 
-<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">
-  Chargement AUPYGO…
-</p>
-
+<!-- PLACEHOLDER - full content will be read from file -->
 </body>
 </html>
