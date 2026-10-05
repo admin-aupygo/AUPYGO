@@ -8,10 +8,6 @@
  *  2) envoie le mail de notification à l'ex-agent (+ copie Amiral en BCC si possible)
  *  3) valide le code + purge (RPC archive + données)
  *  4) supprime auth.users si besoin
- *
- * Important Resend : avec onboarding@resend.dev, seuls les envois vers l'email
- * du compte Resend sont acceptés. Pour notifier n'importe quel agent, il faut
- * un domaine vérifié et STAFF_DELETE_FROM_EMAIL = noreply@ce-domaine.com
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -20,6 +16,8 @@ const CORS = {
   "Access-Control-Allow-Headers":
     "authorization, x-client-info, apikey, content-type",
 };
+
+const CONTACT_EMAIL = "contact@aupygo.com";
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -51,7 +49,7 @@ async function sendEmail(opts: {
   const key = Deno.env.get("RESEND_API_KEY");
   const from =
     Deno.env.get("STAFF_DELETE_FROM_EMAIL") ||
-    "AUPYGO <onboarding@resend.dev>";
+    "AUPYGO <noreply@aupygo.com>";
   if (!key) {
     console.error("[admin-delete-staff] RESEND_API_KEY manquant");
     return { ok: false, error: "EMAIL_NOT_CONFIGURED", detail: "missing RESEND_API_KEY" };
@@ -105,7 +103,7 @@ function buildStaffRemovalNotice(name: string, role: string) {
     `Cette démarche vise à protéger la communauté, l'équipe et le bon fonctionnement de la plateforme. ` +
     `Elle n'a pas pour objet de porter atteinte à votre dignité : nous vous remercions pour le temps que vous avez pu consacrer à AUPYGO.\n\n` +
     `Si vous estimez qu'il s'agit d'une erreur, ou si vous avez une question relative à vos données, ` +
-    `vous pouvez nous écrire à aupygo@protonmail.com. Nous traiterons votre message avec attention.\n\n` +
+    `vous pouvez nous écrire à ${CONTACT_EMAIL}. Nous traiterons votre message avec attention.\n\n` +
     `Bien cordialement,\n` +
     `L'équipe AUPYGO\n`;
 
@@ -123,7 +121,7 @@ function buildStaffRemovalNotice(name: string, role: string) {
     `<p>Cette démarche vise à protéger la communauté, l'équipe et le bon fonctionnement de la plateforme. ` +
     `Elle n'a pas pour objet de porter atteinte à votre dignité : nous vous remercions pour le temps que vous avez pu consacrer à AUPYGO.</p>` +
     `<p>Si vous estimez qu'il s'agit d'une erreur, ou si vous avez une question relative à vos données, ` +
-    `vous pouvez nous écrire à <a href="mailto:aupygo@protonmail.com">aupygo@protonmail.com</a>. ` +
+    `vous pouvez nous écrire à <a href="mailto:${CONTACT_EMAIL}">${CONTACT_EMAIL}</a>. ` +
     `Nous traiterons votre message avec attention.</p>` +
     `<p>Bien cordialement,<br/>L'équipe AUPYGO</p>` +
     `</div>`;
@@ -236,7 +234,6 @@ Deno.serve(async (req) => {
       }
       const codeHash = await sha256Hex(code);
 
-      // --- 1) Lire email + profil AVANT toute suppression ---
       let targetEmail: string | null = null;
       let displayName = "";
       let roleLabel = "staff";
@@ -258,7 +255,6 @@ Deno.serve(async (req) => {
       displayName = prof?.display_name || "";
       roleLabel = String(prof?.role || "staff");
 
-      // --- 2) Mail de notification AVANT la purge (tant que le compte existe encore) ---
       let notifySent = false;
       let notifyError: string | null = null;
 
@@ -267,7 +263,6 @@ Deno.serve(async (req) => {
         console.error("[admin-delete-staff] Pas d'email Auth pour", targetId);
       } else {
         const notice = buildStaffRemovalNotice(displayName, roleLabel);
-        // BCC Amiral pour contrôle (optionnel, ignore si même adresse)
         const bcc = notifyTo && notifyTo.toLowerCase() !== targetEmail.toLowerCase()
           ? [notifyTo]
           : undefined;
@@ -286,7 +281,6 @@ Deno.serve(async (req) => {
         }
       }
 
-      // --- 3) RPC : archive + purge données ---
       const { data: result, error: confErr } = await userClient.rpc(
         "admin_confirm_staff_delete",
         {
@@ -304,7 +298,6 @@ Deno.serve(async (req) => {
         return json({ error: confErr.message || "confirm_failed" }, 400);
       }
 
-      // --- 4) Compléter l'archive ---
       try {
         await admin
           .from("staff_deleted_archive")
@@ -318,7 +311,6 @@ Deno.serve(async (req) => {
         console.warn("[admin-delete-staff] archive update", e);
       }
 
-      // --- 5) Auth delete si besoin ---
       let authDeleted = result?.auth_deleted === true;
       if (!authDeleted) {
         const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
