@@ -1,8 +1,7 @@
-/* AUPYGO — admin-create-staff.js v1.1
- * 1) Bouton « Agent staff » visible uniquement pour l'Amiral : crée un compte Staff
- *    via la fonction Edge admin-create-staff (la clé service_role reste côté Supabase).
- * 2) Modale « Définir mon mot de passe » quand l'agent ouvre le lien que l'Amiral lui a transmis.
- * Aucun innerHTML avec des données saisies : tout passe par textContent / value.
+/* AUPYGO — admin-create-staff.js v1.2
+ * Bouton « Agent staff » (Amiral) → Edge admin-create-staff
+ * Envoi automatique du lien d'invitation par email (Resend / contact@aupygo.com)
+ * + fallback copier le lien si l'email échoue
  */
 (function () {
   'use strict';
@@ -56,12 +55,32 @@
     return h('div', {}, [h('label', { style: LABEL_CSS, text: label }), input]);
   }
 
-  function showSetupLink(card, link, emailAddr, close, linkError) {
+  function showResult(card, data, emailAddr, close) {
     while (card.firstChild) card.removeChild(card.firstChild);
     var closeBtn = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;', text: 'Fermer', onclick: close });
-    var kids = [h('h3', { style: 'margin:0 0 8px;font-size:18px;', text: 'Agent créé ✔' })];
+    var kids = [];
+
+    var emailSent = !!data.email_sent;
+    var link = data.setup_link || null;
+
+    if (emailSent) {
+      kids.push(
+        h('h3', { style: 'margin:0 0 8px;font-size:18px;color:#15803d;', text: 'Invitation envoyée ✔' }),
+        h('p', { style: 'margin:0 0 12px;font-size:14px;color:#334155;line-height:1.45;', text:
+          'Un e-mail a été envoyé à ' + emailAddr + ' depuis contact@aupygo.com avec le lien pour choisir son mot de passe (valable ~1 h).' })
+      );
+    } else {
+      kids.push(
+        h('h3', { style: 'margin:0 0 8px;font-size:18px;', text: 'Agent créé' }),
+        h('p', { style: 'margin:0 0 10px;font-size:13px;color:#b45309;', text:
+          'Le compte est créé, mais l\'e-mail automatique n\'a pas pu partir' +
+          (data.email_error ? ' (' + data.email_error + ')' : '') +
+          '. Envoie le lien manuellement :' })
+      );
+    }
+
     if (link) {
-      var box = h('textarea', { readonly: 'readonly', rows: '5', style: INPUT_CSS + 'font-size:12px;' });
+      var box = h('textarea', { readonly: 'readonly', rows: '4', style: INPUT_CSS + 'font-size:12px;' });
       box.value = link;
       var copy = h('button', {
         style: BTN_CSS + 'background:#2563eb;color:#fff;margin-right:8px;',
@@ -74,19 +93,19 @@
         }
       });
       kids.push(
-        h('p', { style: 'margin:0 0 10px;font-size:13px;color:#475569;', text:
-          'Envoie ce lien uniquement à ' + emailAddr + ' (messagerie privée, SMS…). Il sert à choisir son mot de passe, ne fonctionne qu\'une fois et expire au bout d\'environ 1 heure.' }),
+        h('p', { style: 'margin:0 0 6px;font-size:12px;color:#64748b;', text: emailSent ? 'Lien de secours (si besoin) :' : 'Lien à transmettre :' }),
         box,
-        h('div', { style: 'display:flex;justify-content:flex-end;' }, [copy, closeBtn])
+        h('div', { style: 'display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;' }, [copy, closeBtn])
       );
     } else {
       kids.push(
-        h('p', { style: 'margin:0 0 10px;font-size:13px;color:#b91c1c;', text:
-          'Compte créé, mais le lien n\'a pas pu être généré (' + (linkError || 'erreur') +
-          '). Supabase → Authentication → Users → « Send password recovery ».' }),
+        h('p', { style: 'margin:0 0 12px;font-size:13px;color:#b91c1c;', text:
+          'Lien non généré' + (data.link_error ? ' (' + data.link_error + ')' : '') +
+          '. Supabase → Authentication → Users → Send password recovery.' }),
         h('div', { style: 'display:flex;justify-content:flex-end;' }, [closeBtn])
       );
     }
+
     kids.forEach(function (k) { card.appendChild(k); });
   }
 
@@ -105,7 +124,7 @@
     var overlay = h('div', { id: 'aupygoStaffModal', style: OVERLAY_CSS });
     function close() { overlay.remove(); }
 
-    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: "Créer l'agent" });
+    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: "Créer et inviter" });
     var cancel = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;margin-right:8px;', text: 'Annuler', onclick: close });
 
     submit.addEventListener('click', async function () {
@@ -115,7 +134,7 @@
       if (!c) { msg.textContent = 'Connexion indisponible.'; return; }
 
       submit.disabled = true;
-      submit.textContent = 'Création…';
+      submit.textContent = 'Envoi…';
       try {
         var res = await c.functions.invoke(FN_NAME, {
           body: {
@@ -128,24 +147,25 @@
         });
         if (res.error) {
           var code = '';
-          try { code = (await res.error.context.json()).error; } catch (e) { /* réponse non JSON */ }
+          try { code = (await res.error.context.json()).error; } catch (e) { /* ignore */ }
           msg.textContent = ERRORS[code] || res.error.message || 'Erreur inconnue.';
           return;
         }
         var data = res.data || {};
         if (typeof window.adminRefresh === 'function') { try { window.adminRefresh(); } catch (e) { /* ignore */ } }
-        showSetupLink(card, data.setup_link, email.value.trim(), close, data.link_error);
+        showResult(card, data, email.value.trim(), close);
       } catch (e) {
         msg.textContent = (e && e.message) || 'Erreur réseau.';
       } finally {
         submit.disabled = false;
-        submit.textContent = "Créer l'agent";
+        submit.textContent = "Créer et inviter";
       }
     });
 
     var card = h('div', { style: CARD_CSS }, [
       h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Nouvel agent staff' }),
-      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: "Le compte est créé ici ; tu reçois un lien à transmettre à l'agent pour qu'il choisisse son mot de passe." }),
+      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text:
+        "Le compte est créé et un e-mail d'invitation est envoyé à l'agent (lien pour choisir son mot de passe)." }),
       field('Email', email),
       field("Nom d'affichage", name),
       field('Grade', role),
@@ -216,7 +236,7 @@
   setTimeout(syncButton, 400);
   setTimeout(syncButton, 1200);
   setTimeout(syncButton, 3000);
-  console.log('[AUPYGO] admin-create-staff.js v1.1 (bouton Agent staff)');
+  console.log('[AUPYGO] admin-create-staff.js v1.2 (invitation email auto)');
 
   function openPasswordModal() {
     if (passwordModalShown) return;
