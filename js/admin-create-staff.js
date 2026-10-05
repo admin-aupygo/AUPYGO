@@ -1,7 +1,5 @@
-/* AUPYGO — admin-create-staff.js v1.2
- * Bouton « Agent staff » (Amiral) → Edge admin-create-staff
- * Envoi automatique du lien d'invitation par email (Resend / contact@aupygo.com)
- * + fallback copier le lien si l'email échoue
+/* AUPYGO — admin-create-staff.js v1.3
+ * Affiche le détail des erreurs 400 (profile_failed, create_failed, etc.)
  */
 (function () {
   'use strict';
@@ -19,8 +17,9 @@
     invalid_email: 'Adresse email invalide.',
     invalid_display_name: "Nom d'affichage trop court (2 caractères minimum).",
     invalid_role: 'Grade invalide.',
-    create_failed: 'Création impossible (email déjà utilisé ou bloqué ?).',
-    profile_failed: 'Profil non créé : le compte a été annulé.'
+    create_failed: 'Création impossible (email déjà utilisé ? Supprime-le dans Authentication → Users).',
+    profile_failed: 'Profil non créé (trigger/SQL). Vérifie SUPABASE_ADMIN_CREATE_STAFF.sql.',
+    server_error: 'Erreur serveur Edge Function.'
   };
 
   var isRecoveryLink = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
@@ -55,11 +54,28 @@
     return h('div', {}, [h('label', { style: LABEL_CSS, text: label }), input]);
   }
 
+  async function parseInvokeError(res) {
+    var code = '';
+    var detail = '';
+    var raw = null;
+    try {
+      if (res.error && res.error.context && typeof res.error.context.json === 'function') {
+        raw = await res.error.context.json();
+      }
+    } catch (e) { /* ignore */ }
+    if (!raw && res.data && res.data.error) raw = res.data;
+    if (raw) {
+      code = raw.error || '';
+      detail = raw.detail || raw.message || '';
+    }
+    if (!code && res.error) code = res.error.message || 'unknown';
+    return { code: code, detail: detail, raw: raw };
+  }
+
   function showResult(card, data, emailAddr, close) {
     while (card.firstChild) card.removeChild(card.firstChild);
     var closeBtn = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;', text: 'Fermer', onclick: close });
     var kids = [];
-
     var emailSent = !!data.email_sent;
     var link = data.setup_link || null;
 
@@ -67,15 +83,15 @@
       kids.push(
         h('h3', { style: 'margin:0 0 8px;font-size:18px;color:#15803d;', text: 'Invitation envoyée ✔' }),
         h('p', { style: 'margin:0 0 12px;font-size:14px;color:#334155;line-height:1.45;', text:
-          'Un e-mail a été envoyé à ' + emailAddr + ' depuis contact@aupygo.com avec le lien pour choisir son mot de passe (valable ~1 h).' })
+          'Un e-mail a été envoyé à ' + emailAddr + ' avec le lien pour choisir son mot de passe (valable ~1 h).' })
       );
     } else {
       kids.push(
         h('h3', { style: 'margin:0 0 8px;font-size:18px;', text: 'Agent créé' }),
         h('p', { style: 'margin:0 0 10px;font-size:13px;color:#b45309;', text:
-          'Le compte est créé, mais l\'e-mail automatique n\'a pas pu partir' +
+          'Compte créé, e-mail auto non parti' +
           (data.email_error ? ' (' + data.email_error + ')' : '') +
-          '. Envoie le lien manuellement :' })
+          '. Lien à transmettre :' })
       );
     }
 
@@ -92,20 +108,14 @@
           } catch (e) { document.execCommand('copy'); }
         }
       });
-      kids.push(
-        h('p', { style: 'margin:0 0 6px;font-size:12px;color:#64748b;', text: emailSent ? 'Lien de secours (si besoin) :' : 'Lien à transmettre :' }),
-        box,
-        h('div', { style: 'display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;' }, [copy, closeBtn])
-      );
+      kids.push(box, h('div', { style: 'display:flex;justify-content:flex-end;flex-wrap:wrap;gap:8px;' }, [copy, closeBtn]));
     } else {
       kids.push(
         h('p', { style: 'margin:0 0 12px;font-size:13px;color:#b91c1c;', text:
-          'Lien non généré' + (data.link_error ? ' (' + data.link_error + ')' : '') +
-          '. Supabase → Authentication → Users → Send password recovery.' }),
+          'Lien non généré' + (data.link_error ? ' (' + data.link_error + ')' : '') + '.' }),
         h('div', { style: 'display:flex;justify-content:flex-end;' }, [closeBtn])
       );
     }
-
     kids.forEach(function (k) { card.appendChild(k); });
   }
 
@@ -119,12 +129,12 @@
     }));
     var country = h('input', { type: 'text', maxlength: '60', style: INPUT_CSS, placeholder: 'Pays (Major)' });
     var city = h('input', { type: 'text', maxlength: '60', style: INPUT_CSS, placeholder: 'Ville (Sergent)' });
-    var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;' });
+    var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;white-space:pre-wrap;' });
 
     var overlay = h('div', { id: 'aupygoStaffModal', style: OVERLAY_CSS });
     function close() { overlay.remove(); }
 
-    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: "Créer et inviter" });
+    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: 'Créer et inviter' });
     var cancel = h('button', { style: BTN_CSS + 'background:#e2e8f0;color:#0f172a;margin-right:8px;', text: 'Annuler', onclick: close });
 
     submit.addEventListener('click', async function () {
@@ -145,12 +155,15 @@
             staff_city: city.value
           }
         });
-        if (res.error) {
-          var code = '';
-          try { code = (await res.error.context.json()).error; } catch (e) { /* ignore */ }
-          msg.textContent = ERRORS[code] || res.error.message || 'Erreur inconnue.';
+
+        if (res.error || (res.data && res.data.error)) {
+          var parsed = await parseInvokeError(res);
+          var base = ERRORS[parsed.code] || parsed.code || 'Erreur';
+          msg.textContent = base + (parsed.detail ? '\n→ ' + parsed.detail : '');
+          console.error('[AUPYGO create-staff]', parsed);
           return;
         }
+
         var data = res.data || {};
         if (typeof window.adminRefresh === 'function') { try { window.adminRefresh(); } catch (e) { /* ignore */ } }
         showResult(card, data, email.value.trim(), close);
@@ -158,14 +171,14 @@
         msg.textContent = (e && e.message) || 'Erreur réseau.';
       } finally {
         submit.disabled = false;
-        submit.textContent = "Créer et inviter";
+        submit.textContent = 'Créer et inviter';
       }
     });
 
     var card = h('div', { style: CARD_CSS }, [
       h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Nouvel agent staff' }),
       h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text:
-        "Le compte est créé et un e-mail d'invitation est envoyé à l'agent (lien pour choisir son mot de passe)." }),
+        "Le compte est créé et un e-mail d'invitation est envoyé à l'agent." }),
       field('Email', email),
       field("Nom d'affichage", name),
       field('Grade', role),
@@ -236,18 +249,16 @@
   setTimeout(syncButton, 400);
   setTimeout(syncButton, 1200);
   setTimeout(syncButton, 3000);
-  console.log('[AUPYGO] admin-create-staff.js v1.2 (invitation email auto)');
+  console.log('[AUPYGO] admin-create-staff.js v1.3');
 
   function openPasswordModal() {
     if (passwordModalShown) return;
     passwordModalShown = true;
-
     var p1 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: '10 caractères minimum' });
     var p2 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: 'Répète le mot de passe' });
     var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;' });
     var overlay = h('div', { id: 'aupygoPasswordModal', style: OVERLAY_CSS });
     var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: 'Enregistrer' });
-
     submit.addEventListener('click', async function () {
       msg.textContent = '';
       if (p1.value.length < 10) { msg.textContent = 'Au moins 10 caractères.'; return; }
@@ -267,10 +278,9 @@
         submit.disabled = false;
       }
     });
-
     overlay.appendChild(h('div', { style: CARD_CSS }, [
       h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Définis ton mot de passe' }),
-      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: 'Choisis le mot de passe que tu utiliseras pour te connecter à AUPYGO.' }),
+      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: 'Choisis le mot de passe AUPYGO.' }),
       field('Nouveau mot de passe', p1),
       field('Confirmation', p2),
       msg,
