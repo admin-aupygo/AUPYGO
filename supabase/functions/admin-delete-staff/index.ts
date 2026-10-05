@@ -4,11 +4,14 @@
  * Secrets: RESEND_API_KEY, STAFF_DELETE_NOTIFY_TO, STAFF_DELETE_FROM_EMAIL
  *
  * confirm :
- *  1) lit email Auth de la cible
- *  2) valide le code + purge (RPC)
- *  3) archive email + flag notify
- *  4) envoie un mail de notification bienveillant à l'ex-agent
- *  5) supprime auth.users si besoin
+ *  1) lit email Auth de la cible (AVANT toute suppression)
+ *  2) envoie le mail de notification à l'ex-agent (+ copie Amiral en BCC si possible)
+ *  3) valide le code + purge (RPC archive + données)
+ *  4) supprime auth.users si besoin
+ *
+ * Important Resend : avec onboarding@resend.dev, seuls les envois vers l'email
+ * du compte Resend sont acceptés. Pour notifier n'importe quel agent, il faut
+ * un domaine vérifié et STAFF_DELETE_FROM_EMAIL = noreply@ce-domaine.com
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -38,34 +41,53 @@ function randomCode6(): string {
   return String(n).padStart(6, "0");
 }
 
-async function sendEmail(
-  to: string,
-  subject: string,
-  html: string,
-  text: string,
-) {
+async function sendEmail(opts: {
+  to: string | string[];
+  subject: string;
+  html: string;
+  text: string;
+  bcc?: string[];
+}) {
   const key = Deno.env.get("RESEND_API_KEY");
   const from =
     Deno.env.get("STAFF_DELETE_FROM_EMAIL") ||
     "AUPYGO <onboarding@resend.dev>";
   if (!key) {
     console.error("[admin-delete-staff] RESEND_API_KEY manquant");
-    return { ok: false, error: "EMAIL_NOT_CONFIGURED" };
+    return { ok: false, error: "EMAIL_NOT_CONFIGURED", detail: "missing RESEND_API_KEY" };
   }
+
+  const payload: Record<string, unknown> = {
+    from,
+    to: Array.isArray(opts.to) ? opts.to : [opts.to],
+    subject: opts.subject,
+    html: opts.html,
+    text: opts.text,
+  };
+  if (opts.bcc && opts.bcc.length) payload.bcc = opts.bcc;
+
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
       Authorization: `Bearer ${key}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ from, to: [to], subject, html, text }),
+    body: JSON.stringify(payload),
   });
+
+  const bodyText = await res.text();
   if (!res.ok) {
-    const t = await res.text();
-    console.error("[admin-delete-staff] Resend error", res.status, t);
-    return { ok: false, error: "EMAIL_SEND_FAILED" };
+    console.error("[admin-delete-staff] Resend error", res.status, bodyText, "from=", from, "to=", opts.to);
+    return {
+      ok: false,
+      error: "EMAIL_SEND_FAILED",
+      detail: bodyText.slice(0, 500),
+      status: res.status,
+      from,
+    };
   }
-  return { ok: true };
+  console.log("[admin-delete-staff] Resend OK", bodyText.slice(0, 200));
+  return { ok: true, detail: bodyText.slice(0, 200) };
 }
 
 function buildStaffRemovalNotice(name: string, role: string) {
@@ -189,10 +211,11 @@ Deno.serve(async (req) => {
         `<p style="font-size:28px;font-weight:800;letter-spacing:4px">${code}</p>` +
         `<p>Valable <strong>15 minutes</strong>.</p>`;
 
-      const mail = await sendEmail(notifyTo, subject, html, text);
+      const mail = await sendEmail({ to: notifyTo, subject, html, text });
       if (!mail.ok) {
         return json({
           error: mail.error || "email_failed",
+          detail: mail.detail,
           challenge_id: ch?.challenge_id,
         }, 502);
       }
@@ -213,25 +236,57 @@ Deno.serve(async (req) => {
       }
       const codeHash = await sha256Hex(code);
 
-      // 1) Email Auth AVANT suppression
+      // --- 1) Lire email + profil AVANT toute suppression ---
       let targetEmail: string | null = null;
       let displayName = "";
       let roleLabel = "staff";
+
       try {
-        const { data: authUser } = await admin.auth.admin.getUserById(targetId);
-        targetEmail = authUser?.user?.email || null;
+        const { data: authUser, error: guErr } = await admin.auth.admin.getUserById(targetId);
+        if (guErr) console.warn("[admin-delete-staff] getUserById error", guErr);
+        targetEmail = authUser?.user?.email?.trim() || null;
+        console.log("[admin-delete-staff] targetEmail=", targetEmail ? targetEmail.replace(/(.{2}).+(@.+)/, "$1***$2") : "NULL");
       } catch (e) {
-        console.warn("[admin-delete-staff] getUserById", e);
+        console.warn("[admin-delete-staff] getUserById exception", e);
       }
+
       const { data: prof } = await admin
         .from("profiles")
-        .select("display_name, role")
+        .select("display_name, role, staff_branch, staff_country, staff_city")
         .eq("id", targetId)
         .maybeSingle();
       displayName = prof?.display_name || "";
       roleLabel = String(prof?.role || "staff");
 
-      // 2) RPC : archive minimale + purge données + tentative auth
+      // --- 2) Mail de notification AVANT la purge (tant que le compte existe encore) ---
+      let notifySent = false;
+      let notifyError: string | null = null;
+
+      if (!targetEmail) {
+        notifyError = "NO_TARGET_EMAIL";
+        console.error("[admin-delete-staff] Pas d'email Auth pour", targetId);
+      } else {
+        const notice = buildStaffRemovalNotice(displayName, roleLabel);
+        // BCC Amiral pour contrôle (optionnel, ignore si même adresse)
+        const bcc = notifyTo && notifyTo.toLowerCase() !== targetEmail.toLowerCase()
+          ? [notifyTo]
+          : undefined;
+
+        const mail = await sendEmail({
+          to: targetEmail,
+          subject: notice.subject,
+          html: notice.html,
+          text: notice.text,
+          bcc,
+        });
+        notifySent = !!mail.ok;
+        if (!mail.ok) {
+          notifyError = String(mail.detail || mail.error || "EMAIL_SEND_FAILED");
+          console.error("[admin-delete-staff] notice failed", notifyError);
+        }
+      }
+
+      // --- 3) RPC : archive + purge données ---
       const { data: result, error: confErr } = await userClient.rpc(
         "admin_confirm_staff_delete",
         {
@@ -249,47 +304,21 @@ Deno.serve(async (req) => {
         return json({ error: confErr.message || "confirm_failed" }, 400);
       }
 
-      if (result?.display_name) displayName = result.display_name;
-      if (result?.role) roleLabel = result.role;
-
-      // 3) Compléter l'archive (email + flag notification)
-      let notifySent = false;
-      if (targetEmail) {
-        try {
-          await admin
-            .from("staff_deleted_archive")
-            .update({ email: targetEmail })
-            .eq("former_user_id", targetId)
-            .order("deleted_at", { ascending: false })
-            .limit(1);
-        } catch (e) {
-          console.warn("[admin-delete-staff] archive email update", e);
-        }
-
-        // 4) Mail à l'ex-agent (bienveillant / informatif)
-        const notice = buildStaffRemovalNotice(displayName, roleLabel);
-        const mail = await sendEmail(
-          targetEmail,
-          notice.subject,
-          notice.html,
-          notice.text,
-        );
-        notifySent = !!mail.ok;
-        if (!mail.ok) {
-          console.error("[admin-delete-staff] notice email failed", mail.error);
-        } else {
-          try {
-            await admin
-              .from("staff_deleted_archive")
-              .update({ notify_email_sent: true })
-              .eq("former_user_id", targetId)
-              .order("deleted_at", { ascending: false })
-              .limit(1);
-          } catch (_) { /* ignore */ }
-        }
+      // --- 4) Compléter l'archive ---
+      try {
+        await admin
+          .from("staff_deleted_archive")
+          .update({
+            email: targetEmail,
+            notify_email_sent: notifySent,
+            notes: notifyError ? `notify_error: ${notifyError}`.slice(0, 500) : null,
+          })
+          .eq("former_user_id", targetId);
+      } catch (e) {
+        console.warn("[admin-delete-staff] archive update", e);
       }
 
-      // 5) Suppression Auth si la RPC n'a pas pu
+      // --- 5) Auth delete si besoin ---
       let authDeleted = result?.auth_deleted === true;
       if (!authDeleted) {
         const { error: delErr } = await admin.auth.admin.deleteUser(targetId);
@@ -300,6 +329,10 @@ Deno.serve(async (req) => {
             profile_deleted: true,
             auth_deleted: false,
             notify_email_sent: notifySent,
+            notify_error: notifyError,
+            target_email_masked: targetEmail
+              ? targetEmail.replace(/(.{2}).+(@.+)/, "$1***$2")
+              : null,
             warning: delErr.message,
             target_id: targetId,
           });
@@ -316,6 +349,10 @@ Deno.serve(async (req) => {
         profile_deleted: true,
         auth_deleted: authDeleted,
         notify_email_sent: notifySent,
+        notify_error: notifyError,
+        target_email_masked: targetEmail
+          ? targetEmail.replace(/(.{2}).+(@.+)/, "$1***$2")
+          : null,
         target_id: targetId,
       });
     }
