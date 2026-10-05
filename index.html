@@ -8,7 +8,6 @@
 <link rel="apple-touch-icon" href="favicon.svg">
 <script>
 (async function () {
-  // Charge le vrai index.html depuis le commit stable (contenu complet des pages)
   var urls = [
     'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
     'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
@@ -25,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261005-del2';
+  var CACHE_V = 'fix-20261005-invite3';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
