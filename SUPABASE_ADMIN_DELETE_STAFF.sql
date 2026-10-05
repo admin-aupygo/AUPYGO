@@ -1,9 +1,13 @@
 -- =============================================================================
 -- AUPYGO — Suppression définitive d'un agent Staff (Amiral uniquement)
 -- + code de sécurité à usage unique (hashé), expiré 15 min
+-- + archive minimale staff_deleted_archive (contrôle / audit)
 -- Exécuter dans Supabase → SQL Editor → Run
 -- =============================================================================
 
+-- ---------------------------------------------------------------------------
+-- Challenges (code email Amiral)
+-- ---------------------------------------------------------------------------
 create table if not exists public.staff_delete_challenges (
   id            uuid primary key default gen_random_uuid(),
   target_id     uuid not null references auth.users(id) on delete cascade,
@@ -33,6 +37,58 @@ end $$;
 revoke all on public.staff_delete_challenges from anon, authenticated, public;
 grant all on public.staff_delete_challenges to service_role;
 
+-- ---------------------------------------------------------------------------
+-- Archive des agents Staff supprimés (trace de contrôle, accès Amiral uniquement)
+-- Données minimales : pas de messages, pas d'historique social.
+-- Conservation recommandée : durée nécessaire au contrôle interne (ex. 12–24 mois).
+-- ---------------------------------------------------------------------------
+create table if not exists public.staff_deleted_archive (
+  id                uuid primary key default gen_random_uuid(),
+  former_user_id    uuid not null,
+  email             text,
+  display_name      text,
+  role              text,
+  staff_branch      text,
+  staff_country     text,
+  staff_city        text,
+  deleted_at        timestamptz not null default now(),
+  deleted_by        uuid,
+  notify_email_sent boolean not null default false,
+  notes             text
+);
+
+create index if not exists staff_deleted_archive_deleted_at_idx
+  on public.staff_deleted_archive (deleted_at desc);
+create index if not exists staff_deleted_archive_former_id_idx
+  on public.staff_deleted_archive (former_user_id);
+
+alter table public.staff_deleted_archive enable row level security;
+
+do $$
+declare r record;
+begin
+  for r in
+    select policyname from pg_policies
+    where schemaname = 'public' and tablename = 'staff_deleted_archive'
+  loop
+    execute format('drop policy if exists %I on public.staff_deleted_archive', r.policyname);
+  end loop;
+end $$;
+
+-- Lecture seule pour l'Amiral ; écriture via fonctions SECURITY DEFINER / service_role
+create policy staff_deleted_archive_select_amiral
+  on public.staff_deleted_archive
+  for select
+  to authenticated
+  using (public.is_amiral());
+
+revoke all on public.staff_deleted_archive from anon, public;
+grant select on public.staff_deleted_archive to authenticated;
+grant all on public.staff_deleted_archive to service_role;
+
+-- ---------------------------------------------------------------------------
+-- Helpers
+-- ---------------------------------------------------------------------------
 create or replace function public.is_deletable_staff_agent(p_id uuid)
 returns boolean
 language sql
@@ -97,6 +153,9 @@ $$;
 revoke all on function public.admin_create_staff_delete_challenge(uuid, text, int) from public;
 grant execute on function public.admin_create_staff_delete_challenge(uuid, text, int) to authenticated, service_role;
 
+-- Archive + purge des données opérationnelles (profil, messages, etc.)
+-- L'email de notification et la suppression auth.users sont gérés par l'Edge Function
+-- (elle lit l'email Auth AVANT l'appel RPC, puis archive via service_role si besoin).
 create or replace function public.admin_confirm_staff_delete(
   p_target_id uuid,
   p_challenge_id uuid,
@@ -110,6 +169,7 @@ as $$
 declare
   actor uuid := auth.uid();
   ch public.staff_delete_challenges%rowtype;
+  prof record;
 begin
   if actor is null then raise exception 'NOT_AUTHENTICATED' using errcode = '42501'; end if;
   if not public.is_amiral() then raise exception 'FORBIDDEN: réservé à l''Amiral' using errcode = '42501'; end if;
@@ -126,6 +186,27 @@ begin
 
   update public.staff_delete_challenges set used_at = now() where id = ch.id;
 
+  select id, display_name, role, staff_branch, staff_country, staff_city
+    into prof
+  from public.profiles
+  where id = p_target_id;
+
+  -- Archive minimale (email sera complété par l'Edge si disponible)
+  insert into public.staff_deleted_archive (
+    former_user_id, display_name, role, staff_branch, staff_country, staff_city,
+    deleted_by, notify_email_sent
+  ) values (
+    p_target_id,
+    prof.display_name,
+    prof.role::text,
+    prof.staff_branch,
+    prof.staff_country,
+    prof.staff_city,
+    actor,
+    false
+  );
+
+  -- Purge données liées
   delete from public.messages where sender_id = p_target_id;
   delete from public.conversation_members where user_id = p_target_id;
   delete from public.conversations c where c.created_by = p_target_id
@@ -142,10 +223,25 @@ begin
   begin
     delete from auth.users where id = p_target_id;
   exception when insufficient_privilege then
-    return jsonb_build_object('ok', true, 'profile_deleted', true, 'auth_deleted', false, 'target_id', p_target_id, 'note', 'AUTH_DELETE_NEEDS_EDGE');
+    return jsonb_build_object(
+      'ok', true,
+      'profile_deleted', true,
+      'auth_deleted', false,
+      'target_id', p_target_id,
+      'display_name', prof.display_name,
+      'role', prof.role::text,
+      'note', 'AUTH_DELETE_NEEDS_EDGE'
+    );
   end;
 
-  return jsonb_build_object('ok', true, 'profile_deleted', true, 'auth_deleted', true, 'target_id', p_target_id);
+  return jsonb_build_object(
+    'ok', true,
+    'profile_deleted', true,
+    'auth_deleted', true,
+    'target_id', p_target_id,
+    'display_name', prof.display_name,
+    'role', prof.role::text
+  );
 end;
 $$;
 
