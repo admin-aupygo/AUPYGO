@@ -4,6 +4,7 @@
  *
  * Body: { email, display_name, role, staff_country?, staff_city? }
  * Secrets: RESEND_API_KEY, STAFF_DELETE_FROM_EMAIL (ou STAFF_INVITE_FROM_EMAIL)
+ * SQL requis: SUPABASE_ADMIN_CREATE_STAFF.sql (admin_provision_staff_profile)
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 
@@ -151,7 +152,7 @@ Deno.serve(async (req) => {
 
     const admin = createClient(supabaseUrl, serviceKey);
 
-    // 1) Créer l'utilisateur Auth (sans email de confirmation Supabase)
+    // 1) Créer l'utilisateur Auth
     const { data: created, error: createErr } = await admin.auth.admin.createUser({
       email,
       email_confirm: true,
@@ -165,28 +166,31 @@ Deno.serve(async (req) => {
 
     const userId = created.user.id;
 
-    // 2) Profil Staff
-    const branch = role.indexOf("moderateur") !== -1 ? "moderation" : "evenementiel";
-    const { error: profErr } = await admin.from("profiles").upsert({
-      id: userId,
-      display_name: displayName,
-      role,
-      is_admin: false,
-      staff_branch: branch,
-      staff_country: staffCountry,
-      staff_city: staffCity,
-      subscription: "PREMIUM",
-    }, { onConflict: "id" });
+    // 2) Profil via RPC SECURITY DEFINER (contourne le trigger anti-escalade pour service_role)
+    const { data: prov, error: provErr } = await admin.rpc(
+      "admin_provision_staff_profile",
+      {
+        p_id: userId,
+        p_display_name: displayName,
+        p_role: role,
+        p_staff_country: staffCountry,
+        p_staff_city: staffCity,
+      },
+    );
 
-    if (profErr) {
-      console.error("[admin-create-staff] profile", profErr);
+    if (provErr) {
+      console.error("[admin-create-staff] provision", provErr);
       try {
         await admin.auth.admin.deleteUser(userId);
       } catch (_) { /* ignore */ }
-      return json({ error: "profile_failed", detail: profErr.message }, 400);
+      return json({
+        error: "profile_failed",
+        detail: provErr.message,
+        code: provErr.code,
+      }, 400);
     }
 
-    // 3) Lien de définition du mot de passe (recovery)
+    // 3) Lien recovery
     let setupLink: string | null = null;
     let linkError: string | null = null;
     try {
@@ -201,17 +205,15 @@ Deno.serve(async (req) => {
         linkError = linkErr.message;
         console.error("[admin-create-staff] generateLink", linkErr);
       } else {
-        setupLink =
-          linkData?.properties?.action_link ||
-          (linkData as { action_link?: string })?.action_link ||
-          null;
+        const props = linkData?.properties as { action_link?: string } | undefined;
+        setupLink = props?.action_link || null;
         if (!setupLink) linkError = "empty_action_link";
       }
     } catch (e) {
       linkError = String((e as Error)?.message || e);
     }
 
-    // 4) Envoi email d'invitation
+    // 4) Email invitation
     let emailSent = false;
     let emailError: string | null = null;
     if (setupLink) {
@@ -230,6 +232,7 @@ Deno.serve(async (req) => {
     return json({
       ok: true,
       user_id: userId,
+      provision: prov,
       setup_link: setupLink,
       link_error: linkError,
       email_sent: emailSent,
