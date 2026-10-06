@@ -1,95 +1,55 @@
 <!DOCTYPE html>
 <html lang="fr">
 <head>
+<script>
+(function(){try{var t=localStorage.getItem('aupygo_theme');
+if(t!=='dark'&&t!=='light')t=(window.matchMedia&&matchMedia('(prefers-color-scheme: dark)').matches)?'dark':'light';
+document.documentElement.setAttribute('data-theme',t);}catch(e){}})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUPYGO — chargement…</title>
+<title>AUPYGO</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="favicon.svg">
-<script>
-(async function () {
-  var STABLE = 'a5b2c260809d54c4f5d6c268596062867de11ae9';
-  var CDN = 'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@' + STABLE + '/';
-  var urls = [
-    'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
-    'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
-    'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html'
-  ];
-  var html = null;
-  for (var i = 0; i < urls.length; i++) {
-    try {
-      var res = await fetch(urls[i], { cache: 'no-store' });
-      if (res.ok) { html = await res.text(); break; }
-    } catch (e) { console.warn('source ' + (i+1), e); }
-  }
-  if (!html) {
-    document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
-    return;
-  }
-  var CACHE_V = 'fix-20261006-msg-v4';
-  html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
-  if (html.indexOf('favicon.svg') === -1) {
-    html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
-  }
-  html = html.replace(/<script[^>]*src=["'][^"']*config\.js[^"']*["'][^>]*><\/script>/gi,
-    '<script src="' + CDN + 'config.js?v=' + CACHE_V + '"><\/script>');
-  html = html.replace(/<script[^>]*src=["'][^"']*app\.js[^"']*["'][^>]*><\/script>/gi,
-    '<script src="' + CDN + 'app.js?v=' + CACHE_V + '"><\/script>');
-  html = html.replace(/(href|src)=["'][^"']*styles\.css[^"']*["']/gi,
-    'href="' + CDN + 'styles.css?v=' + CACHE_V + '"');
-  try {
-    var th = localStorage.getItem('aupygo_theme');
-    if (th !== 'dark' && th !== 'light') th = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
-    html = html.replace(/<html(\s|>)/i, '<html data-theme="' + th + '"$1');
-  } catch (e) {}
-  html = html.replace(/<script[^>]*src="js\/theme-toggle\.js[^"]*"[^>]*><\/script>\s*/gi, '');
-  html = html.replace('</head>', '<script src="js/theme-toggle.js?v=' + CACHE_V + '"><\/script>\n</head>');
-  var scripts = [
-    'js/realtime-fix.js',
-    'js/agenda-week-nav.js',
-    'js/staff-hierarchy.js',
-    'js/admin.js',
-    'js/admin-setrole-fix.js',
-    'js/admin-create-staff.js',
-    'js/admin-delete-staff.js',
-    'js/staff-ui.js',
-    'js/staff-profile.js',
-    'js/staff-profile-layout-fix.js',
-    'js/staff-events.js',
-    'js/staff-messages.js',
-    'js/staff-groups-fix.js',
-    'js/staff-msg-badge-fix.js',
-    'js/staff-visibility.js',
-    'js/staff-restrictions.js',
-    'js/staff-msg-unlock.js',
-    'js/join-events-fix.js',
-    'js/events-publish-fix.js',
-    'js/priority-fixes.js',
-    'js/cdc-fixes.js',
-    'js/staff-event-notify.js',
-    'js/free-aupygo-join.js',
-    'js/staff-status.js',
-    'js/xss-profile-card-fix.js',
-    'map-markers.js',
-    'js/message-rules.js'
-  ];
-  scripts.forEach(function (src) {
-    var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
-    html = html.replace(re, '');
-  });
-  html = html.replace(/<script[^>]*src="[^"]*map-markers\.js[^"]*"[^>]*><\/script>\s*/gi, '');
-  var inject = '';
-  scripts.forEach(function (src) {
-    inject += '<script src="' + src + '?v=' + CACHE_V + '"><\/script>\n';
-  });
-  html = html.replace('</body>', inject + '</body>');
-  document.open();
-  document.write(html);
-  document.close();
-})();
-</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@a5b2c260809d54c4f5d6c268596062867de11ae9/styles.css?v=20261006-a1"/>
 </head>
 <body>
-<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Chargement AUPYGO…</p>
+<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Mise à jour A1 en cours — si tu vois ceci, recharge dans 10 s.</p>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://challenges.cloudflare.com/turnstile/v0/api.js" async defer></script>
+<script src="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@a5b2c260809d54c4f5d6c268596062867de11ae9/config.js?v=20261006-a1"></script>
+<script src="i18n.js?v=20261006-a1"></script>
+<script src="i18n-extra.js?v=20261006-a1"></script>
+<script src="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@a5b2c260809d54c4f5d6c268596062867de11ae9/app.js?v=20261006-a1"></script>
+<script src="js/theme-toggle.js?v=20261006-a1"></script>
+<script src="js/realtime-fix.js?v=20261006-a1"></script>
+<script src="js/agenda-week-nav.js?v=20261006-a1"></script>
+<script src="js/staff-hierarchy.js?v=20261006-a1"></script>
+<script src="js/admin.js?v=20261006-a1"></script>
+<script src="js/admin-setrole-fix.js?v=20261006-a1"></script>
+<script src="js/admin-create-staff.js?v=20261006-a1"></script>
+<script src="js/admin-delete-staff.js?v=20261006-a1"></script>
+<script src="js/staff-ui.js?v=20261006-a1"></script>
+<script src="js/staff-profile.js?v=20261006-a1"></script>
+<script src="js/staff-profile-layout-fix.js?v=20261006-a1"></script>
+<script src="js/staff-events.js?v=20261006-a1"></script>
+<script src="js/staff-messages.js?v=20261006-a1"></script>
+<script src="js/staff-groups-fix.js?v=20261006-a1"></script>
+<script src="js/staff-msg-badge-fix.js?v=20261006-a1"></script>
+<script src="js/staff-visibility.js?v=20261006-a1"></script>
+<script src="js/staff-restrictions.js?v=20261006-a1"></script>
+<script src="js/staff-msg-unlock.js?v=20261006-a1"></script>
+<script src="js/join-events-fix.js?v=20261006-a1"></script>
+<script src="js/events-publish-fix.js?v=20261006-a1"></script>
+<script src="js/priority-fixes.js?v=20261006-a1"></script>
+<script src="js/cdc-fixes.js?v=20261006-a1"></script>
+<script src="js/staff-event-notify.js?v=20261006-a1"></script>
+<script src="js/free-aupygo-join.js?v=20261006-a1"></script>
+<script src="js/staff-status.js?v=20261006-a1"></script>
+<script src="js/xss-profile-card-fix.js?v=20261006-a1"></script>
+<script src="map-markers.js?v=20261006-a1"></script>
+<script src="js/message-rules.js?v=20261006-a1"></script>
 </body>
 </html>
