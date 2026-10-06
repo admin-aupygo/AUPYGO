@@ -26,20 +26,18 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261006-login';
+  var CACHE_V = 'fix-20261006-msg-rules';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
-  // Force config.js + app.js complets depuis le commit stable (évite le stub async qui casse supabaseClient)
+  // Force config.js + app.js complets depuis le commit stable
   html = html.replace(/<script[^>]*src=["'][^"']*config\.js[^"']*["'][^>]*><\/script>/gi,
     '<script src="' + CDN + 'config.js?v=' + CACHE_V + '"><\/script>');
   html = html.replace(/<script[^>]*src=["'][^"']*app\.js[^"']*["'][^>]*><\/script>/gi,
     '<script src="' + CDN + 'app.js?v=' + CACHE_V + '"><\/script>');
-  // styles.css complet via CDN aussi
   html = html.replace(/(href|src)=["'][^"']*styles\.css[^"']*["']/gi,
     'href="' + CDN + 'styles.css?v=' + CACHE_V + '"');
-  // Thème clair/sombre
   try {
     var th = localStorage.getItem('aupygo_theme');
     if (th !== 'dark' && th !== 'light') th = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
@@ -73,7 +71,8 @@
     'js/free-aupygo-join.js',
     'js/staff-status.js',
     'js/xss-profile-card-fix.js',
-    'map-markers.js'
+    'map-markers.js',
+    'js/message-rules.js'
   ];
   scripts.forEach(function (src) {
     var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
