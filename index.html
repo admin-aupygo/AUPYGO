@@ -26,12 +26,11 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261006-msg-rules';
+  var CACHE_V = 'fix-20261006-msg-v4';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
-  // Force config.js + app.js complets depuis le commit stable
   html = html.replace(/<script[^>]*src=["'][^"']*config\.js[^"']*["'][^>]*><\/script>/gi,
     '<script src="' + CDN + 'config.js?v=' + CACHE_V + '"><\/script>');
   html = html.replace(/<script[^>]*src=["'][^"']*app\.js[^"']*["'][^>]*><\/script>/gi,
