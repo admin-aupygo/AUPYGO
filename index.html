@@ -8,8 +8,6 @@
 <link rel="apple-touch-icon" href="favicon.svg">
 <script>
 (async function () {
-  var OLD = 'a5b2c260809d54c4f5d6c268596062867de11ae9';
-  var CDN = 'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@' + OLD + '/';
   var urls = [
     'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
     'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
@@ -26,15 +24,12 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261006-restore';
+  var CACHE_V = 'fix-20261006-v2';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
-  // Rewrite critical assets that were deleted from main → load from good commit
-  html = html.replace(/(href|src)=["']styles\.css[^"']*["']/gi, 'href="' + CDN + 'styles.css?v=' + CACHE_V + '"');
-  html = html.replace(/(href|src)=["']app\.js[^"']*["']/gi, 'src="' + CDN + 'app.js?v=' + CACHE_V + '"');
-  html = html.replace(/(href|src)=["']config\.js[^"']*["']/gi, 'src="' + CDN + 'config.js?v=' + CACHE_V + '"');
+  // styles.css, app.js, config.js existent à nouveau sur main (stubs CDN ou fichiers complets)
   // Thème clair/sombre
   try {
     var th = localStorage.getItem('aupygo_theme');
