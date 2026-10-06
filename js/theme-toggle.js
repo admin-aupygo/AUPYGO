@@ -20,6 +20,7 @@
     if (!m && document.head) { m = document.createElement('meta'); m.name = 'theme-color'; document.head.appendChild(m); }
     if (m) m.setAttribute('content', theme === 'dark' ? '#0f0d1a' : '#ffffff');
     syncSwitch();
+    if (typeof afterApply === 'function') afterApply(theme);
   }
 
   var CSS = `
@@ -258,6 +259,21 @@ html[data-theme="dark"] .theme-switch{background:linear-gradient(135deg,#1e1b4b,
   box-shadow:0 0 12px rgba(139,92,246,.55)}
 html[data-theme="dark"] .theme-switch .ts-knob{transform:translateX(22px);background:#e9e5ff}
 @media (prefers-reduced-motion:reduce){.theme-switch,.theme-switch .ts-knob{transition:none}}
+
+/* ===== Rattrapage automatique des surfaces restées claires (posé par theme-toggle.js) ===== */
+html[data-theme="dark"] [data-dk-bg="1"]{background-color:#1f1b30 !important}
+html[data-theme="dark"] [data-dk-bg="2"]{background-color:#292243 !important}
+html[data-theme="dark"] [data-dk-bg="red"]{background-color:rgba(239,68,68,.18) !important}
+html[data-theme="dark"] [data-dk-bg="green"]{background-color:rgba(34,197,94,.15) !important}
+html[data-theme="dark"] [data-dk-bg="amber"]{background-color:rgba(245,158,11,.17) !important}
+html[data-theme="dark"] [data-dk-bg="blue"]{background-color:rgba(59,130,246,.16) !important}
+html[data-theme="dark"] [data-dk-fg="n"]{color:#e8e6f2 !important}
+html[data-theme="dark"] [data-dk-fg="red"]{color:#fca5a5 !important}
+html[data-theme="dark"] [data-dk-fg="green"]{color:#86efac !important}
+html[data-theme="dark"] [data-dk-fg="amber"]{color:#fcd34d !important}
+html[data-theme="dark"] [data-dk-fg="blue"]{color:#93c5fd !important}
+html[data-theme="dark"] [data-dk-fg="purple"]{color:#c4b5fd !important}
+html[data-theme="dark"] [data-dk-bd]{border-color:rgba(167,139,250,.28) !important}
 `;
   var st = document.createElement('style');
   st.id = 'aupygo-theme-css';
@@ -289,9 +305,139 @@ html[data-theme="dark"] .theme-switch .ts-knob{transform:translateX(22px);backgr
     if (txt) { var t = L.label + ' : ' + (dark ? L.dark : L.light); if (txt.textContent !== t) txt.textContent = t; }
   }
 
+  function afterApply(theme) {
+    if (!document.body) return;
+    if (theme === 'dark') queueScan(document.body); else clearMarks();
+  }
+
   function toggle() {
     var next = current() === 'dark' ? 'light' : 'dark';
     save(next); apply(next);
+  }
+
+
+  /* ---------- Rattrapage : toute surface restée claire en mode sombre ---------- */
+  var SKIP_TAG = { SCRIPT:1, STYLE:1, NOSCRIPT:1, IMG:1, SVG:1, CANVAS:1, VIDEO:1, OPTION:1, BR:1, HEAD:1, META:1, LINK:1, TITLE:1 };
+  function parseRGB(str) {
+    var m = /rgba?\(\s*([\d.]+)[,\s]+([\d.]+)[,\s]+([\d.]+)(?:[,\s/]+([\d.]+%?))?\s*\)/.exec(str || '');
+    if (!m) return null;
+    var a = m[4] === undefined ? 1 : (m[4].slice(-1) === '%' ? parseFloat(m[4]) / 100 : parseFloat(m[4]));
+    return [+m[1], +m[2], +m[3], a];
+  }
+  function lum(c) {
+    var v = [c[0], c[1], c[2]].map(function (x) { x /= 255; return x <= 0.03928 ? x / 12.92 : Math.pow((x + 0.055) / 1.055, 2.4); });
+    return 0.2126 * v[0] + 0.7152 * v[1] + 0.0722 * v[2];
+  }
+  function contrast(a, b) { var l1 = lum(a), l2 = lum(b); return (Math.max(l1, l2) + 0.05) / (Math.min(l1, l2) + 0.05); }
+  function hueOf(c) {
+    var r = c[0] / 255, g = c[1] / 255, b = c[2] / 255, mx = Math.max(r, g, b), mn = Math.min(r, g, b), d = mx - mn, h = 0;
+    if (d === 0) return { h: 0, s: 0 };
+    if (mx === r) h = ((g - b) / d) % 6; else if (mx === g) h = (b - r) / d + 2; else h = (r - g) / d + 4;
+    h = (h * 60 + 360) % 360;
+    var l = (mx + mn) / 2, s = d / (1 - Math.abs(2 * l - 1));
+    return { h: h, s: s };
+  }
+  function family(c, mode) {
+    var o = hueOf(c);
+    var chroma = (Math.max(c[0], c[1], c[2]) - Math.min(c[0], c[1], c[2])) / 255;
+    // fonds très clairs : la saturation HSL gonfle les gris-bleu (slate) -> seuil plus haut ; textes sombres : on regarde la chroma
+    if (mode === 'bg' ? o.s < 0.6 : chroma < 0.2) return 'n';
+    var h = o.h;
+    if (h < 20 || h >= 340) return 'red';
+    if (h < 65) return 'amber';
+    if (h < 170) return 'green';
+    if (h < 255) return 'blue';
+    return 'purple';
+  }
+  function skipEl(el) {
+    return !!(SKIP_TAG[el.tagName] || SKIP_TAG[(el.tagName || '').toLowerCase()] ||
+      (el.closest && el.closest('.leaflet-container, .theme-switch, .aupy-marker, [data-dk-skip]')));
+  }
+  function effBg(el, cache) {
+    if (cache.has(el)) return cache.get(el);
+    var res;
+    var cs = getComputedStyle(el);
+    var bg = parseRGB(cs.backgroundColor);
+    if (cs.backgroundImage && cs.backgroundImage !== 'none') res = null;
+    else if (bg && bg[3] >= 0.9) res = bg;
+    else if (el.parentElement) res = effBg(el.parentElement, cache);
+    else res = [15, 13, 26, 1];
+    cache.set(el, res);
+    return res;
+  }
+  function scanNode(root) {
+    if (current() !== 'dark' || !root || root.nodeType !== 1) return;
+    var cache = new Map();
+    (function walk(el) {
+      if (skipEl(el)) return;
+      var cs = getComputedStyle(el);
+      if (cs.display === 'none') return;
+      // 1) fond clair opaque -> sombre
+      var bg = parseRGB(cs.backgroundColor);
+      if (bg && bg[3] >= 0.9 && (!cs.backgroundImage || cs.backgroundImage === 'none') && lum(bg) > 0.7 && !el.hasAttribute('data-dk-bg')) {
+        var f = family(bg, 'bg'), v = '2';
+        if (f === 'n') v = lum(bg) > 0.9 && hueOf(bg).s < 0.12 ? '1' : '2';
+        else if (f !== 'purple') v = f;
+        el.setAttribute('data-dk-bg', v);
+        cache.clear();
+      }
+      // 2) bordure claire -> discrète
+      if (parseFloat(cs.borderTopWidth) > 0 && cs.borderTopStyle !== 'none') {
+        var bc = parseRGB(cs.borderTopColor);
+        if (bc && bc[3] >= 0.5 && lum(bc) > 0.75 && !el.hasAttribute('data-dk-bd')) el.setAttribute('data-dk-bd', '1');
+      }
+      // 3) texte sombre sur fond sombre -> clair
+      var hasText = false;
+      for (var i = 0; i < el.childNodes.length; i++) {
+        var n = el.childNodes[i];
+        if (n.nodeType === 3 && n.nodeValue.trim()) { hasText = true; break; }
+      }
+      if (hasText && !el.hasAttribute('data-dk-fg')) {
+        var fg = parseRGB(cs.color), eb = effBg(el, cache);
+        if (fg && eb && lum(eb) < 0.2 && contrast(fg, eb) < 3.5) el.setAttribute('data-dk-fg', family(fg, 'fg'));
+      }
+      for (var k = 0; k < el.children.length; k++) walk(el.children[k]);
+    })(root);
+  }
+  function clearMarks() {
+    var list = document.querySelectorAll('[data-dk-bg],[data-dk-fg],[data-dk-bd]');
+    for (var i = 0; i < list.length; i++) {
+      list[i].removeAttribute('data-dk-bg'); list[i].removeAttribute('data-dk-fg'); list[i].removeAttribute('data-dk-bd');
+    }
+  }
+  var pending = new Set(), flushQueued = false;
+  function queueScan(node) {
+    if (current() !== 'dark' || !node || node.nodeType !== 1) return;
+    pending.add(node);
+    if (flushQueued) return;
+    flushQueued = true;
+    (window.requestAnimationFrame || setTimeout)(function () {
+      flushQueued = false;
+      var roots = Array.from(pending); pending.clear();
+      roots.forEach(function (r) {
+        // un changement de style/classe peut rendre une marque obsolète : on la retire puis on rescanne
+        if (r.querySelectorAll) {
+          var old = r.querySelectorAll('[data-dk-bg],[data-dk-fg],[data-dk-bd]');
+          for (var i = 0; i < old.length; i++) { old[i].removeAttribute('data-dk-bg'); old[i].removeAttribute('data-dk-fg'); old[i].removeAttribute('data-dk-bd'); }
+        }
+        r.removeAttribute('data-dk-bg'); r.removeAttribute('data-dk-fg'); r.removeAttribute('data-dk-bd');
+        if (document.contains(r)) scanNode(r);
+      });
+    });
+  }
+  function startDarkify() {
+    if (current() === 'dark') queueScan(document.body);
+    new MutationObserver(function (muts) {
+      if (current() !== 'dark') return;
+      for (var i = 0; i < muts.length; i++) {
+        var m = muts[i];
+        if (m.type === 'childList') {
+          for (var j = 0; j < m.addedNodes.length; j++) { var n = m.addedNodes[j]; if (n.nodeType === 1 && n.id !== 'themeToggleRow') queueScan(n); }
+        } else if (m.type === 'attributes' && m.target.nodeType === 1) {
+          queueScan(m.target);
+        }
+      }
+    }).observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['style', 'class', 'hidden'] });
   }
 
   function mount() {
@@ -323,6 +469,7 @@ html[data-theme="dark"] .theme-switch .ts-knob{transform:translateX(22px);backgr
   }
   function start() {
     mount();
+    startDarkify();
     new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
   }
   if (document.body) start(); else document.addEventListener('DOMContentLoaded', start);
