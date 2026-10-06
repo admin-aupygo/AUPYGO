@@ -16,10 +16,22 @@
   } catch (e) {}
 })();
 
+/* Callbacks Turnstile disponibles AVANT le chargement de l'API */
+window.turnstileToken = null;
+window.onTurnstileVerified = function (token) {
+  window.turnstileToken = token;
+  if (typeof turnstileToken !== 'undefined') turnstileToken = token;
+};
+window.onTurnstileExpired = function () {
+  window.turnstileToken = null;
+  if (typeof turnstileToken !== 'undefined') turnstileToken = null;
+};
+
 (async function () {
   var STABLE = 'a5b2c260809d54c4f5d6c268596062867de11ae9';
   var CDN = 'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@' + STABLE + '/';
-  var CACHE_V = 'fix-20261006-a1';
+  var CACHE_V = 'fix-20261006-captcha';
+  var SITEKEY = '0x4AAAAAAEl5_H-ALybBhria';
   var urls = [
     'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
     'https://raw.githack.com/admin-aupygo/AUPYGO/0effaead41c5a928d4739fffd37cface5b86c8e2/index.html',
@@ -27,7 +39,7 @@
   ];
 
   function loadScript(src) {
-    return new Promise(function (resolve, reject) {
+    return new Promise(function (resolve) {
       var s = document.createElement('script');
       s.src = src;
       s.async = false;
@@ -54,45 +66,72 @@
 
   var doc = new DOMParser().parseFromString(html, 'text/html');
 
-  // Copy attributes from parsed <html>
   Array.from(doc.documentElement.attributes).forEach(function (a) {
     if (a.name !== 'lang') document.documentElement.setAttribute(a.name, a.value);
   });
-  if (!document.documentElement.getAttribute('data-theme')) {
-    try {
-      var t = localStorage.getItem('aupygo_theme') || 'light';
-      document.documentElement.setAttribute('data-theme', t);
-    } catch (e) {}
-  }
 
-  // Head: stylesheets + meta (skip scripts for now)
-  var headExtra = [];
   Array.from(doc.head.children).forEach(function (el) {
     var tag = el.tagName.toLowerCase();
     if (tag === 'script') return;
-    if (tag === 'title') {
-      document.title = el.textContent || 'AUPYGO';
-      return;
-    }
-    if (tag === 'link' && el.rel === 'icon') return; // already have favicon
+    if (tag === 'title') { document.title = el.textContent || 'AUPYGO'; return; }
+    if (tag === 'link' && (el.rel === 'icon' || el.rel === 'apple-touch-icon')) return;
     document.head.appendChild(el.cloneNode(true));
   });
 
-  // Body markup without scripts
   var bodyClone = doc.body.cloneNode(true);
   Array.from(bodyClone.querySelectorAll('script')).forEach(function (s) { s.remove(); });
   document.body.innerHTML = '';
   while (bodyClone.firstChild) document.body.appendChild(bodyClone.firstChild);
 
-  // Ordered scripts: CDN libs + config/app from stable, then local modules
-  var ordered = [
+  /* Scripts app d'abord (définit aussi onTurnstile*), puis Turnstile, puis modules */
+  var beforeTurnstile = [
     'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js',
     'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2',
-    'https://challenges.cloudflare.com/turnstile/v0/api.js',
     CDN + 'config.js?v=' + CACHE_V,
     'i18n.js?v=' + CACHE_V,
     'i18n-extra.js?v=' + CACHE_V,
-    CDN + 'app.js?v=' + CACHE_V,
+    CDN + 'app.js?v=' + CACHE_V
+  ];
+  for (var j = 0; j < beforeTurnstile.length; j++) await loadScript(beforeTurnstile[j]);
+
+  /* Charger Turnstile après le DOM + callbacks */
+  await loadScript('https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit');
+
+  function mountTurnstile() {
+    var el = document.getElementById('turnstileContainer');
+    if (!el || !window.turnstile) return;
+    try {
+      /* Vider puis render explicite (évite double widget) */
+      el.innerHTML = '';
+      el.className = '';
+      window.turnstile.render(el, {
+        sitekey: SITEKEY,
+        callback: function (token) {
+          window.turnstileToken = token;
+          if (typeof turnstileToken !== 'undefined') turnstileToken = token;
+          if (typeof onTurnstileVerified === 'function') onTurnstileVerified(token);
+        },
+        'expired-callback': function () {
+          window.turnstileToken = null;
+          if (typeof turnstileToken !== 'undefined') turnstileToken = null;
+          if (typeof onTurnstileExpired === 'function') onTurnstileExpired();
+        }
+      });
+      console.log('[AUPYGO] Turnstile monté');
+    } catch (e) {
+      console.warn('[AUPYGO] Turnstile render', e);
+    }
+  }
+
+  /* turnstile API peut arriver un peu après onload */
+  var tries = 0;
+  (function waitTs() {
+    if (window.turnstile) mountTurnstile();
+    else if (tries++ < 40) setTimeout(waitTs, 100);
+    else console.warn('[AUPYGO] Turnstile API non chargée');
+  })();
+
+  var modules = [
     'js/theme-toggle.js?v=' + CACHE_V,
     'js/realtime-fix.js?v=' + CACHE_V,
     'js/agenda-week-nav.js?v=' + CACHE_V,
@@ -122,10 +161,7 @@
     'map-markers.js?v=' + CACHE_V,
     'js/message-rules.js?v=' + CACHE_V
   ];
-
-  for (var j = 0; j < ordered.length; j++) {
-    await loadScript(ordered[j]);
-  }
+  for (var k = 0; k < modules.length; k++) await loadScript(modules[k]);
 })();
 </script>
 </head>
