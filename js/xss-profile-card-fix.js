@@ -39,9 +39,11 @@
 
       var hobbiesEl = document.getElementById('profileCardHobbies');
       if (hobbiesEl && Array.isArray(data.hobbies) && data.hobbies.length) {
-        var HOBBY_EMOJI = window.HOBBY_EMOJI || {};
+        // HOBBY_EMOJI est un `const` de app.js : accessible comme variable globale, mais PAS via window.
+        // (avant : window.HOBBY_EMOJI était undefined -> tous les hobbies s'affichaient en ✨)
+        var emojiMap = (typeof HOBBY_EMOJI !== 'undefined') ? HOBBY_EMOJI : (window.HOBBY_EMOJI || {});
         hobbiesEl.innerHTML = data.hobbies.map(function (h) {
-          var emoji = HOBBY_EMOJI[h] || '✨';
+          var emoji = emojiMap[h] || '✨';
           return '<span class="hobby-emoji" title="' + escapeAttr(h) + '">' + emoji + '</span>';
         }).join('');
       }
