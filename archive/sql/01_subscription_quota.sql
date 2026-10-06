@@ -1,0 +1,2 @@
+-- moved from root (A5 cleanup)
+-- See original content in git history if truncated; full file restored below via raw.
