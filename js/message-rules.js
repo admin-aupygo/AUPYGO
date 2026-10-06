@@ -25,49 +25,39 @@
   var MASK = '[Donnée masquée pour votre sécurité]';
   var PRIVACY_TIP = "Pour votre sécurité et la protection de votre vie privée, le partage de coordonnées directes n'est pas autorisé sur la plateforme.";
 
-  // mots-clés de réseaux / messageries — fautes et séparateurs tolérés : "whatt ap", "wats ap", "insta gram", "face book", "tik-tok"…
   var SEP = '[\\s.\\-_]*';
   var KW = '(?:insta+(?:' + SEP + 'gr?a?m+)?|ig|wh?a+t*[\'’]?' + SEP + 's*' + SEP + 'a+p+|wtsp|wtsap|whtsp|wsp|snap+(?:' + SEP + 'chat+)?' +
     '|tele?gr?a?m+|tg|face' + SEP + 'book|fb|tic?k+' + SEP + 'to?c?k+|messenger|twitter|linkedin|pinterest|reddit|twitch|discord|viber|wechat|skype|kik|tinder|bumble|badoo|meetic|happn|grindr|onlyfans|tumblr)';
-  // mots courants qui précèdent "sur <réseau>" sans être un pseudo : "je suis sur instagram", "retrouve moi sur snap"
   var STOP = '(?:je|tu|il|elle|on|nous|vous|ils|elles|suis|est|sommes|sont|vais|vas|parle|parles|parler|ecris|écris|écrit|retrouve|retrouvez|contacte|contactez|cherche|cherches|regarde|vue|vus|aussi|actif|active|connecte|connecté|dispo|disponible|present|présent|pas|moi|toi|les|des|une|and|mais|donc|ça|viens|vient|passe|ajoute|ajouter|add|follow|find|text|message|messages|you|are|here|there|toujours|souvent|jamais|déjà|deja)';
-  // chiffres écrits en lettres (FR / ES / EN) — 5 à la suite = numéro
   var NUM = '(?:z[ée]ro|zero|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|vingt|trente|quarante|cinquante|soixante|septante|huitante|octante|nonante|cent|cents|cero|uno|dos|tres|cuatro|cinco|seis|siete|ocho|nueve|diez|one|two|three|four|five|seven|eight|nine)';
 
   var RE_EMAIL = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/g;
-  // "nom AT gmail DOT com", "nom [at] yahoo [dot] fr", "nom(at)gmail(dot)com"
   var RE_EMAIL_OBF = /[A-Za-z0-9._%+\-]+\s*(?:\(\s*at\s*\)|\[\s*at\s*\]|\{\s*at\s*\}|\bat\b|@)\s*[A-Za-z0-9\-]+\s*(?:(?:\(\s*dot\s*\)|\[\s*dot\s*\]|\{\s*dot\s*\}|\bdot\b|\bpoint\b)\s*[A-Za-z0-9\-]+\s*)+/gi;
   var RE_NUMWORDS = new RegExp('(?:\\b' + NUM + '\\b[\\s\\-.,]*){5,}', 'gi');
-  // candidat numéro en chiffres : espaces, points, tirets, slashes, parenthèses, +41, +33, 0033…
   var RE_PHONE = /(?:\+|00)?\(?\d[\d\s.\-/()]{6,}\d/g;
-  var RE_DATE = /\d{1,2}[./\-]\d{1,2}[./\-](?:19|20)\d{2}/g;   // 12/10/2026 : pas un numéro
+  var RE_DATE = /\d{1,2}[./\-]\d{1,2}[./\-](?:19|20)\d{2}/g;
   var RE_KEYWORD = new RegExp(
     '\\b' + KW + '\\b(?:' +
-      '\\s*(?::|=)\\s*@?[A-Za-z0-9_.]{2,}' +                              // instagram: marie.d92
-      '|\\s*@[A-Za-z0-9_.]{2,}' +                                           // telegram @paulo
-      "|\\s+(?:c'est|c’est|cest|est|is)\\s+@?[A-Za-z0-9_.]{2,}" +           // mon insta c'est jean_dupont
-      '|\\s+@?(?=[A-Za-z0-9_.]*[0-9_.])[A-Za-z0-9_.]{3,}' +                 // snap jean_92
+      '\\s*(?::|=)\\s*@?[A-Za-z0-9_.]{2,}' +
+      '|\\s*@[A-Za-z0-9_.]{2,}' +
+      "|\\s+(?:c'est|c’est|cest|est|is)\\s+@?[A-Za-z0-9_.]{2,}" +
+      '|\\s+@?(?=[A-Za-z0-9_.]*[0-9_.])[A-Za-z0-9_.]{3,}' +
     ')', 'gi');
   var RE_HANDLE = /(^|[\s(\[])@[A-Za-z0-9_.]{2,}/g;
-  // liens de profil : instagram.com/marie92, wa.me/4179…, t.me/xxx
   var RE_SOCIAL_URL = new RegExp('(?:https?://)?(?:www\\.)?(?:\\b' + KW + '\\.(?:com|me|fr|net|tv|co|org|link|app)|\\b(?:wa|t)\\.me)(?:/\\S*)?', 'gi');
-  // pseudo placé AVANT le réseau : "mistick sur instagram", "paul92 on snap"
   var RE_BEFORE_KW = new RegExp('\\b(?!' + STOP + '\\b)[A-Za-z0-9_.]{3,}\\s+(?:sur|on|en|via|par|chez)\\s+' + KW + '\\b', 'gi');
-  // le nom du réseau lui-même (même sans identifiant) : le pseudo seul ne sert plus à rien
   var RE_PLATFORM = new RegExp('\\b' + KW + '\\b', 'gi');
 
-  /** Texte normalisé : caractères invisibles retirés, formes pleine largeur / ligatures ramenées à la normale. */
   function normalizeText(s) {
     return String(s == null ? '' : s).replace(/[​-‍⁠﻿]/g, '').normalize('NFKC');
   }
 
-  /** Remplace toute coordonnée par la mention de masquage. Retourne { text, masked }. */
   function maskSensitive(input) {
     var base = normalizeText(input);
     var t = base;
     t = t.replace(RE_EMAIL, MASK);
     t = t.replace(RE_EMAIL_OBF, MASK);
-    t = t.replace(RE_SOCIAL_URL, MASK);          // avant les numéros : wa.me/4179… doit partir en un bloc
+    t = t.replace(RE_SOCIAL_URL, MASK);
     t = t.replace(RE_NUMWORDS, MASK);
     t = t.replace(RE_PHONE, function (m) {
       var digits = m.replace(RE_DATE, '').replace(/\D/g, '');
@@ -80,16 +70,17 @@
     return { text: t, masked: t !== base };
   }
 
+  // Comptage robuste (identique à aupygo_count_words côté SQL)
   function countWords(text) {
-    var s = String(text == null ? '' : text).trim();
-    return s === '' ? 0 : s.split(/\s+/).length;
+    var parts = String(text == null ? '' : text).split(/[^\p{L}\p{N}'\u2019]+/u), n = 0;
+    for (var i = 0; i < parts.length; i++) {
+      if (parts[i]) n += Math.max(1, Math.ceil(Array.from(parts[i]).length / 10));
+    }
+    return n;
   }
 
   window.AupyModeration = { maskSensitive: maskSensitive, countWords: countWords, MASK: MASK };
 
-  /* =====================================================================
-   * 2. TEXTES (FR / EN / ES)
-   * ===================================================================== */
   var TXT = {
     fr: {
       words: 'mots', remain: 'restants', remain1: 'restant', left: 'Messages restants', leftToday: "Messages restants aujourd'hui",
@@ -132,9 +123,6 @@
     return TXT[l] || TXT.fr;
   }
 
-  /* =====================================================================
-   * 3. SOLDE DU COMPTE (RPC get_my_message_quota, sinon repli par défaut)
-   * ===================================================================== */
   var quota = null, quotaAt = 0, quotaInflight = null;
 
   function fallbackQuota() {
@@ -162,14 +150,15 @@
     return quotaInflight;
   }
 
-  /* =====================================================================
-   * 4. INTERFACE : compteur de mots, solde, infobulle, pop-up
-   * ===================================================================== */
   var CSS = [
     '.aupy-chatmeta{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--muted,#777386)}',
     '.aupy-chatmeta .aupy-wc{font-variant-numeric:tabular-nums}',
     '.aupy-chatmeta .aupy-wc.over{color:#dc2626;font-weight:800}',
     '.aupy-chatmeta .aupy-wc.near{color:#d97706}',
+    '#messageInput.aupy-near{color:#d97706 !important}',
+    '#messageInput.aupy-over{color:#dc2626 !important}',
+    'html[data-theme="dark"] #messageInput.aupy-near{color:#fbbf24 !important}',
+    'html[data-theme="dark"] #messageInput.aupy-over{color:#fca5a5 !important}',
     '.aupy-chatmeta .aupy-credit{margin-left:auto;padding:2px 10px;border-radius:999px;background:rgba(124,58,237,.10);color:var(--primary,#7c3aed)}',
     '.aupy-chatmeta .aupy-credit.empty{background:rgba(220,38,38,.12);color:#dc2626}',
     '.aupy-tip{position:relative;margin:8px 0 0;padding:10px 12px 10px 38px;border-radius:12px;font-size:12.5px;line-height:1.4;font-weight:600;',
@@ -223,7 +212,6 @@
     var maxW = q.max_words || 1000;
     var n = countWords(input ? input.value : '');
 
-    // compteur de mots avec décompte : toujours visible pour les comptes gratuits, dès la frappe pour les autres
     var wc = $('aupyWordCounter');
     var showWc = !q.staff || n > 0;
     wc.style.display = showWc ? '' : 'none';
@@ -232,7 +220,11 @@
       (rest >= 0 ? rest + ' ' + (rest === 1 ? t.remain1 : t.remain) : (-rest) + ' ' + (L() === TXT.en ? 'over' : (L() === TXT.es ? 'de más' : 'en trop')));
     wc.className = 'aupy-wc' + (n > maxW ? ' over' : (n >= maxW * 0.8 ? ' near' : ''));
 
-    // crédit de messages
+    if (input) {
+      input.classList.toggle('aupy-over', n > maxW);
+      input.classList.toggle('aupy-near', n <= maxW && n >= maxW * 0.8);
+    }
+
     var cr = $('aupyCredit');
     var show = !q.unlimited && q.left !== null && q.left !== undefined;
     cr.style.display = show ? '' : 'none';
@@ -242,10 +234,8 @@
       cr.className = 'aupy-credit' + (q.left <= 0 ? ' empty' : '');
     }
 
-    // blocage de l'envoi si trop de mots (le serveur refuse de toute façon)
     if (btn && input && !input.disabled) btn.disabled = n > maxW;
 
-    // infobulle préventive (coordonnée détectée pendant la frappe)
     var det = input && input.value ? maskSensitive(input.value).masked : false;
     showTip(det);
   }
@@ -292,13 +282,9 @@
     btnGo.onclick = function () { close(); if (typeof window.go === 'function') window.go('plans'); };
     ov.addEventListener('keydown', function (e) { if (e.key === 'Escape') close(); });
     document.body.appendChild(ov);
-    // Focus différé : si l'envoi vient de la touche Entrée, un focus immédiat sur le bouton l'activerait aussitôt.
     setTimeout(function () { if (document.contains(btnGo)) btnGo.focus(); }, 400);
   }
 
-  /* =====================================================================
-   * 5. ENVELOPPE DE sendMessage()
-   * ===================================================================== */
   function patchSend() {
     var prev = window.sendMessage;
     if (typeof prev !== 'function' || window._aupyRulesPatched) return false;
@@ -309,14 +295,11 @@
       if (!input) return prev.apply(this, arguments);
       var q = await getQuota(true);
 
-      // 1) plus de crédit
       if (!q.unlimited && q.left !== null && q.left !== undefined && q.left <= 0) {
         modal('quota', 0, q); render(); return;
       }
-      // 2) trop de mots
       var n = countWords(input.value), maxW = q.max_words || 1000;
       if (n > maxW) { modal('words', n, q); render(); return; }
-      // 3) coordonnées → masquées avant l'envoi (le serveur le refait de toute façon)
       if (!q.staff && input.value) {
         var r = maskSensitive(input.value);
         if (r.masked) { input.value = r.text; showTip(true, 7000); }
@@ -329,7 +312,6 @@
       return out;
     };
 
-    // Les anciens patchs (priority-fixes, cdc-fixes) fabriquaient 2 compteurs en double : on garde un seul compteur (sous le champ).
     var prevRefresh = window.refreshMessagesQuotaUI;
     window.refreshMessagesQuotaUI = async function () {
       try {
@@ -346,9 +328,6 @@
     return true;
   }
 
-  /* =====================================================================
-   * 6. DÉMARRAGE
-   * ===================================================================== */
   function onInput() { render(); }
   function bindInput() {
     var input = $('messageInput');
@@ -377,7 +356,6 @@
 
   function boot() {
     if (patchSend() || window._aupyRulesPatched) { start(); return; }
-    // sendMessage pas encore défini : on réessaie un court instant
     var tries = 0;
     var iv = setInterval(function () {
       tries++;
