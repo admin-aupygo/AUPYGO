@@ -1,2 +1,57 @@
-/* AUPYGO — styles complets chargés depuis le dernier commit stable */
+:root {
+  --primary:#7c3aed;
+  --primary-dark:#5b21b6;
+  --secondary:#ec4899;
+  --dark:#171522;
+  --text:#292638;
+  --muted:#777386;
+  --light:#f7f5fb;
+  --white:#ffffff;
+  --border:#e8e4ef;
+  --shadow:0 10px 35px rgba(42,24,70,.10);
+  --radius:20px;
+}
+.footer-links {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 20px;
+  margin-bottom: 28px;
+  padding-top: 8px;
+}
+.footer-links button {
+  background: transparent;
+  border: none;
+  color: #c4b5d6;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 4px 0;
+  transition: color 0.2s;
+}
+.footer-links button:hover { color: #fff; }
+.footer-content {
+  display: none;
+  max-width: 700px;
+  margin: 0 auto 24px;
+  padding: 16px 20px;
+  background: rgba(255,255,255,0.06);
+  border-radius: 12px;
+  font-size: 14px;
+  line-height: 1.6;
+  color: #d4cde0;
+}
+.footer-content p { margin-bottom: 12px; }
+.footer-content p:last-child { margin-bottom: 0; }
+.footer-content a { color: #e9d5ff; text-decoration: underline; }
+.footer-content strong { color: #fff; }
+* { box-sizing:border-box; margin:0; padding:0; }
+html { scroll-behavior:smooth; }
+body {
+  font-family:Arial,Helvetica,sans-serif;
+  background:var(--light);
+  color:var(--text);
+  line-height:1.5;
+}
+/* FULL CSS is large — temporary: keep CDN import until multi-part upload completes */
 @import url("https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@a5b2c260809d54c4f5d6c268596062867de11ae9/styles.css");
