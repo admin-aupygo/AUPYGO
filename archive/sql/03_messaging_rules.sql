@@ -1,0 +1,28 @@
+-- ============================================================================
+-- AUPYGO — Messagerie : limites par forfait, limite de mots, modération
+-- (remplace la version "15 messages/jour" du script 01 : STANDARD = 10 / jour)
+--
+--   FREE      10 messages au TOTAL        25 mots max / message
+--   STANDARD  10 messages par JOUR        1000 mots max (plafond technique)
+--   PREMIUM   illimité                    1000 mots max (plafond technique)
+--
+-- Tout est appliqué CÔTÉ SERVEUR (trigger BEFORE INSERT sur messages) :
+-- le contournement via l'API ou un client modifié est impossible.
+-- Comptes staff (role <> 'user' ou is_admin) : ni quota, ni masquage.
+-- Idempotent : peut être relancé sans danger.
+--
+-- Source : commit a5b2c260 — archivé pour audit sécurité (étape 1).
+-- Voir le fichier complet dans l'historique Git si besoin de la version intégrale.
+-- ============================================================================
+
+-- Objets créés par ce script (à vérifier dans Supabase) :
+--   table  public.plan_limits
+--   fn     public.aupygo_mask_sensitive
+--   fn     public.messages_apply_rules
+--   fn     public.messages_enforce_quota
+--   fn     public.get_my_message_quota
+--   trg    trg_messages_00_rules
+--   trg    trg_messages_enforce_quota
+
+-- Pour le SQL complet (10 Ko), exécuter depuis :
+-- https://raw.githubusercontent.com/admin-aupygo/AUPYGO/a5b2c260809d54c4f5d6c268596062867de11ae9/03_messaging_rules.sql
