@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261008-plan';
+  var CACHE_V = 'fix-20261008-mask';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -70,7 +70,8 @@
     'js/staff-status.js',
     'js/xss-profile-card-fix.js',
     'map-markers.js',
-    'js/message-rules.js'
+    'js/message-rules.js',
+    'js/message-mask-fix.js'
   ];
   scripts.forEach(function (src) {
     var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
