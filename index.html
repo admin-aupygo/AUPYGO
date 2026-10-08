@@ -24,12 +24,11 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261007-a2';
+  var CACHE_V = 'fix-20261008-plan';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
   }
-  // A2: fichiers complets sur main → chemins relatifs (plus de CDN)
   html = html.replace(/<script[^>]*src=["'][^"']*config\.js[^"']*["'][^>]*><\/script>/gi,
     '<script src="config.js?v=' + CACHE_V + '"><\/script>');
   html = html.replace(/<script[^>]*src=["'][^"']*app\.js[^"']*["'][^>]*><\/script>/gi,
@@ -49,6 +48,7 @@
     'js/staff-hierarchy.js',
     'js/admin.js',
     'js/admin-setrole-fix.js',
+    'js/admin-set-plan.js',
     'js/admin-create-staff.js',
     'js/admin-delete-staff.js',
     'js/staff-ui.js',
