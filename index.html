@@ -6,6 +6,31 @@
 <title>AUPYGO — chargement…</title>
 <link rel="icon" href="favicon.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="favicon.svg">
+  <div id="paypal-button-container"></div>
+
+<script src="https://www.paypal.com/sdk/js?client-id=TON_CLIENT_ID&currency=EUR"></script>
+<script>
+  paypal.Buttons({
+    createOrder: (data, actions) => {
+      return actions.order.create({
+        purchase_units: [{
+          description: "Forfait Premium",
+          amount: { value: "9.90" }
+        }]
+      });
+    },
+    onApprove: async (data, actions) => {
+      const details = await actions.order.capture();
+      // Paiement validé côté PayPal
+      console.log("Paiement OK :", details.id);
+      // → ici, enregistre l'achat et active l'accès (voir étape 3)
+    },
+    onError: (err) => {
+      console.error(err);
+      alert("Le paiement a échoué, réessaie.");
+    }
+  }).render("#paypal-button-container");
+</script>
 <script>
 (async function () {
   var urls = [
