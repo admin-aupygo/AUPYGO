@@ -1,11 +1,9 @@
-/* AUPYGO message-mask-fix.js — renforce anti-contournement coordonnées
- * S'applique après message-rules.js (remplace maskSensitive)
- */
+/* AUPYGO message-mask-fix.js - anti-contournement coordonnees (apres message-rules.js) */
 (function () {
   'use strict';
-  var MASK = '[Donnée masquée pour votre sécurité]';
+  var MASK = '[Donnee masquee pour votre securite]';
   var NUM =
-    '(?:z[ée]ro|zero|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|' +
+    '(?:z[ee]ro|zero|un|une|deux|trois|quatre|cinq|six|sept|huit|neuf|dix|onze|douze|treize|quatorze|quinze|seize|' +
     'vingt|trente|quarante|cinquante|soixante|septante|huitante|octante|nonante|cent|cents|' +
     'quatre[\\s\\-]?vingts?|quatrevingt|quatreving|' +
     'dix[\\s\\-]?sept|dixsept|dix[\\s\\-]?huit|dixhuit|dix[\\s\\-]?neuf|dixneuf|' +
@@ -17,7 +15,7 @@
   var AT_WORD = '(?:arobase|arobas|arobaze|arroba|at|ate)';
   var DOT_WORD = '(?:point|dot|period)';
 
-  var RE_EMAIL = /[A-Za-z0-9._%+\\-]+@[A-Za-z0-9\\-]+(?:\\.[A-Za-z0-9\\-]+)+/g;
+  var RE_EMAIL = /[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)+/g;
   var RE_EMAIL_OBF = new RegExp(
     '(?:[A-Za-z0-9._%+\\-]+|\\d{1,4})\\s*(?:' +
       '(?:\\(\\s*at\\s*\\)|\\[\\s*at\\s*\\]|\\{\\s*at\\s*\\}|@)|' +
@@ -39,15 +37,13 @@
     'gi'
   );
   var RE_NUMWORDS = new RegExp('(?:\\b' + NUM + '\\b[\\s\\-.,]*){4,}', 'gi');
-  var RE_PHONE = /(?:\\+|00)?\\(?\\d[\\d\\s.\\-/()]{6,}\\d/g;
-  var RE_DATE = /\\d{1,2}[./\\-]\\d{1,2}[./\\-](?:19|20)\\d{2}/g;
+  var RE_PHONE = /(?:\+|00)?\(?\d[\d\s.\-/()]{6,}\d/g;
+  var RE_DATE = /\d{1,2}[.\/\-]\d{1,2}[.\/\-](?:19|20)\d{2}/g;
 
   function normalizeText(s) {
     return String(s == null ? '' : s)
-      .replace(/[\\u200B-\\u200D\\uFEFF]/g, '')
-      .normalize('NFKC')
-      .replace(/œ/g, 'oe')
-      .replace(/æ/g, 'ae');
+      .replace(/[\u200B-\u200D\uFEFF]/g, '')
+      .normalize('NFKC');
   }
 
   function maskSensitive(input) {
@@ -59,7 +55,7 @@
     t = t.replace(RE_MAIL_DOMAIN, MASK);
     t = t.replace(RE_NUMWORDS, MASK);
     t = t.replace(RE_PHONE, function (m) {
-      var digits = m.replace(RE_DATE, '').replace(/\\D/g, '');
+      var digits = m.replace(RE_DATE, '').replace(/\D/g, '');
       return digits.length >= 9 ? MASK : m;
     });
     if (window.AupyModeration && typeof window.AupyModeration._legacyMask === 'function') {
@@ -83,5 +79,5 @@
   install();
   setTimeout(install, 300);
   setTimeout(install, 1500);
-  console.log('[AUPYGO] message-mask-fix — arobase / point com / chiffres en lettres');
+  console.log('[AUPYGO] message-mask-fix - arobase / point com / chiffres en lettres');
 })();
