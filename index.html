@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261008-mask2';
+  var CACHE_V = 'fix-20261008-promo-red';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -49,6 +49,7 @@
     'js/admin.js',
     'js/admin-setrole-fix.js',
     'js/admin-set-plan.js',
+    'js/admin-promo-redemptions.js',
     'js/admin-create-staff.js',
     'js/admin-delete-staff.js',
     'js/staff-ui.js',
