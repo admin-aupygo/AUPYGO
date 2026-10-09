@@ -1,9 +1,6 @@
 /* ==========================================================================
  * AUPYGO — save-profile-fix.js
- * Corrige l'enregistrement d'un NOUVEAU profil :
- *   l'ancien code faisait un UPDATE alors que la ligne profiles n'existait pas
- *   → 0 ligne modifiée → toast "profil introuvable".
- * Ce script remplace saveProfile par une version qui fait UPSERT à la 1ère sauvegarde.
+ * Corrige l'enregistrement d'un NOUVEAU profil (UPSERT au lieu de UPDATE).
  * ========================================================================== */
 (function () {
   'use strict';
@@ -139,11 +136,18 @@
     }
   }
 
-  // Remplace la fonction globale (app.js ou onclick)
-  window.saveProfile = saveProfileFixed;
-  if (typeof saveProfile !== 'undefined') {
-    try { saveProfile = saveProfileFixed; } catch (e) {}
+  function reapply() {
+    window.saveProfile = saveProfileFixed;
+    try { if (typeof saveProfile !== 'undefined') saveProfile = saveProfileFixed; } catch (e) {}
+    window.__aupygoSaveProfileFixed = true;
   }
+
+  window.__aupygoReapplySaveProfile = reapply;
+  reapply();
+  // Au cas où app.js se charge plus tard
+  setTimeout(reapply, 500);
+  setTimeout(reapply, 1500);
+  setTimeout(reapply, 3000);
 
   console.log('[AUPYGO] save-profile-fix.js — ready (upsert new profiles)');
 })();
