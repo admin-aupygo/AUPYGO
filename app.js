@@ -1,32 +1,29 @@
-/* AUPYGO app.js loader — restaure depuis le dernier commit sain */
+/* AUPYGO app.js — charge synchrone le dernier commit sain (évite NaN / courses) */
 (function () {
   var urls = [
     'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@ab78b5551759841cee310b7643e5b5fb5efcba55/app.js',
     'https://raw.githack.com/admin-aupygo/AUPYGO/ab78b5551759841cee310b7643e5b5fb5efcba55/app.js',
     'https://raw.githubusercontent.com/admin-aupygo/AUPYGO/ab78b5551759841cee310b7643e5b5fb5efcba55/app.js'
   ];
-  function load(i) {
-    if (i >= urls.length) {
-      console.error('[AUPYGO] impossible de charger app.js');
-      return;
+  var loaded = false;
+  for (var i = 0; i < urls.length && !loaded; i++) {
+    try {
+      var xhr = new XMLHttpRequest();
+      xhr.open('GET', urls[i], false);
+      xhr.send(null);
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText && xhr.responseText.indexOf('supabaseClient') !== -1) {
+        (0, eval)(xhr.responseText);
+        loaded = true;
+        console.log('[AUPYGO] app.js sync OK via', urls[i]);
+      }
+    } catch (e) {
+      console.warn('[AUPYGO] app.js sync fail', urls[i], e);
     }
-    var s = document.createElement('script');
-    s.src = urls[i];
-    s.onload = function () {
-      console.log('[AUPYGO] app.js chargé depuis', urls[i]);
-      // Réapplique le correctif profil si déjà chargé
-      if (typeof window.__aupygoReapplySaveProfile === 'function') {
-        try { window.__aupygoReapplySaveProfile(); } catch (e) {}
-      }
-      // Charge le fix explicitement si pas encore présent
-      if (!window.__aupygoSaveProfileFixed) {
-        var f = document.createElement('script');
-        f.src = 'js/save-profile-fix.js?v=fix-20261009-saveprofile2';
-        (document.head || document.documentElement).appendChild(f);
-      }
-    };
-    s.onerror = function () { load(i + 1); };
-    (document.head || document.documentElement).appendChild(s);
   }
-  load(0);
+  if (!loaded) {
+    console.error('[AUPYGO] app.js introuvable — rechargement async');
+    var s = document.createElement('script');
+    s.src = urls[0];
+    document.head.appendChild(s);
+  }
 })();
