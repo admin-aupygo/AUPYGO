@@ -1,0 +1,524 @@
+/* =====================================================================
+   AUPYGO — dark-theme.css
+   Mode sombre doux : pas de noir pur, pas de blanc pur, violet désaturé.
+   S'active avec <html data-theme="dark"> (posé par index.html / theme-toggle.js).
+   Chargé APRÈS styles.css. Spécificité volontairement élevée
+   (html[data-theme="dark"] body …) pour passer devant les styles clairs.
+   ===================================================================== */
+
+html[data-theme="dark"] {
+  color-scheme: dark;
+
+  /* Palette */
+  --d-bg:        #14121b;   /* fond de page */
+  --d-surface:   #1c1927;   /* cartes, header */
+  --d-surface-2: #252135;   /* champs, boutons secondaires */
+  --d-surface-3: #2e2942;   /* survol, états actifs */
+  --d-border:    #342f48;
+  --d-text:      #e7e4f0;   /* jamais #fff : moins d'éblouissement */
+  --d-text-soft: #c9c4d9;
+  --d-muted:     #9b95b0;
+  --d-accent:    #a78bfa;   /* violet éclairci, lisible sur sombre */
+  --d-accent-2:  #f08ab8;   /* rose adouci */
+  --d-grad:      linear-gradient(135deg, #7a4fe0, #b93d80);
+  --d-shadow:    0 8px 28px rgba(0, 0, 0, .38);
+
+  /* On remappe les variables de styles.css */
+  --primary:      #a78bfa;
+  --primary-dark: #8b6df0;
+  --secondary:    #f08ab8;
+  --dark:         #0f0d16;
+  --text:         var(--d-text);
+  --muted:        var(--d-muted);
+  --light:        var(--d-bg);
+  --white:        var(--d-surface);
+  --border:       var(--d-border);
+  --shadow:       var(--d-shadow);
+}
+
+html[data-theme="dark"] body {
+  background: var(--d-bg);
+  color: var(--d-text);
+}
+
+/* Sélection de texte + scrollbars */
+html[data-theme="dark"] ::selection { background: rgba(167, 139, 250, .35); color: #fff; }
+html[data-theme="dark"] * { scrollbar-color: #3a3452 transparent; }
+
+/* ---------- Header / navigation ---------- */
+html[data-theme="dark"] body header {
+  background: rgba(24, 21, 34, .92);
+  border-bottom-color: var(--d-border);
+}
+html[data-theme="dark"] body nav button { color: var(--d-muted); }
+html[data-theme="dark"] body nav button:hover {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body nav button.active {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+  box-shadow: inset 0 0 0 1.5px #4b4070;
+}
+html[data-theme="dark"] body .lang-select {
+  background: var(--d-surface-2);
+  color: var(--d-text);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body .header-plan-btn {
+  background: var(--d-surface-2);
+  box-shadow: inset 0 0 0 1.5px #4b4070;
+}
+html[data-theme="dark"] body .header-plan-btn:hover { background: var(--d-surface-3); }
+html[data-theme="dark"] body .plan-badge,
+html[data-theme="dark"] body .header-plan-badge,
+html[data-theme="dark"] body .header-plan-badge-sm { color: #fff; }
+
+/* Logo : les teintes claires (#f9a8d4…) restent visibles, on évite juste le “o” trop pâle */
+html[data-theme="dark"] body .logo-a { color: #a78bfa; }
+html[data-theme="dark"] body .logo-u { color: #b490f5; }
+html[data-theme="dark"] body .logo-p { color: #d46be0; }
+html[data-theme="dark"] body .logo-y { color: #f07ab4; }
+html[data-theme="dark"] body .logo-g { color: #f58fc0; }
+html[data-theme="dark"] body .logo-o { color: #f7a8cf; }
+
+/* ---------- Accueil ---------- */
+html[data-theme="dark"] body .hero p { color: var(--d-muted); }
+html[data-theme="dark"] body .hero-card {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+}
+html[data-theme="dark"] body .hero-card:hover { box-shadow: 0 14px 40px rgba(0, 0, 0, .5); }
+html[data-theme="dark"] body .hero-visual {
+  background:
+    radial-gradient(circle at 25% 25%, rgba(168, 85, 247, .30), transparent 30%),
+    radial-gradient(circle at 75% 70%, rgba(56, 130, 200, .26), transparent 32%),
+    linear-gradient(135deg, #231e38, #2a1e35);
+}
+html[data-theme="dark"] body .country-person,
+html[data-theme="dark"] body .world-symbol {
+  background: var(--d-surface-3);
+  border-color: var(--d-surface);
+  box-shadow: 0 5px 14px rgba(0, 0, 0, .4);
+}
+html[data-theme="dark"] body .country-flag { background: var(--d-surface-3); }
+html[data-theme="dark"] body .gradient {
+  background: linear-gradient(135deg, #b79bff, #f59ac4);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* ---------- Boutons ---------- */
+html[data-theme="dark"] body .btn-primary {
+  background: var(--d-grad);
+  color: #fff;
+}
+html[data-theme="dark"] body .btn-secondary {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .btn-locked {
+  background: var(--d-surface-2);
+  color: #857f9b;
+}
+html[data-theme="dark"] body .btn-danger,
+html[data-theme="dark"] body .btn-refuse,
+html[data-theme="dark"] body .chat-delete-group-btn {
+  background: rgba(239, 68, 68, .16);
+  color: #fca5a5;
+}
+html[data-theme="dark"] body .btn-danger:hover,
+html[data-theme="dark"] body .btn-refuse:hover,
+html[data-theme="dark"] body .chat-delete-group-btn:hover { background: rgba(239, 68, 68, .26); }
+html[data-theme="dark"] body .btn-accept {
+  background: rgba(34, 197, 94, .16);
+  color: #86efac;
+}
+html[data-theme="dark"] body .btn-accept:hover { background: rgba(34, 197, 94, .26); }
+html[data-theme="dark"] body .btn-icon-delete {
+  background: rgba(239, 68, 68, .16);
+  border-color: rgba(239, 68, 68, .35);
+  color: #fca5a5;
+}
+html[data-theme="dark"] body .btn-icon-delete:hover { background: rgba(239, 68, 68, .28); }
+
+/* ---------- Cartes génériques ---------- */
+html[data-theme="dark"] body .card,
+html[data-theme="dark"] body .plan,
+html[data-theme="dark"] body .event,
+html[data-theme="dark"] body .day {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  color: var(--d-text);
+}
+html[data-theme="dark"] body .event { box-shadow: var(--d-shadow); }
+html[data-theme="dark"] body .event-cover {
+  background: linear-gradient(135deg, #2d2550, #3a2444);
+}
+html[data-theme="dark"] body .event-details { color: var(--d-muted); }
+html[data-theme="dark"] body .event-details.locked-text { color: #77718c; }
+html[data-theme="dark"] body .event-seats { color: #4ade80; }
+html[data-theme="dark"] body .event-seats.full { color: #f87171; }
+html[data-theme="dark"] body .badge {
+  background: rgba(167, 139, 250, .16);
+  color: #c4b0ff;
+}
+html[data-theme="dark"] body .badge-paid {
+  background: rgba(245, 158, 11, .16);
+  color: #fcd34d;
+}
+html[data-theme="dark"] body .section-title p { color: var(--d-muted); }
+
+/* ---------- Carte (Leaflet) ---------- */
+html[data-theme="dark"] body .map-top-block { background: var(--d-bg); }
+html[data-theme="dark"] body .map-toolbar,
+html[data-theme="dark"] body .map-privacy {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  color: var(--d-text);
+}
+html[data-theme="dark"] body .map-filter button {
+  background: var(--d-surface-2);
+  color: var(--d-text-soft);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body .map-filter button:hover:not(:disabled):not(.active) { background: var(--d-surface-3); }
+html[data-theme="dark"] body .map-filter button.active {
+  background: #7a4fe0;
+  border-color: #7a4fe0;
+  color: #fff;
+}
+html[data-theme="dark"] body .map-control-btn {
+  background: var(--d-surface-2);
+  color: var(--d-text);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body .map-control-btn:hover {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .map-container {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+}
+/* Tuiles : inversion douce (pas un noir brutal), seuls les tuiles sont touchées,
+   les marqueurs gardent leurs couleurs. */
+html[data-theme="dark"] body .leaflet-tile-pane {
+  filter: invert(1) hue-rotate(195deg) brightness(.78) contrast(.88) saturate(.55);
+}
+html[data-theme="dark"] body .leaflet-container { background: #1b1a24; }
+html[data-theme="dark"] body .leaflet-control-attribution {
+  background: rgba(28, 25, 39, .78) !important;
+  color: var(--d-muted) !important;
+}
+html[data-theme="dark"] body .leaflet-control-attribution a { color: var(--d-accent) !important; }
+html[data-theme="dark"] body .leaflet-popup-content-wrapper,
+html[data-theme="dark"] body .leaflet-popup-tip {
+  background: var(--d-surface-2);
+  color: var(--d-text);
+}
+html[data-theme="dark"] body .aupy-marker { border-color: rgba(255, 255, 255, .85); }
+html[data-theme="dark"] body .aupy-marker .status-dot { border-color: var(--d-surface); }
+
+/* ---------- Modales (fiche membre, géoloc, générique) ---------- */
+html[data-theme="dark"] body .member-modal-overlay,
+html[data-theme="dark"] body .geo-consent-overlay,
+html[data-theme="dark"] body .modal-overlay { background: rgba(8, 6, 14, .66); }
+html[data-theme="dark"] body .member-modal,
+html[data-theme="dark"] body .geo-consent-modal,
+html[data-theme="dark"] body .modal-sheet,
+html[data-theme="dark"] body .more-sheet {
+  background: var(--d-surface);
+  color: var(--d-text);
+  border: 1px solid var(--d-border);
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .55);
+}
+html[data-theme="dark"] body .member-modal-close,
+html[data-theme="dark"] body .more-sheet-close {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .member-modal-close:hover { background: #3a3455; }
+html[data-theme="dark"] body .member-online,
+html[data-theme="dark"] body .profile-status {
+  background: rgba(34, 197, 94, .13);
+  border-color: rgba(34, 197, 94, .35);
+  color: #86efac;
+}
+html[data-theme="dark"] body .member-info { color: var(--d-text-soft); }
+html[data-theme="dark"] body .member-hobbies-row,
+html[data-theme="dark"] body .profile-card-extras { border-top-color: var(--d-border); }
+html[data-theme="dark"] body .member-hobbies-row .hobby-emoji,
+html[data-theme="dark"] body .profile-card-hobbies .hobby-emoji {
+  background: var(--d-surface-2);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body .member-msg-btn { background: var(--d-grad); color: #fff; }
+html[data-theme="dark"] body .member-msg-btn-disabled {
+  background: var(--d-surface-3) !important;
+  color: #857f9b !important;
+}
+html[data-theme="dark"] body .member-friend-btn {
+  background: var(--d-surface-3);
+  border-color: #4b4070;
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .member-plan-tag.FREE { background: var(--d-surface-3); color: var(--d-muted); }
+html[data-theme="dark"] body .member-plan-tag.STANDARD { background: rgba(167, 139, 250, .18); color: #c4b0ff; }
+html[data-theme="dark"] body .geo-consent-icon {
+  background: linear-gradient(135deg, #2d2550, #3a2444);
+  border-color: var(--d-surface);
+}
+html[data-theme="dark"] body .geo-consent-modal .geo-privacy-box {
+  background: var(--d-surface-2);
+  border-color: var(--d-border);
+  color: var(--d-text-soft);
+}
+html[data-theme="dark"] body .geo-consent-modal .geo-privacy-box strong { color: var(--d-accent); }
+html[data-theme="dark"] body .geo-consent-modal p { color: var(--d-muted); }
+html[data-theme="dark"] body .geo-consent-decline { color: var(--d-muted); }
+html[data-theme="dark"] body .geo-consent-decline:hover { color: var(--d-text); }
+
+/* ---------- Profil & formulaires ---------- */
+html[data-theme="dark"] body .avatar {
+  border-color: var(--d-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .4);
+}
+html[data-theme="dark"] body .profile-form-card h3.form-section-title { color: var(--d-accent); }
+html[data-theme="dark"] body input,
+html[data-theme="dark"] body select,
+html[data-theme="dark"] body textarea {
+  background: var(--d-surface-2);
+  color: var(--d-text);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body input::placeholder,
+html[data-theme="dark"] body textarea::placeholder { color: #8c86a1; }
+html[data-theme="dark"] body input:focus,
+html[data-theme="dark"] body select:focus,
+html[data-theme="dark"] body textarea:focus {
+  border-color: var(--d-accent);
+  box-shadow: 0 0 0 3px rgba(167, 139, 250, .22);
+}
+html[data-theme="dark"] body input[readonly],
+html[data-theme="dark"] body select:disabled {
+  background: #1f1c2c;
+  color: #7f7996;
+}
+html[data-theme="dark"] body select option { background: var(--d-surface-2); color: var(--d-text); }
+html[data-theme="dark"] body input[type="date"],
+html[data-theme="dark"] body input[type="datetime-local"],
+html[data-theme="dark"] body input[type="time"] { color-scheme: dark; }
+
+html[data-theme="dark"] body .gender-option,
+html[data-theme="dark"] body .hobby,
+html[data-theme="dark"] body .lang-chip,
+html[data-theme="dark"] body .emoji-pick {
+  background: var(--d-surface-2);
+  border-color: var(--d-border);
+  color: var(--d-text-soft);
+}
+html[data-theme="dark"] body .gender-option:hover:not(:disabled),
+html[data-theme="dark"] body .hobby:hover,
+html[data-theme="dark"] body .lang-chip:hover,
+html[data-theme="dark"] body .emoji-pick:hover {
+  background: var(--d-surface-3);
+  border-color: #4b4070;
+}
+html[data-theme="dark"] body .gender-option.selected,
+html[data-theme="dark"] body .hobby.selected,
+html[data-theme="dark"] body .lang-chip.selected,
+html[data-theme="dark"] body .emoji-pick.selected {
+  background: rgba(167, 139, 250, .16);
+  border-color: var(--d-accent);
+  color: #d6c9ff;
+  box-shadow: none;
+}
+
+/* ---------- Abonnements ---------- */
+html[data-theme="dark"] body .plan.featured { border-color: var(--d-accent); }
+html[data-theme="dark"] body .plan.active-plan {
+  border-color: #4ade80;
+  box-shadow: 0 0 0 3px rgba(74, 222, 128, .14);
+}
+html[data-theme="dark"] body .plan ul { color: var(--d-muted); }
+html[data-theme="dark"] body .plan-pass {
+  background: linear-gradient(135deg, #251f3a, #2b2038);
+  border-color: #3f3560;
+}
+html[data-theme="dark"] body .plan-pass-title { color: var(--d-accent); }
+html[data-theme="dark"] body .plan-pass-price { color: var(--d-text); }
+
+/* ---------- Agenda ---------- */
+html[data-theme="dark"] body .agenda-event {
+  background: rgba(167, 139, 250, .18);
+  color: #cdbdff;
+}
+html[data-theme="dark"] body .calendar .day.day-has-activity {
+  background: linear-gradient(145deg, #2a2342, #35223f);
+  border-color: #5b4a96;
+  box-shadow: 0 0 0 1px rgba(167, 139, 250, .14), 0 4px 12px rgba(0, 0, 0, .3);
+}
+html[data-theme="dark"] body .calendar .day.day-has-activity strong { color: #c4b0ff; }
+html[data-theme="dark"] body .calendar .day.day-has-activity .agenda-event {
+  background: var(--d-grad);
+  color: #fff;
+}
+html[data-theme="dark"] body .locked::after {
+  background: rgba(20, 18, 27, .86);
+  color: var(--d-accent);
+}
+
+/* ---------- Messagerie ---------- */
+html[data-theme="dark"] body .message-box {
+  background: var(--d-surface);
+  border: 1px solid var(--d-border);
+}
+html[data-theme="dark"] body .conversations {
+  background: #181622;
+  border-right-color: var(--d-border);
+}
+html[data-theme="dark"] body .conv-sidebar-header {
+  background: var(--d-surface);
+  border-bottom-color: var(--d-border);
+}
+html[data-theme="dark"] body .btn-create-group {
+  background: var(--d-surface-3);
+  border-color: #4b4070;
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .btn-create-group:hover { background: #3a3455; }
+html[data-theme="dark"] body .conversation {
+  background: var(--d-surface);
+  border-bottom-color: var(--d-border);
+}
+html[data-theme="dark"] body .conversation:hover { background: var(--d-surface-2); }
+html[data-theme="dark"] body .conversation.active {
+  background: var(--d-surface-3);
+  box-shadow: inset 3px 0 0 var(--d-accent);
+}
+html[data-theme="dark"] body .conversation .conv-status-dot { border-color: var(--d-surface); }
+html[data-theme="dark"] body .chat-header {
+  background: var(--d-surface);
+  border-bottom-color: var(--d-border);
+}
+html[data-theme="dark"] body .chat-back-btn { background: var(--d-surface-3); color: var(--d-accent); }
+html[data-theme="dark"] body .chat-messages {
+  background: linear-gradient(180deg, #181622 0%, var(--d-surface) 45%);
+}
+html[data-theme="dark"] body .chat-date-separator span {
+  background: #181622;
+  border-color: var(--d-border);
+  color: var(--d-muted);
+  box-shadow: none;
+}
+html[data-theme="dark"] body .bubble {
+  background: #2b2640;
+  color: var(--d-text);
+  box-shadow: none;
+}
+html[data-theme="dark"] body .bubble.me {
+  background: linear-gradient(135deg, #3b66c4, #4a55c9);
+  color: #f3f4ff;
+}
+html[data-theme="dark"] body .bubble .bubble-sender { color: var(--d-accent); }
+html[data-theme="dark"] body .chat-input {
+  background: var(--d-surface);
+  border-top-color: var(--d-border);
+}
+html[data-theme="dark"] body .group-friends-pick {
+  background: var(--d-surface-2);
+  border-color: var(--d-border);
+}
+html[data-theme="dark"] body .group-pick-item:hover { background: var(--d-surface-3); }
+html[data-theme="dark"] body .group-pick-item.selected {
+  background: var(--d-surface-3);
+  box-shadow: inset 0 0 0 1.5px var(--d-accent);
+}
+
+/* ---------- Notices, toasts ---------- */
+html[data-theme="dark"] body .notice {
+  background: rgba(167, 139, 250, .10);
+  border-color: rgba(167, 139, 250, .28);
+  color: var(--d-text-soft);
+}
+html[data-theme="dark"] body .notice.warning {
+  background: rgba(245, 158, 11, .10);
+  border-color: rgba(245, 158, 11, .30);
+}
+html[data-theme="dark"] body .notice.security {
+  background: rgba(34, 197, 94, .09);
+  border-color: rgba(34, 197, 94, .28);
+}
+html[data-theme="dark"] body .toast {
+  background: var(--d-surface-3);
+  color: var(--d-text);
+  border: 1px solid var(--d-border);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, .5);
+}
+html[data-theme="dark"] body .toast.success { background: #17452b; color: #d1fae5; border-color: #1f6a40; }
+html[data-theme="dark"] body .toast.error   { background: #4a1d22; color: #fee2e2; border-color: #7a2a31; }
+
+/* ---------- Accueil connecté, badges ---------- */
+html[data-theme="dark"] body .home-btn {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  box-shadow: none;
+}
+html[data-theme="dark"] body .home-btn:hover {
+  border-color: var(--d-accent);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, .4);
+}
+html[data-theme="dark"] body .home-btn-label { color: var(--d-text); }
+html[data-theme="dark"] body .home-btn-lock { background: rgba(245, 158, 11, .16); color: #fcd34d; }
+html[data-theme="dark"] body .home-btn.locked { border-color: #8a6a1f; }
+html[data-theme="dark"] body .home-btn-online { color: #4ade80; }
+html[data-theme="dark"] body .guest-banner { background: var(--d-grad); }
+html[data-theme="dark"] body .guest-banner .btn-primary { background: var(--d-surface); color: var(--d-accent); }
+html[data-theme="dark"] body .badge-premium { color: #fff; }
+
+/* ---------- Barre du bas mobile + menu compte ---------- */
+html[data-theme="dark"] body .bottom-nav {
+  background: rgba(24, 21, 34, .94);
+  border-top-color: var(--d-border);
+  box-shadow: 0 -4px 20px rgba(0, 0, 0, .35);
+}
+html[data-theme="dark"] body .bottom-nav-btn { color: var(--d-muted); }
+html[data-theme="dark"] body .bottom-nav-btn.active { color: var(--d-accent); }
+html[data-theme="dark"] body .more-sheet-overlay { background: rgba(8, 6, 14, .62); }
+html[data-theme="dark"] body .more-sheet-handle { background: #3a3452; }
+html[data-theme="dark"] body .more-sheet-head { border-bottom-color: var(--d-border); }
+html[data-theme="dark"] body .more-sheet-avatar {
+  background: var(--d-surface-2);
+  box-shadow: inset 0 0 0 1.5px #4b4070;
+}
+html[data-theme="dark"] body .more-sheet-item { color: var(--d-text); }
+html[data-theme="dark"] body .more-sheet-item:hover,
+html[data-theme="dark"] body .more-sheet-item:active {
+  background: var(--d-surface-3);
+  color: var(--d-accent);
+}
+html[data-theme="dark"] body .more-sheet-item-plan {
+  background: linear-gradient(135deg, #251f3a, #2b2038);
+}
+
+/* ---------- Assistant de création de sortie ---------- */
+html[data-theme="dark"] body .wizard-dot { background: #3a3452; }
+html[data-theme="dark"] body .wizard-dot.active { background: var(--d-accent); }
+html[data-theme="dark"] body .wizard-dot.done { background: #6b57b3; }
+html[data-theme="dark"] body .wizard-nav {
+  background: var(--d-surface);
+  border-top-color: var(--d-border);
+}
+
+/* ---------- Pied de page (déjà sombre : on l'accorde à la palette) ---------- */
+html[data-theme="dark"] body footer { background: #0f0d16; border-top: 1px solid var(--d-border); }
+html[data-theme="dark"] body .footer-content { background: rgba(255, 255, 255, .05); }
+
+/* ---------- Réduction des animations lumineuses si l'utilisateur le demande ---------- */
+@media (prefers-reduced-motion: reduce) {
+  html[data-theme="dark"] body nav button.has-requests,
+  html[data-theme="dark"] body nav button.has-unread-messages,
+  html[data-theme="dark"] body .home-btn.nav-blink { animation: none; }
+}
