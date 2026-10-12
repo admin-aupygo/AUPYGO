@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261009-security1';
+  var CACHE_V = 'fix-20261012-darksoft1';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -42,6 +42,9 @@
   } catch (e) {}
   html = html.replace(/<script[^>]*src="js\/theme-toggle\.js[^"]*"[^>]*><\/script>\s*/gi, '');
   html = html.replace('</head>', '<script src="js/theme-toggle.js?v=' + CACHE_V + '"><\/script>\n</head>');
+  /* Mode sombre adouci — chargé en dernier pour primer sur les styles clairs et sur theme-toggle.js */
+  html = html.replace(/<link[^>]*dark-theme\.css[^>]*>\s*/gi, '');
+  html = html.replace('</head>', '<link rel="stylesheet" href="dark-theme.css?v=' + CACHE_V + '">\n</head>');
   var scripts = [
     'js/realtime-fix.js',
     'js/agenda-week-nav.js',
