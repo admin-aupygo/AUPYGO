@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261013-darkadmin1';
+  var CACHE_V = 'fix-20261013-weeknav-v4';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -42,7 +42,6 @@
   } catch (e) {}
   html = html.replace(/<script[^>]*src="js\/theme-toggle\.js[^"]*"[^>]*><\/script>\s*/gi, '');
   html = html.replace('</head>', '<script src="js/theme-toggle.js?v=' + CACHE_V + '"><\/script>\n</head>');
-  /* Dark theme: base (commit sain) + extension admin */
   html = html.replace(/<link[^>]*dark-theme[^>]*>\s*/gi, '');
   html = html.replace('</head>',
     '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@db5475e729cf6a249698d245618279a09f50060d/dark-theme.css?v=' + CACHE_V + '">\n' +
