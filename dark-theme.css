@@ -1,1 +1,5 @@
-PLACEHOLDER
+/* AUPYGO dark-theme.css — base (known-good) + loaded via CDN pin in index.html
+ * Source of truth also at commit db5475e729cf6a249698d245618279a09f50060d
+ * Admin / inline white overrides: see dark-theme-admin.css
+ */
+@import url("https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@db5475e729cf6a249698d245618279a09f50060d/dark-theme.css");
