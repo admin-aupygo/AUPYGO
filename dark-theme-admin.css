@@ -1,0 +1,243 @@
+/* =====================================================================
+   EXTENSION — Admin, tableaux, inline styles blancs, composants dynamiques
+   Objectif : zéro zone blanche gênante en mode sombre
+   ===================================================================== */
+
+/* ---- Catch-all inline white / light gray (JS injecté, admin, modales) ---- */
+html[data-theme="dark"] body [style*="background:#fff"],
+html[data-theme="dark"] body [style*="background: #fff"],
+html[data-theme="dark"] body [style*="background:#ffffff"],
+html[data-theme="dark"] body [style*="background: #ffffff"],
+html[data-theme="dark"] body [style*="background:#FFF"],
+html[data-theme="dark"] body [style*="background:#f8fafc"],
+html[data-theme="dark"] body [style*="background: #f8fafc"],
+html[data-theme="dark"] body [style*="background:#f1f5f9"],
+html[data-theme="dark"] body [style*="background: #f1f5f9"],
+html[data-theme="dark"] body [style*="background:#fafafa"],
+html[data-theme="dark"] body [style*="background:#f9fafb"],
+html[data-theme="dark"] body [style*="background:#f7f5fb"],
+html[data-theme="dark"] body [style*="background:#faf8ff"],
+html[data-theme="dark"] body [style*="background:#fff7ed"],
+html[data-theme="dark"] body [style*="background:#fff8e7"],
+html[data-theme="dark"] body [style*="background:#f0fdf4"],
+html[data-theme="dark"] body [style*="background:#faf5ff"] {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body [style*="background:#f3e8ff"],
+html[data-theme="dark"] body [style*="background:#f3edff"],
+html[data-theme="dark"] body [style*="background:#f4edff"],
+html[data-theme="dark"] body [style*="background:#f0e9ff"],
+html[data-theme="dark"] body [style*="background:#f1eafd"],
+html[data-theme="dark"] body [style*="background:#e9d5ff"] {
+  background: var(--d-surface-2) !important;
+  color: var(--d-text-soft) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body [style*="color:#334155"],
+html[data-theme="dark"] body [style*="color:#1e293b"],
+html[data-theme="dark"] body [style*="color:#0f172a"],
+html[data-theme="dark"] body [style*="color:#64748b"] {
+  color: var(--d-text-soft) !important;
+}
+
+html[data-theme="dark"] body [style*="border:1px solid #e2e8f0"],
+html[data-theme="dark"] body [style*="border: 1px solid #e2e8f0"],
+html[data-theme="dark"] body [style*="border-color:#e2e8f0"],
+html[data-theme="dark"] body [style*="border:1px solid #fed7aa"],
+html[data-theme="dark"] body [style*="border-bottom:1px solid #f1f5f9"] {
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body .page,
+html[data-theme="dark"] body main,
+html[data-theme="dark"] body #admin,
+html[data-theme="dark"] body #administration,
+html[data-theme="dark"] body [id*="admin"],
+html[data-theme="dark"] body [class*="admin-"] {
+  background: transparent;
+  color: var(--d-text);
+}
+
+html[data-theme="dark"] body #aupygo-plan-panel,
+html[data-theme="dark"] body #planUserList,
+html[data-theme="dark"] body #promoList,
+html[data-theme="dark"] body #promoRedemptions,
+html[data-theme="dark"] body #aupygo-redeem-box,
+html[data-theme="dark"] body .admin-panel,
+html[data-theme="dark"] body .admin-card,
+html[data-theme="dark"] body [id*="staffPending"],
+html[data-theme="dark"] body [id*="PendingApprovals"] {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body #aupygo-plan-panel h3,
+html[data-theme="dark"] body #aupygo-plan-panel h4,
+html[data-theme="dark"] body .admin-panel h3,
+html[data-theme="dark"] body .admin-panel h4 {
+  color: var(--d-accent) !important;
+}
+
+html[data-theme="dark"] body table {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border-collapse: collapse;
+}
+html[data-theme="dark"] body thead,
+html[data-theme="dark"] body thead tr,
+html[data-theme="dark"] body th {
+  background: var(--d-surface-2) !important;
+  color: var(--d-muted) !important;
+  border-color: var(--d-border) !important;
+}
+html[data-theme="dark"] body tbody tr,
+html[data-theme="dark"] body td {
+  background: transparent !important;
+  color: var(--d-text-soft) !important;
+  border-color: var(--d-border) !important;
+}
+html[data-theme="dark"] body tbody tr:hover {
+  background: var(--d-surface-2) !important;
+}
+html[data-theme="dark"] body tbody tr:nth-child(even) {
+  background: rgba(37, 33, 53, .45) !important;
+}
+
+html[data-theme="dark"] body code {
+  background: var(--d-surface-2) !important;
+  color: #c4b0ff !important;
+  border-radius: 6px;
+  padding: 2px 6px;
+}
+html[data-theme="dark"] body .admin-act-btn,
+html[data-theme="dark"] body button.admin-act-btn {
+  background: var(--d-surface-2) !important;
+  color: var(--d-accent) !important;
+  border: 1px solid var(--d-border) !important;
+}
+html[data-theme="dark"] body .admin-act-btn:hover {
+  background: var(--d-surface-3) !important;
+}
+
+html[data-theme="dark"] body #aupygo-plan-panel input,
+html[data-theme="dark"] body #aupygo-plan-panel select,
+html[data-theme="dark"] body #aupygo-plan-panel textarea,
+html[data-theme="dark"] body #aupygo-redeem-box input,
+html[data-theme="dark"] body [id*="promo"] input,
+html[data-theme="dark"] body [id*="promo"] select {
+  background: var(--d-surface-2) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body #cdcPaidCard,
+html[data-theme="dark"] body #cdcAgendaCard,
+html[data-theme="dark"] body #pfPaidAcceptCard,
+html[data-theme="dark"] body [id$="Card"][style] {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border: 1px solid var(--d-border) !important;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, .55) !important;
+}
+
+html[data-theme="dark"] body #cdcPaidOverlay,
+html[data-theme="dark"] body #cdcAgendaOverlay,
+html[data-theme="dark"] body #pfPaidAcceptOverlay {
+  background: rgba(8, 6, 14, .66) !important;
+}
+
+html[data-theme="dark"] body #staffParticipateToggle,
+html[data-theme="dark"] body #cdcQuotaBar,
+html[data-theme="dark"] body #pfQuotaSticky,
+html[data-theme="dark"] body #messagesQuota {
+  background: var(--d-surface-2) !important;
+  border-color: var(--d-border) !important;
+  color: #c4b0ff !important;
+}
+
+html[data-theme="dark"] body #headerLogoutBtn,
+html[data-theme="dark"] body .header-logout-btn {
+  background: var(--d-surface-2) !important;
+  color: var(--d-text) !important;
+}
+
+html[data-theme="dark"] body .calendar,
+html[data-theme="dark"] body #agendaCalendar,
+html[data-theme="dark"] body #agenda {
+  background: transparent;
+  color: var(--d-text);
+}
+html[data-theme="dark"] body .calendar .day {
+  background: var(--d-surface);
+  border-color: var(--d-border);
+  color: var(--d-text-soft);
+}
+html[data-theme="dark"] body .calendar .day strong {
+  color: var(--d-text);
+}
+html[data-theme="dark"] body .calendar .day.today {
+  box-shadow: inset 0 0 0 1.5px var(--d-accent);
+}
+
+html[data-theme="dark"] body .staff-card,
+html[data-theme="dark"] body .user-row,
+html[data-theme="dark"] body .plan-user-row,
+html[data-theme="dark"] body [class*="list-item"] {
+  background: var(--d-surface) !important;
+  border-color: var(--d-border) !important;
+  color: var(--d-text) !important;
+}
+
+html[data-theme="dark"] body [style*="position:sticky"][style*="background"] {
+  background: var(--d-surface) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body .plan-badge-free,
+html[data-theme="dark"] body .member-plan-tag.FREE,
+html[data-theme="dark"] body button.plan-free {
+  background: rgba(34, 197, 94, .18) !important;
+  color: #86efac !important;
+  border: 1px solid rgba(34, 197, 94, .35) !important;
+}
+html[data-theme="dark"] body .plan-badge-standard,
+html[data-theme="dark"] body .member-plan-tag.STANDARD,
+html[data-theme="dark"] body button.plan-standard {
+  background: rgba(167, 139, 250, .18) !important;
+  color: #c4b0ff !important;
+  border: 1px solid rgba(167, 139, 250, .35) !important;
+}
+html[data-theme="dark"] body .plan-badge-premium,
+html[data-theme="dark"] body .member-plan-tag.PREMIUM,
+html[data-theme="dark"] body button.plan-premium {
+  background: rgba(245, 158, 11, .18) !important;
+  color: #fcd34d !important;
+  border: 1px solid rgba(245, 158, 11, .35) !important;
+}
+html[data-theme="dark"] body .plan-badge-promo,
+html[data-theme="dark"] body button.plan-promo {
+  background: rgba(249, 115, 22, .2) !important;
+  color: #fdba74 !important;
+  border: 1px solid rgba(249, 115, 22, .4) !important;
+}
+
+html[data-theme="dark"] body .text-muted,
+html[data-theme="dark"] body .muted,
+html[data-theme="dark"] body small {
+  color: var(--d-muted) !important;
+}
+
+html[data-theme="dark"] body * {
+  scrollbar-width: thin;
+  scrollbar-color: #3a3452 transparent;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background-color: var(--d-bg) !important;
+}
