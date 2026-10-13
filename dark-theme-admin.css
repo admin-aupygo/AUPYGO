@@ -1,9 +1,9 @@
 /* =====================================================================
    EXTENSION — Admin, tableaux, inline styles blancs, composants dynamiques
-   Objectif : zéro zone blanche gênante en mode sombre
+   Objectif : zéro zone blanche gênante en mode sombre (visiteur / user / admin)
    ===================================================================== */
 
-/* ---- Catch-all inline white / light gray (JS injecté, admin, modales) ---- */
+/* ---- Catch-all inline white / light gray ---- */
 html[data-theme="dark"] body [style*="background:#fff"],
 html[data-theme="dark"] body [style*="background: #fff"],
 html[data-theme="dark"] body [style*="background:#ffffff"],
@@ -52,6 +52,72 @@ html[data-theme="dark"] body [style*="border-bottom:1px solid #f1f5f9"] {
   border-color: var(--d-border) !important;
 }
 
+/* ---- Barre navigation semaine Agenda (priorité critique capture) ---- */
+.aupygo-week-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  margin: 10px 0 14px;
+  padding: 12px;
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+}
+.aupygo-week-nav-left,
+.aupygo-week-nav-right {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.aupygo-week-nav-right { margin-left: auto; gap: 8px; }
+.aupygo-week-range {
+  font-weight: 700;
+  font-size: 13px;
+  color: #334155;
+  min-width: 140px;
+}
+.aupygo-week-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #64748b;
+}
+.aupygo-week-picker {
+  padding: 6px 10px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  font-size: 13px;
+  background: #fff;
+  color: #1e293b;
+}
+.aupygo-week-nav .btn {
+  padding: 6px 12px;
+  font-size: 13px;
+}
+
+html[data-theme="dark"] body .aupygo-week-nav,
+html[data-theme="dark"] body #agendaWeekNav,
+html[data-theme="dark"] body #eventsWeekNav,
+html[data-theme="dark"] body #personalWeekNav {
+  background: var(--d-surface) !important;
+  border-color: var(--d-border) !important;
+  color: var(--d-text) !important;
+}
+html[data-theme="dark"] body .aupygo-week-range {
+  color: var(--d-text-soft) !important;
+}
+html[data-theme="dark"] body .aupygo-week-label {
+  color: var(--d-muted) !important;
+}
+html[data-theme="dark"] body .aupygo-week-picker {
+  background: var(--d-surface-2) !important;
+  border-color: var(--d-border) !important;
+  color: var(--d-text) !important;
+  color-scheme: dark;
+}
+
+/* ---- Pages / admin ---- */
 html[data-theme="dark"] body .page,
 html[data-theme="dark"] body main,
 html[data-theme="dark"] body #admin,
@@ -138,6 +204,7 @@ html[data-theme="dark"] body [id*="promo"] select {
 html[data-theme="dark"] body #cdcPaidCard,
 html[data-theme="dark"] body #cdcAgendaCard,
 html[data-theme="dark"] body #pfPaidAcceptCard,
+html[data-theme="dark"] body #pfAgendaDetailCard,
 html[data-theme="dark"] body [id$="Card"][style] {
   background: var(--d-surface) !important;
   color: var(--d-text) !important;
@@ -166,21 +233,32 @@ html[data-theme="dark"] body .header-logout-btn {
   color: var(--d-text) !important;
 }
 
+/* Staff menu / quick items */
+html[data-theme="dark"] body .staff-qitem {
+  color: var(--d-text) !important;
+}
+html[data-theme="dark"] body .staff-qitem:hover {
+  background: var(--d-surface-3) !important;
+}
+
 html[data-theme="dark"] body .calendar,
 html[data-theme="dark"] body #agendaCalendar,
 html[data-theme="dark"] body #agenda {
   background: transparent;
   color: var(--d-text);
 }
-html[data-theme="dark"] body .calendar .day {
-  background: var(--d-surface);
-  border-color: var(--d-border);
-  color: var(--d-text-soft);
+html[data-theme="dark"] body .calendar .day,
+html[data-theme="dark"] body .day.day-clickable {
+  background: var(--d-surface) !important;
+  border-color: var(--d-border) !important;
+  color: var(--d-text-soft) !important;
 }
-html[data-theme="dark"] body .calendar .day strong {
-  color: var(--d-text);
+html[data-theme="dark"] body .calendar .day strong,
+html[data-theme="dark"] body .day.day-clickable strong {
+  color: var(--d-text) !important;
 }
-html[data-theme="dark"] body .calendar .day.today {
+html[data-theme="dark"] body .calendar .day.today,
+html[data-theme="dark"] body .day-today {
   box-shadow: inset 0 0 0 1.5px var(--d-accent);
 }
 

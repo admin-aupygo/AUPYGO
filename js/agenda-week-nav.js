@@ -1,7 +1,6 @@
-/* AUPYGO — agenda-week-nav.js v3
+/* AUPYGO — agenda-week-nav.js v4
  * Navigation hebdomadaire pour Agenda communautaire + Sorties + Profil
- * Approche : patch direct de buildWeekCalendarHtml / render*Agenda
- * + délégation clics (handlers jamais perdus)
+ * v4 : styles via classes CSS (compatible mode sombre, plus de background:#fff inline)
  */
 (function () {
   'use strict';
@@ -35,7 +34,6 @@
 
   window.__agendaWeekStart = window.__agendaWeekStart || startOfWeek(new Date());
 
-  /** Semaine courante navigable (Lun→Dim) */
   function weekDays() {
     var names = ['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'];
     var monday = window.__agendaWeekStart || startOfWeek(new Date());
@@ -53,7 +51,6 @@
     return out;
   }
 
-  // Expose comme getCurrentWeekDays (app.js l'appelle)
   window.getCurrentWeekDays = weekDays;
   try { getCurrentWeekDays = weekDays; } catch (e) {}
 
@@ -66,7 +63,6 @@
     return padKey(d);
   }
 
-  /** Remplace buildWeekCalendarHtml pour utiliser la semaine navigable */
   function buildWeekHtml(events) {
     var week = weekDays();
     var byDay = {};
@@ -123,14 +119,12 @@
     var events = [];
     try { events = window.cachedEvents || cachedEvents || []; } catch (e) { events = window.cachedEvents || []; }
 
-    // Agenda communautaire (#agendaCalendar)
     var cal = document.getElementById('agendaCalendar');
     if (cal) {
       try {
         if (typeof renderCommunityAgenda === 'function') {
           renderCommunityAgenda(events);
         } else {
-          // Fallback : remplir directement
           var publicOnes = (events || []).filter(function (e) {
             var v = e.visibility;
             return (v === 'public' || v === 'admin' || v === 'admin_only') && v !== 'friends';
@@ -144,22 +138,10 @@
       }
     }
 
-    // Agenda sorties / events
-    try {
-      if (typeof renderEventsAgenda === 'function') renderEventsAgenda(events);
-    } catch (e4) {}
-
-    // Agenda perso
-    try {
-      if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(events);
-    } catch (e5) {}
-
-    try {
-      if (typeof renderEventGridFiltered === 'function') renderEventGridFiltered();
-    } catch (e6) {}
-    try {
-      if (typeof updateMyAgendaList === 'function') updateMyAgendaList();
-    } catch (e7) {}
+    try { if (typeof renderEventsAgenda === 'function') renderEventsAgenda(events); } catch (e4) {}
+    try { if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(events); } catch (e5) {}
+    try { if (typeof renderEventGridFiltered === 'function') renderEventGridFiltered(); } catch (e6) {}
+    try { if (typeof updateMyAgendaList === 'function') updateMyAgendaList(); } catch (e7) {}
 
     syncNavLabels();
   }
@@ -186,7 +168,6 @@
     goToDate(t);
   }
 
-  // Délégation clics (capture) — indestructible
   if (!window._agendaWeekNavDelegated) {
     window._agendaWeekNavDelegated = true;
     document.addEventListener('click', function (e) {
@@ -226,6 +207,10 @@
     var host = anchor.parentElement || anchor;
     var existing = document.getElementById(navId);
     if (existing) {
+      // Nettoyer d'anciens inline blancs (v3)
+      existing.style.background = '';
+      existing.style.borderColor = '';
+      existing.classList.add('aupygo-week-nav');
       syncNavLabels();
       return existing;
     }
@@ -233,18 +218,18 @@
     var nav = document.createElement('div');
     nav.id = navId;
     nav.className = 'aupygo-week-nav';
-    nav.style.cssText = 'display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:10px 0 14px;padding:12px;background:#fff;border:1px solid #e2e8f0;border-radius:14px';
+    // Pas de background/border en inline — gérés par CSS clair + dark-theme-admin
     nav.innerHTML =
-      '<div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap">' +
-        '<button type="button" class="btn btn-secondary aupygo-week-prev" style="padding:6px 12px;font-size:13px">◀ Semaine</button>' +
-        '<button type="button" class="btn btn-secondary aupygo-week-today" style="padding:6px 12px;font-size:13px">Aujourd\'hui</button>' +
-        '<button type="button" class="btn btn-secondary aupygo-week-next" style="padding:6px 12px;font-size:13px">Semaine ▶</button>' +
+      '<div class="aupygo-week-nav-left">' +
+        '<button type="button" class="btn btn-secondary aupygo-week-prev">◀ Semaine</button>' +
+        '<button type="button" class="btn btn-secondary aupygo-week-today">Aujourd\'hui</button>' +
+        '<button type="button" class="btn btn-secondary aupygo-week-next">Semaine ▶</button>' +
       '</div>' +
-      '<div class="aupygo-week-range" style="font-weight:700;font-size:13px;color:#334155;min-width:140px"></div>' +
-      '<div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-left:auto">' +
-        '<label style="font-size:12px;font-weight:600;color:#64748b">Aller au</label>' +
-        '<input type="date" class="aupygo-week-picker" style="padding:6px 10px;border-radius:8px;border:1px solid #e2e8f0;font-size:13px">' +
-        '<button type="button" class="btn btn-primary aupygo-week-go" style="padding:6px 12px;font-size:13px">Aller</button>' +
+      '<div class="aupygo-week-range"></div>' +
+      '<div class="aupygo-week-nav-right">' +
+        '<label class="aupygo-week-label">Aller au</label>' +
+        '<input type="date" class="aupygo-week-picker">' +
+        '<button type="button" class="btn btn-primary aupygo-week-go">Aller</button>' +
       '</div>';
 
     try { host.insertBefore(nav, anchor); }
@@ -263,15 +248,13 @@
     try { if (typeof selectedAgendaDay !== 'undefined' && selectedAgendaDay) sel = selectedAgendaDay; } catch (e) {}
     if (!sel) sel = padKey(new Date());
     document.querySelectorAll('.aupygo-week-picker').forEach(function (inp) {
-      if (!inp.value || true) inp.value = sel;
+      inp.value = sel;
     });
   }
 
   function ensureNavs() {
     patchBuilders();
-    // Agenda page — calendrier communautaire
     injectNav('agendaCalendar', 'agendaWeekNav');
-    // Events
     var eventCal = document.getElementById('eventsCalendar') ||
       document.getElementById('communityCalendar') ||
       document.getElementById('eventGrid');
@@ -279,10 +262,15 @@
     if (document.getElementById('personalCalendar')) {
       injectNav('personalCalendar', 'personalWeekNav');
     }
+    // Nettoyage global des navs déjà présentes avec fond blanc inline
+    document.querySelectorAll('.aupygo-week-nav').forEach(function (el) {
+      el.style.background = '';
+      el.style.borderColor = '';
+      el.style.color = '';
+    });
     syncNavLabels();
   }
 
-  // Patch go
   if (typeof window.go === 'function' && !window._agendaWeekNavGo) {
     window._agendaWeekNavGo = true;
     var prevGo = window.go;
@@ -296,7 +284,6 @@
     };
   }
 
-  // Après load events
   if (typeof window.loadAndRenderEvents === 'function' && !window._agendaWeekNavLoad) {
     window._agendaWeekNavLoad = true;
     var _origLoad = window.loadAndRenderEvents;
@@ -307,7 +294,6 @@
     };
   }
 
-  // Patch selectAgendaDay pour resync labels
   if (typeof window.selectAgendaDay === 'function' && !window._agendaSelectPatched) {
     window._agendaSelectPatched = true;
     var _origSel = window.selectAgendaDay;
@@ -327,5 +313,5 @@
   window.__agendaGoToDate = goToDate;
   window.__agendaRenderAll = renderAll;
 
-  console.log('[AUPYGO] agenda-week-nav.js v3');
+  console.log('[AUPYGO] agenda-week-nav.js v4');
 })();
