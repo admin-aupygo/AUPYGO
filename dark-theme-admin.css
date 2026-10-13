@@ -1,6 +1,6 @@
 /* =====================================================================
    EXTENSION — Admin, tableaux, inline styles blancs, composants dynamiques
-   Objectif : zéro zone blanche gênante en mode sombre (visiteur / user / admin)
+   + indicateurs forfaits (vert base / orange promo zébré)
    ===================================================================== */
 
 /* ---- Catch-all inline white / light gray ---- */
@@ -52,7 +52,7 @@ html[data-theme="dark"] body [style*="border-bottom:1px solid #f1f5f9"] {
   border-color: var(--d-border) !important;
 }
 
-/* ---- Barre navigation semaine Agenda (priorité critique capture) ---- */
+/* ---- Week nav ---- */
 .aupygo-week-nav {
   display: flex;
   flex-wrap: wrap;
@@ -104,12 +104,8 @@ html[data-theme="dark"] body #personalWeekNav {
   border-color: var(--d-border) !important;
   color: var(--d-text) !important;
 }
-html[data-theme="dark"] body .aupygo-week-range {
-  color: var(--d-text-soft) !important;
-}
-html[data-theme="dark"] body .aupygo-week-label {
-  color: var(--d-muted) !important;
-}
+html[data-theme="dark"] body .aupygo-week-range { color: var(--d-text-soft) !important; }
+html[data-theme="dark"] body .aupygo-week-label { color: var(--d-muted) !important; }
 html[data-theme="dark"] body .aupygo-week-picker {
   background: var(--d-surface-2) !important;
   border-color: var(--d-border) !important;
@@ -117,7 +113,113 @@ html[data-theme="dark"] body .aupygo-week-picker {
   color-scheme: dark;
 }
 
-/* ---- Pages / admin ---- */
+/* ---- Indicateurs forfaits (clair + sombre) ---- */
+.plan-ind {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .02em;
+  padding: 3px 9px;
+  border-radius: 999px;
+  vertical-align: middle;
+  margin-left: 6px;
+  white-space: nowrap;
+}
+.plan-ind-base.plan-ind-free {
+  background: rgba(34, 197, 94, .14);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, .35);
+}
+.plan-ind-base.plan-ind-standard {
+  background: rgba(34, 197, 94, .14);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, .35);
+}
+.plan-ind-base.plan-ind-premium {
+  background: rgba(34, 197, 94, .14);
+  color: #15803d;
+  border: 1px solid rgba(34, 197, 94, .35);
+}
+.plan-ind-promo {
+  color: #9a3412;
+  border: 1px solid rgba(249, 115, 22, .55);
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(249, 115, 22, .22),
+    rgba(249, 115, 22, .22) 6px,
+    rgba(251, 146, 60, .38) 6px,
+    rgba(251, 146, 60, .38) 12px
+  );
+  animation: plan-ind-zebra 1.2s linear infinite;
+  background-size: 24px 24px;
+}
+@keyframes plan-ind-zebra {
+  from { background-position: 0 0; }
+  to { background-position: 24px 0; }
+}
+.plan-ind-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid #f1f5f9;
+}
+.plan-ind-row-promo {
+  background: rgba(249, 115, 22, .06);
+  border-radius: 10px;
+  padding-left: 8px;
+  padding-right: 8px;
+  margin: 2px 0;
+}
+.plan-ind-name { flex: 1; min-width: 120px; }
+.plan-ind-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  font-size: 12px;
+  color: #64748b;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px dashed #e2e8f0;
+}
+.plan-ind-empty { color: #94a3b8; font-size: 13px; }
+
+html[data-theme="dark"] body .plan-ind-base.plan-ind-free,
+html[data-theme="dark"] body .plan-ind-base.plan-ind-standard,
+html[data-theme="dark"] body .plan-ind-base.plan-ind-premium {
+  background: rgba(34, 197, 94, .18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, .4) !important;
+}
+html[data-theme="dark"] body .plan-ind-promo {
+  color: #fdba74 !important;
+  border-color: rgba(249, 115, 22, .55) !important;
+  background: repeating-linear-gradient(
+    -45deg,
+    rgba(249, 115, 22, .25),
+    rgba(249, 115, 22, .25) 6px,
+    rgba(251, 146, 60, .4) 6px,
+    rgba(251, 146, 60, .4) 12px
+  ) !important;
+  background-size: 24px 24px !important;
+}
+html[data-theme="dark"] body .plan-ind-row {
+  border-bottom-color: var(--d-border) !important;
+}
+html[data-theme="dark"] body .plan-ind-row-promo {
+  background: rgba(249, 115, 22, .1) !important;
+}
+html[data-theme="dark"] body .plan-ind-legend {
+  color: var(--d-muted) !important;
+  border-bottom-color: var(--d-border) !important;
+}
+html[data-theme="dark"] body .plan-ind-empty {
+  color: var(--d-muted) !important;
+}
+
+/* ---- Admin panels / tables (reste) ---- */
 html[data-theme="dark"] body .page,
 html[data-theme="dark"] body main,
 html[data-theme="dark"] body #admin,
@@ -233,13 +335,8 @@ html[data-theme="dark"] body .header-logout-btn {
   color: var(--d-text) !important;
 }
 
-/* Staff menu / quick items */
-html[data-theme="dark"] body .staff-qitem {
-  color: var(--d-text) !important;
-}
-html[data-theme="dark"] body .staff-qitem:hover {
-  background: var(--d-surface-3) !important;
-}
+html[data-theme="dark"] body .staff-qitem { color: var(--d-text) !important; }
+html[data-theme="dark"] body .staff-qitem:hover { background: var(--d-surface-3) !important; }
 
 html[data-theme="dark"] body .calendar,
 html[data-theme="dark"] body #agendaCalendar,
@@ -274,34 +371,6 @@ html[data-theme="dark"] body [class*="list-item"] {
 html[data-theme="dark"] body [style*="position:sticky"][style*="background"] {
   background: var(--d-surface) !important;
   border-color: var(--d-border) !important;
-}
-
-html[data-theme="dark"] body .plan-badge-free,
-html[data-theme="dark"] body .member-plan-tag.FREE,
-html[data-theme="dark"] body button.plan-free {
-  background: rgba(34, 197, 94, .18) !important;
-  color: #86efac !important;
-  border: 1px solid rgba(34, 197, 94, .35) !important;
-}
-html[data-theme="dark"] body .plan-badge-standard,
-html[data-theme="dark"] body .member-plan-tag.STANDARD,
-html[data-theme="dark"] body button.plan-standard {
-  background: rgba(167, 139, 250, .18) !important;
-  color: #c4b0ff !important;
-  border: 1px solid rgba(167, 139, 250, .35) !important;
-}
-html[data-theme="dark"] body .plan-badge-premium,
-html[data-theme="dark"] body .member-plan-tag.PREMIUM,
-html[data-theme="dark"] body button.plan-premium {
-  background: rgba(245, 158, 11, .18) !important;
-  color: #fcd34d !important;
-  border: 1px solid rgba(245, 158, 11, .35) !important;
-}
-html[data-theme="dark"] body .plan-badge-promo,
-html[data-theme="dark"] body button.plan-promo {
-  background: rgba(249, 115, 22, .2) !important;
-  color: #fdba74 !important;
-  border: 1px solid rgba(249, 115, 22, .4) !important;
 }
 
 html[data-theme="dark"] body .text-muted,
