@@ -1,15 +1,13 @@
 /**
  * AUPYGO — Edge Function create-portal-session
- * Crée une session Stripe Customer Portal pour que le membre puisse
- * gérer / résilier son abonnement (fin de période).
+ * Ouvre le portail client Stripe (résiliation en ligne, factures, moyen de paiement).
  *
- * Body JSON: {} (aucun paramètre requis)
- * Auth: Bearer JWT utilisateur (obligatoire)
+ * Auth : Bearer JWT utilisateur (obligatoire).
+ * Secrets requis : STRIPE_SECRET_KEY, SITE_URL (https://aupygo.com)
+ * Prérequis Stripe : Dashboard → Paramètres → Billing → Portail client → activer
+ *   « Autoriser les clients à annuler leurs abonnements » (annulation à la fin de la période).
  *
- * Secrets requis (déjà utilisés par create-checkout-session) :
- *   STRIPE_SECRET_KEY
- *   SITE_URL            (https://aupygo.com)
- *   SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY (auto)
+ * Déploiement : supabase functions deploy create-portal-session
  */
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
 import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
@@ -28,9 +26,7 @@ function json(body: unknown, status = 200) {
 }
 
 Deno.serve(async (req) => {
-  if (req.method === "OPTIONS") {
-    return new Response("ok", { headers: CORS });
-  }
+  if (req.method === "OPTIONS") return new Response("ok", { headers: CORS });
 
   try {
     const authHeader = req.headers.get("Authorization") || "";
@@ -39,10 +35,7 @@ Deno.serve(async (req) => {
     }
 
     const stripeKey = Deno.env.get("STRIPE_SECRET_KEY");
-    if (!stripeKey) {
-      console.error("[create-portal] STRIPE_SECRET_KEY missing");
-      return json({ error: "stripe_not_configured" }, 500);
-    }
+    if (!stripeKey) return json({ error: "stripe_not_configured" }, 500);
 
     const siteUrl = (Deno.env.get("SITE_URL") || "https://aupygo.com").replace(
       /\/$/,
@@ -52,7 +45,6 @@ Deno.serve(async (req) => {
     const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
     const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
 
-    // Vérifier l'utilisateur
     const userClient = createClient(supabaseUrl, anonKey, {
       global: { headers: { Authorization: authHeader } },
     });
@@ -60,37 +52,31 @@ Deno.serve(async (req) => {
     if (userErr || !userData?.user) {
       return json({ error: "not_authenticated" }, 401);
     }
-    const user = userData.user;
+
+    const admin = createClient(supabaseUrl, serviceKey);
+    const { data: profile } = await admin
+      .from("profiles")
+      .select("stripe_customer_id")
+      .eq("id", userData.user.id)
+      .maybeSingle();
+
+    if (!profile?.stripe_customer_id) {
+      return json({ error: "no_customer" }, 404);
+    }
 
     const stripe = new Stripe(stripeKey, {
       apiVersion: "2024-12-18.acacia",
       httpClient: Stripe.createFetchHttpClient(),
     });
 
-    // Récupérer le Customer Stripe lié au profil
-    const admin = createClient(supabaseUrl, serviceKey);
-    const { data: profile } = await admin
-      .from("profiles")
-      .select("id, stripe_customer_id")
-      .eq("id", user.id)
-      .maybeSingle();
-
-    const customerId = profile?.stripe_customer_id || null;
-    if (!customerId) {
-      return json({ error: "no_customer" }, 404);
-    }
-
     const session = await stripe.billingPortal.sessions.create({
-      customer: customerId,
-      return_url: `${siteUrl}/`,
+      customer: profile.stripe_customer_id,
+      return_url: siteUrl + "/",
     });
 
-    return json({
-      ok: true,
-      url: session.url,
-    });
+    return json({ ok: true, url: session.url });
   } catch (e) {
-    console.error("[create-portal]", e);
+    console.error("[create-portal-session]", e);
     return json(
       {
         error: "server_error",

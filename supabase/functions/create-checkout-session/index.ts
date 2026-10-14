@@ -141,10 +141,24 @@ Deno.serve(async (req) => {
         plan: offer.plan,
         price_key: priceKey,
         billing: offer.mode === "subscription" ? "monthly" : "6months",
+        cgv_version: "1.0",
       },
       allow_promotion_codes: true,
       billing_address_collection: "auto",
       locale: "fr",
+      // Mentions légales affichées sur la page de paiement Stripe (non contournables)
+      custom_text: {
+        submit: {
+          message:
+            offer.mode === "subscription"
+              ? "Abonnement renouvelé chaque mois jusqu'à résiliation (résiliable à tout moment en ligne, effet à la fin de la période payée). Droit de rétractation de 14 jours ; activation immédiate demandée : la part du service utilisé reste due au prorata. CGV : " +
+                siteUrl +
+                "/legal/cgv.html"
+              : "Paiement unique pour 6 mois, sans renouvellement automatique. Droit de rétractation de 14 jours ; activation immédiate demandée : la part du service utilisé reste due au prorata. CGV : " +
+                siteUrl +
+                "/legal/cgv.html",
+        },
+      },
     };
 
     // Pour les abonnements : metadata sur la subscription
