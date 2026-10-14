@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Droit de rétractation — AUPYGO</title>
+<meta name="description" content="Droit de rétractation du service AUPYGO (aupygo.com).">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="legal.css">
+<script>
+try { var th = localStorage.getItem('aupygo_theme'); if (th === 'dark' || th === 'light') document.documentElement.setAttribute('data-theme', th); } catch (e) {}
+</script>
+</head>
+<body>
+<div id="draft-banner" hidden><b>0</b> champ(s) « À COMPLÉTER » : ce document est un BROUILLON tant que <code>legal/legal-config.js</code> n’est pas rempli.</div>
+<header class="top"><div class="top-in">
+  <a class="brand" href="../index.html">AUPYGO</a>
+  <nav aria-label="Documents juridiques"><a href="mentions-legales.html">Mentions légales</a> <a href="cgu.html">CGU</a> <a href="cgv.html">CGV / Abonnements</a> <a href="confidentialite.html">Confidentialité</a> <a href="charte-communaute.html">Charte & sécurité</a> <a href="faq.html">FAQ</a> <a href="retractation.html" aria-current="page">Rétractation</a></nav>
+</div></header>
+<main>
+<article class="doc">
+<h1>Droit de rétractation</h1>
+<p class="meta">Version <span data-v="version"></span> — dernière mise à jour : <span data-v="date_maj"></span></p>
+
+<p class="lead">Vous avez souscrit un Forfait payant AUPYGO il y a moins de <strong>14 jours</strong> ? Vous pouvez vous rétracter ici, sans motif. Les conditions (remboursement, part du service déjà utilisée) figurent à l’<a href="cgv.html#retractation">article 8 des CGV</a>.</p>
+
+<div id="step1">
+  <p><button class="btn" id="btnStart" type="button">Se rétracter du contrat ici</button></p>
+</div>
+
+<form id="wdForm" class="wd" hidden>
+  <label for="wdEmail">Adresse e-mail de votre compte AUPYGO</label>
+  <input id="wdEmail" type="email" required autocomplete="email">
+
+  <label for="wdOffer">Offre concernée</label>
+  <select id="wdOffer" required>
+    <option value="">— Choisir —</option>
+    <option>STANDARD — mensuel</option>
+    <option>STANDARD — Pass 6 mois</option>
+    <option>PREMIUM — mensuel</option>
+    <option>PREMIUM — Pass 6 mois</option>
+  </select>
+
+  <label for="wdDate">Date de la commande (si vous la connaissez)</label>
+  <input id="wdDate" type="date">
+
+  <label for="wdMsg">Message (facultatif)</label>
+  <textarea id="wdMsg" rows="3" placeholder="Vous n’avez pas à vous justifier."></textarea>
+
+  <p class="note">En confirmant, vous notifiez à l’Éditeur votre décision de vous rétracter du contrat. Un accusé de réception vous sera envoyé par e-mail.</p>
+  <p><button class="btn" id="btnConfirm" type="submit">Confirmer la rétractation ici</button>
+  <button class="btn secondary" id="btnCancel" type="button">Annuler</button></p>
+</form>
+
+<div id="wdDone" class="note" hidden></div>
+<div id="wdFallback" class="note" hidden>
+  Le service en ligne est momentanément indisponible. Vous pouvez vous rétracter par e-mail :
+  <a id="mailtoLink" href="#">envoyer un e-mail de rétractation</a>
+  (ou via le formulaire-type en annexe des <a href="cgv.html#annexe">CGV</a>).
+</div>
+
+<h2 id="infos">Ce qui se passe ensuite</h2>
+<ul>
+<li>Nous accusons réception de votre rétractation par e-mail, <strong>sans délai</strong>.</li>
+<li>Votre Forfait payant prend fin et votre compte repasse en FREE.</li>
+<li>Remboursement au plus tard <strong>14 jours</strong> après votre demande, sur le moyen de paiement utilisé, sous déduction éventuelle de la part du service utilisée si vous aviez demandé l’activation immédiate.</li>
+<li>Votre demande est conservée 5 ans comme preuve (voir <a href="confidentialite.html#donnees">Politique de confidentialité</a>).</li>
+</ul>
+
+</article>
+</main>
+<footer class="legal-foot">© AUPYGO — <a href="mentions-legales.html">Mentions légales</a> · <a href="cgu.html">CGU</a> · <a href="cgv.html">CGV</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="charte-communaute.html">Charte</a> · <a href="faq.html">FAQ</a> · <a href="../index.html">Retour à AUPYGO</a></footer>
+<script src="legal-config.js"></script>
+<script src="legal.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.1/dist/umd/supabase.js"></script>
+<script src="../config.js"></script>
+<script>
+(function () {
+  'use strict';
+  var $ = function (id) { return document.getElementById(id); };
+  var sb = null, user = null;
+  var C = window.AUPYGO_LEGAL || {};
+
+  try {
+    if (window.supabase && typeof SUPABASE_URL !== 'undefined') {
+      sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+  } catch (e) { sb = null; }
+
+  function mailto(email, offer, msg) {
+    var body = 'Je vous notifie par la présente ma rétractation du contrat portant sur le Forfait AUPYGO : ' + (offer || '______') +
+      '.\nEmail du compte : ' + (email || '______') + '\nMessage : ' + (msg || '') + '\n';
+    return 'mailto:' + (C.contact_email || '') + '?subject=' + encodeURIComponent('Rétractation — Forfait AUPYGO') + '&body=' + encodeURIComponent(body);
+  }
+
+  $('btnStart').addEventListener('click', async function () {
+    $('step1').hidden = true;
+    $('wdForm').hidden = false;
+    try {
+      if (sb) {
+        var r = await sb.auth.getSession();
+        user = r && r.data && r.data.session ? r.data.session.user : null;
+        if (user && user.email) $('wdEmail').value = user.email;
+      }
+    } catch (e) {}
+    $('wdFallback').hidden = !!user;
+    $('mailtoLink').href = mailto($('wdEmail').value, '', '');
+  });
+
+  $('btnCancel').addEventListener('click', function () {
+    $('wdForm').hidden = true; $('step1').hidden = false;
+  });
+
+  $('wdForm').addEventListener('submit', async function (ev) {
+    ev.preventDefault();
+    var email = $('wdEmail').value.trim();
+    var offer = $('wdOffer').value;
+    var msg = $('wdMsg').value.trim();
+    var date = $('wdDate').value || null;
+    var btn = $('btnConfirm');
+    btn.disabled = true;
+
+    if (!sb || !user) {
+      $('wdFallback').hidden = false;
+      $('mailtoLink').href = mailto(email, offer, msg);
+      $('mailtoLink').click();
+      btn.disabled = false;
+      return;
+    }
+    try {
+      var ins = await sb.from('withdrawal_requests')
+        .insert({ user_id: user.id, email: email, offer: offer, order_date: date, message: msg || null })
+        .select('id, created_at').single();
+      if (ins.error) throw ins.error;
+      $('wdForm').hidden = true;
+      var ref = String(ins.data.id).slice(0, 8).toUpperCase();
+      $('wdDone').hidden = false;
+      $('wdDone').innerHTML = '<strong>Votre rétractation a bien été enregistrée</strong> le ' +
+        new Date(ins.data.created_at).toLocaleString('fr-FR') + ' (référence <strong>' + ref + '</strong>). ' +
+        'Un accusé de réception vous sera envoyé à ' + email.replace(/[<>&"]/g, '') + '. Conservez cette référence.';
+    } catch (e) {
+      console.error(e);
+      $('wdFallback').hidden = false;
+      $('mailtoLink').href = mailto(email, offer, msg);
+      btn.disabled = false;
+    }
+  });
+})();
+</script>
+
+</body>
+</html>
