@@ -8,6 +8,12 @@
  *   Site URL = https://aupygo.com
  *   Redirect URLs = https://aupygo.com/**  (et localhost si besoin)
  * Template e-mail « Reset password » activé (par défaut).
+ *
+ * IMPORTANT CAPTCHA :
+ * Si « Enable CAPTCHA protection » est activé dans Supabase (Bot and Abuse
+ * Protection), resetPasswordForEmail EXIGE un captchaToken.
+ * → Soit désactiver le CAPTCHA dans le dashboard Supabase,
+ * → Soit intégrer Cloudflare Turnstile / hCaptcha et passer le token.
  * ========================================================================== */
 (function () {
   'use strict';
@@ -30,7 +36,8 @@
       tooShort: 'Le mot de passe doit faire au moins 8 caractères.',
       saved: 'Mot de passe mis à jour. Tu es connecté(e).',
       error: 'Une erreur est survenue. Réessaie.',
-      rate: 'Trop de demandes. Attends une minute et réessaie.'
+      rate: 'Trop de demandes. Attends une minute et réessaie.',
+      captcha: 'Protection anti-bot active : le CAPTCHA n’est pas configuré côté site. Désactive-le temporairement dans Supabase (Authentication → Bot and Abuse Protection) ou intègre Turnstile.'
     },
     en: {
       link: 'Forgot password?',
@@ -49,7 +56,8 @@
       tooShort: 'Password must be at least 8 characters.',
       saved: 'Password updated. You are signed in.',
       error: 'Something went wrong. Please try again.',
-      rate: 'Too many requests. Wait a minute and try again.'
+      rate: 'Too many requests. Wait a minute and try again.',
+      captcha: 'Bot protection is on but CAPTCHA is not set up on the site. Temporarily disable it in Supabase (Authentication → Bot and Abuse Protection) or add Turnstile.'
     },
     es: {
       link: '¿Olvidaste tu contraseña?',
@@ -68,7 +76,8 @@
       tooShort: 'La contraseña debe tener al menos 8 caracteres.',
       saved: 'Contraseña actualizada. Has iniciado sesión.',
       error: 'Ha ocurrido un error. Inténtalo de nuevo.',
-      rate: 'Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.'
+      rate: 'Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.',
+      captcha: 'Protección anti-bot activa pero CAPTCHA no configurado en el sitio. Desactívalo temporalmente en Supabase o integra Turnstile.'
     }
   };
 
@@ -111,7 +120,7 @@
     '#aupygo-forgot-box .no{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.4)}' +
     '#aupygo-reset-modal{position:fixed;inset:0;z-index:100001;background:rgba(10,10,20,.62);display:flex;align-items:center;justify-content:center;padding:16px}' +
     '#aupygo-reset-modal .box{background:#fff;color:#1f2430;border-radius:16px;max-width:420px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
-    'html[data-theme="dark"] #aupygo-reset-modal .box{background:#1c1b25;color:#e9e8f0}' +
+    'html[data-theme=\"dark\"] #aupygo-reset-modal .box{background:#1c1b25;color:#e9e8f0}' +
     '#aupygo-reset-modal h3{margin:0 0 10px;font-size:18px}' +
     '#aupygo-reset-modal label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}' +
     '#aupygo-reset-modal input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(128,128,128,.35);background:inherit;color:inherit;font:inherit;box-sizing:border-box}' +
@@ -138,7 +147,7 @@
     });
 
     // Après le bouton « Se connecter »
-    var btn = loginForm.querySelector('button.btn, button[onclick*="handleLogin"]');
+    var btn = loginForm.querySelector('button.btn, button[onclick*=\"handleLogin\"]');
     if (btn && btn.parentNode) {
       btn.parentNode.insertBefore(link, btn.nextSibling);
     } else {
@@ -149,11 +158,11 @@
     box.id = 'aupygo-forgot-box';
     box.hidden = true;
     box.innerHTML =
-      '<label for="aupygoForgotEmail">' + t.emailLabel + '</label>' +
-      '<input id="aupygoForgotEmail" type="email" autocomplete="email" placeholder="toi@email.com">' +
-      '<div class="row">' +
-      '<button type="button" class="no" id="aupygoForgotCancel">' + t.cancel + '</button>' +
-      '<button type="button" class="ok" id="aupygoForgotSend">' + t.send + '</button>' +
+      '<label for=\"aupygoForgotEmail\">' + t.emailLabel + '</label>' +
+      '<input id=\"aupygoForgotEmail\" type=\"email\" autocomplete=\"email\" placeholder=\"toi@email.com\">' +
+      '<div class=\"row\">' +
+      '<button type=\"button\" class=\"no\" id=\"aupygoForgotCancel\">' + t.cancel + '</button>' +
+      '<button type=\"button\" class=\"ok\" id=\"aupygoForgotSend\">' + t.send + '</button>' +
       '</div>';
     loginForm.appendChild(box);
 
@@ -198,17 +207,26 @@
 
     btn.disabled = true;
     try {
-      var redirectTo = window.location.origin + (window.location.pathname || '/') +
-        (window.location.pathname.indexOf('?') === -1 ? '' : '') +
-        '#type=recovery';
-      // URL propre : site root + hash recovery détecté côté client
-      redirectTo = window.location.origin + '/';
+      // URL propre : site root (le hash type=recovery est géré côté client)
+      var redirectTo = window.location.origin + '/';
 
-      var res = await c.auth.resetPasswordForEmail(email, { redirectTo: redirectTo });
+      // Si un token Turnstile/hCaptcha est disponible globalement, on le passe
+      var opts = { redirectTo: redirectTo };
+      if (window.__aupygoCaptchaToken) {
+        opts.captchaToken = window.__aupygoCaptchaToken;
+      }
+
+      var res = await c.auth.resetPasswordForEmail(email, opts);
       if (res.error) {
         var msg = String(res.error.message || '');
-        if (/rate|too many|429/i.test(msg)) toast(t.rate, 'error');
-        else toast(t.error + ' (' + msg + ')', 'error');
+        if (/rate|too many|429/i.test(msg)) {
+          toast(t.rate, 'error');
+        } else if (/captcha|no captcha_token|request disallowed/i.test(msg)) {
+          toast(t.captcha, 'error');
+          console.warn('[forgot-password] CAPTCHA requis par Supabase mais non fourni.', res.error);
+        } else {
+          toast(t.error + ' (' + msg + ')', 'error');
+        }
       } else {
         // Message neutre (ne révèle pas si l’e-mail existe)
         toast(t.sent, 'success');
@@ -230,13 +248,13 @@
     m.setAttribute('role', 'dialog');
     m.setAttribute('aria-modal', 'true');
     m.innerHTML =
-      '<div class="box">' +
+      '<div class=\"box\">' +
       '<h3>' + t.newTitle + '</h3>' +
-      '<label for="aupygoNewPwd">' + t.newLabel + '</label>' +
-      '<input id="aupygoNewPwd" type="password" autocomplete="new-password" minlength="8">' +
-      '<label for="aupygoNewPwd2">' + t.confirmLabel + '</label>' +
-      '<input id="aupygoNewPwd2" type="password" autocomplete="new-password" minlength="8">' +
-      '<div class="row"><button type="button" id="aupygoNewPwdSave">' + t.save + '</button></div>' +
+      '<label for=\"aupygoNewPwd\">' + t.newLabel + '</label>' +
+      '<input id=\"aupygoNewPwd\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\">' +
+      '<label for=\"aupygoNewPwd2\">' + t.confirmLabel + '</label>' +
+      '<input id=\"aupygoNewPwd2\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\">' +
+      '<div class=\"row\"><button type=\"button\" id=\"aupygoNewPwdSave\">' + t.save + '</button></div>' +
       '</div>';
     document.body.appendChild(m);
     document.getElementById('aupygoNewPwdSave').addEventListener('click', saveNewPassword);
