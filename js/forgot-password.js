@@ -1,19 +1,14 @@
 /* ==========================================================================
  * AUPYGO — forgot-password.js
  * 1) Lien « Mot de passe oublié ? » sous le formulaire de connexion
- * 2) Envoi d’un lien de réinitialisation à l’e-mail saisi (Supabase Auth)
+ * 2) Envoi d’un lien de réinitialisation (Supabase Auth + Turnstile CAPTCHA)
  * 3) À l’arrivée via le lien e-mail (type=recovery) : formulaire nouveau MDP
  *
  * Prérequis Supabase Dashboard → Authentication → URL Configuration :
  *   Site URL = https://aupygo.com
- *   Redirect URLs = https://aupygo.com/**  (et localhost si besoin)
- * Template e-mail « Reset password » activé (par défaut).
- *
- * IMPORTANT CAPTCHA :
- * Si « Enable CAPTCHA protection » est activé dans Supabase (Bot and Abuse
- * Protection), resetPasswordForEmail EXIGE un captchaToken.
- * → Soit désactiver le CAPTCHA dans le dashboard Supabase,
- * → Soit intégrer Cloudflare Turnstile / hCaptcha et passer le token.
+ *   Redirect URLs = https://aupygo.com/**
+ * CAPTCHA : Enable CAPTCHA protection = ON, provider = Cloudflare Turnstile,
+ *           secret key = celle du widget sitekey 0x4AAAAAAEl5_H-ALybBhria
  * ========================================================================== */
 (function () {
   'use strict';
@@ -37,7 +32,7 @@
       saved: 'Mot de passe mis à jour. Tu es connecté(e).',
       error: 'Une erreur est survenue. Réessaie.',
       rate: 'Trop de demandes. Attends une minute et réessaie.',
-      captcha: 'Protection anti-bot active : le CAPTCHA n’est pas configuré côté site. Désactive-le temporairement dans Supabase (Authentication → Bot and Abuse Protection) ou intègre Turnstile.'
+      captcha: 'Valide le contrôle anti-robot (Turnstile) puis réessaie.'
     },
     en: {
       link: 'Forgot password?',
@@ -57,7 +52,7 @@
       saved: 'Password updated. You are signed in.',
       error: 'Something went wrong. Please try again.',
       rate: 'Too many requests. Wait a minute and try again.',
-      captcha: 'Bot protection is on but CAPTCHA is not set up on the site. Temporarily disable it in Supabase (Authentication → Bot and Abuse Protection) or add Turnstile.'
+      captcha: 'Complete the anti-bot check (Turnstile) then try again.'
     },
     es: {
       link: '¿Olvidaste tu contraseña?',
@@ -77,7 +72,7 @@
       saved: 'Contraseña actualizada. Has iniciado sesión.',
       error: 'Ha ocurrido un error. Inténtalo de nuevo.',
       rate: 'Demasiadas solicitudes. Espera un minuto e inténtalo de nuevo.',
-      captcha: 'Protección anti-bot activa pero CAPTCHA no configurado en el sitio. Desactívalo temporalmente en Supabase o integra Turnstile.'
+      captcha: 'Completa el control anti-bot (Turnstile) e inténtalo de nuevo.'
     }
   };
 
@@ -102,6 +97,23 @@
     return null;
   }
 
+  function getCaptchaToken() {
+    // Token global défini par onTurnstileVerified dans app.js
+    if (typeof turnstileToken !== 'undefined' && turnstileToken) return turnstileToken;
+    if (window.turnstileToken) return window.turnstileToken;
+    if (window.__aupygoCaptchaToken) return window.__aupygoCaptchaToken;
+    return null;
+  }
+
+  function resetCaptcha() {
+    try {
+      if (typeof turnstileToken !== 'undefined') turnstileToken = null;
+      window.turnstileToken = null;
+      window.__aupygoCaptchaToken = null;
+      if (window.turnstile) window.turnstile.reset();
+    } catch (e) {}
+  }
+
   function toast(msg, type) {
     if (typeof window.showToast === 'function') window.showToast(msg, type || 'info');
     else alert(msg);
@@ -120,7 +132,7 @@
     '#aupygo-forgot-box .no{background:transparent;color:inherit;border:1px solid rgba(128,128,128,.4)}' +
     '#aupygo-reset-modal{position:fixed;inset:0;z-index:100001;background:rgba(10,10,20,.62);display:flex;align-items:center;justify-content:center;padding:16px}' +
     '#aupygo-reset-modal .box{background:#fff;color:#1f2430;border-radius:16px;max-width:420px;width:100%;padding:22px;box-shadow:0 20px 60px rgba(0,0,0,.4)}' +
-    'html[data-theme=\"dark\"] #aupygo-reset-modal .box{background:#1c1b25;color:#e9e8f0}' +
+    'html[data-theme="dark"] #aupygo-reset-modal .box{background:#1c1b25;color:#e9e8f0}' +
     '#aupygo-reset-modal h3{margin:0 0 10px;font-size:18px}' +
     '#aupygo-reset-modal label{display:block;font-size:13px;font-weight:600;margin:12px 0 6px}' +
     '#aupygo-reset-modal input{width:100%;padding:10px 12px;border-radius:8px;border:1px solid rgba(128,128,128,.35);background:inherit;color:inherit;font:inherit;box-sizing:border-box}' +
@@ -146,8 +158,7 @@
       toggleForgotBox(true);
     });
 
-    // Après le bouton « Se connecter »
-    var btn = loginForm.querySelector('button.btn, button[onclick*=\"handleLogin\"]');
+    var btn = loginForm.querySelector('button.btn, button[onclick*="handleLogin"]');
     if (btn && btn.parentNode) {
       btn.parentNode.insertBefore(link, btn.nextSibling);
     } else {
@@ -158,11 +169,11 @@
     box.id = 'aupygo-forgot-box';
     box.hidden = true;
     box.innerHTML =
-      '<label for=\"aupygoForgotEmail\">' + t.emailLabel + '</label>' +
-      '<input id=\"aupygoForgotEmail\" type=\"email\" autocomplete=\"email\" placeholder=\"toi@email.com\">' +
-      '<div class=\"row\">' +
-      '<button type=\"button\" class=\"no\" id=\"aupygoForgotCancel\">' + t.cancel + '</button>' +
-      '<button type=\"button\" class=\"ok\" id=\"aupygoForgotSend\">' + t.send + '</button>' +
+      '<label for="aupygoForgotEmail">' + t.emailLabel + '</label>' +
+      '<input id="aupygoForgotEmail" type="email" autocomplete="email" placeholder="toi@email.com">' +
+      '<div class="row">' +
+      '<button type="button" class="no" id="aupygoForgotCancel">' + t.cancel + '</button>' +
+      '<button type="button" class="ok" id="aupygoForgotSend">' + t.send + '</button>' +
       '</div>';
     loginForm.appendChild(box);
 
@@ -171,7 +182,6 @@
     });
     box.querySelector('#aupygoForgotSend').addEventListener('click', sendResetEmail);
 
-    // Préremplir avec l’e-mail du formulaire de connexion
     var loginEmail = document.getElementById('loginEmail');
     if (loginEmail) {
       loginEmail.addEventListener('change', function () {
@@ -202,38 +212,36 @@
     if (!email) { toast(t.needEmail, 'error'); return; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { toast(t.invalidEmail, 'error'); return; }
 
+    var captcha = getCaptchaToken();
+    if (!captcha) {
+      toast(t.captcha, 'error');
+      return;
+    }
+
     var c = getClient();
     if (!c) { toast(t.error, 'error'); return; }
 
     btn.disabled = true;
     try {
-      // URL propre : site root (le hash type=recovery est géré côté client)
       var redirectTo = window.location.origin + '/';
+      var res = await c.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectTo,
+        captchaToken: captcha
+      });
+      resetCaptcha();
 
-      // Si un token Turnstile/hCaptcha est disponible globalement, on le passe
-      var opts = { redirectTo: redirectTo };
-      if (window.__aupygoCaptchaToken) {
-        opts.captchaToken = window.__aupygoCaptchaToken;
-      }
-
-      var res = await c.auth.resetPasswordForEmail(email, opts);
       if (res.error) {
         var msg = String(res.error.message || '');
-        if (/rate|too many|429/i.test(msg)) {
-          toast(t.rate, 'error');
-        } else if (/captcha|no captcha_token|request disallowed/i.test(msg)) {
-          toast(t.captcha, 'error');
-          console.warn('[forgot-password] CAPTCHA requis par Supabase mais non fourni.', res.error);
-        } else {
-          toast(t.error + ' (' + msg + ')', 'error');
-        }
+        if (/rate|too many|429/i.test(msg)) toast(t.rate, 'error');
+        else if (/captcha|no captcha_token|request disallowed/i.test(msg)) toast(t.captcha, 'error');
+        else toast(t.error + ' (' + msg + ')', 'error');
       } else {
-        // Message neutre (ne révèle pas si l’e-mail existe)
         toast(t.sent, 'success');
         toggleForgotBox(false);
       }
     } catch (e) {
       console.error('[forgot-password]', e);
+      resetCaptcha();
       toast(t.error, 'error');
     }
     btn.disabled = false;
@@ -248,13 +256,13 @@
     m.setAttribute('role', 'dialog');
     m.setAttribute('aria-modal', 'true');
     m.innerHTML =
-      '<div class=\"box\">' +
+      '<div class="box">' +
       '<h3>' + t.newTitle + '</h3>' +
-      '<label for=\"aupygoNewPwd\">' + t.newLabel + '</label>' +
-      '<input id=\"aupygoNewPwd\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\">' +
-      '<label for=\"aupygoNewPwd2\">' + t.confirmLabel + '</label>' +
-      '<input id=\"aupygoNewPwd2\" type=\"password\" autocomplete=\"new-password\" minlength=\"8\">' +
-      '<div class=\"row\"><button type=\"button\" id=\"aupygoNewPwdSave\">' + t.save + '</button></div>' +
+      '<label for="aupygoNewPwd">' + t.newLabel + '</label>' +
+      '<input id="aupygoNewPwd" type="password" autocomplete="new-password" minlength="8">' +
+      '<label for="aupygoNewPwd2">' + t.confirmLabel + '</label>' +
+      '<input id="aupygoNewPwd2" type="password" autocomplete="new-password" minlength="8">' +
+      '<div class="row"><button type="button" id="aupygoNewPwdSave">' + t.save + '</button></div>' +
       '</div>';
     document.body.appendChild(m);
     document.getElementById('aupygoNewPwdSave').addEventListener('click', saveNewPassword);
@@ -287,13 +295,11 @@
       toast(t.saved, 'success');
       var m = document.getElementById('aupygo-reset-modal');
       if (m) m.remove();
-      // Nettoyer le hash de l’URL
       try {
         if (window.history && window.history.replaceState) {
           window.history.replaceState(null, '', window.location.pathname + window.location.search);
         }
       } catch (e) {}
-      // Rafraîchir l’UI auth si disponible
       if (typeof window.refreshAuthUI === 'function') {
         try { window.refreshAuthUI(); } catch (e) {}
       }
@@ -304,38 +310,30 @@
     }
   }
 
-  /* ---------- Détection du retour via le lien e-mail ---------- */
   function watchRecovery() {
     var c = getClient();
     if (!c) { setTimeout(watchRecovery, 600); return; }
 
-    // 1) Événement Auth
     try {
-      c.auth.onAuthStateChange(function (event, session) {
-        if (event === 'PASSWORD_RECOVERY') {
-          openNewPasswordModal();
-        }
+      c.auth.onAuthStateChange(function (event) {
+        if (event === 'PASSWORD_RECOVERY') openNewPasswordModal();
       });
     } catch (e) {
       console.warn('[forgot-password] onAuthStateChange', e);
     }
 
-    // 2) Hash / query type=recovery (au cas où l’événement a déjà été consommé)
     try {
       var hash = String(window.location.hash || '');
       var search = String(window.location.search || '');
       if (/type=recovery/i.test(hash) || /type=recovery/i.test(search)) {
-        // Laisser Supabase finaliser la session puis ouvrir le modal
         setTimeout(function () { openNewPasswordModal(); }, 800);
       }
     } catch (e) {}
   }
 
-  /* ---------- init ---------- */
   function init() {
     injectForgotUI();
     watchRecovery();
-    // Réinjecter si le DOM login est recréé
     var mo = new MutationObserver(function () { injectForgotUI(); });
     mo.observe(document.body, { childList: true, subtree: true });
   }
@@ -343,7 +341,6 @@
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', init);
   } else {
-    // app.js peut charger après : on retente un peu
     setTimeout(init, 400);
     setTimeout(injectForgotUI, 1200);
     setTimeout(injectForgotUI, 3000);
