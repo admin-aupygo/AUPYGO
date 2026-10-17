@@ -1,8 +1,9 @@
 /* ==========================================================================
  * AUPYGO — captcha-auth-fix.js
  * Turnstile + Supabase Auth (signUp / signIn / resetPassword)
+ * - Explicit render (pas de turnstile.ready — incompatible avec async/defer)
  * - Attend le token avant d'envoyer
- * - Re-render le widget s'il reste bloque sur "Verify"
+ * - Re-render le widget s'il reste bloque
  * - Fallback lecture input hidden cf-turnstile-response
  * ========================================================================== */
 (function () {
@@ -16,7 +17,6 @@
   function getToken() {
     if (typeof turnstileToken !== 'undefined' && turnstileToken) return turnstileToken;
     if (window.turnstileToken) return window.turnstileToken;
-    // Fallback : input hidden injecte par Turnstile
     try {
       var inp = document.querySelector('input[name="cf-turnstile-response"]');
       if (inp && inp.value && inp.value.length > 20) return inp.value;
@@ -54,7 +54,11 @@
     // Deja un iframe / response → OK
     if (el.querySelector('iframe') || (el.querySelector('input[name="cf-turnstile-response"]') && getToken())) return;
     try {
-      // Vider et re-render explicitement
+      // Retirer la classe implicit pour eviter double render
+      el.classList.remove('cf-turnstile');
+      el.removeAttribute('data-sitekey');
+      el.removeAttribute('data-callback');
+      el.removeAttribute('data-expired-callback');
       el.innerHTML = '';
       widgetId = window.turnstile.render(el, {
         sitekey: SITEKEY,
@@ -77,7 +81,7 @@
         theme: 'auto',
         size: 'normal'
       });
-      console.log('[AUPYGO] Turnstile re-render widgetId=', widgetId);
+      console.log('[AUPYGO] Turnstile explicit render widgetId=', widgetId);
     } catch (e) {
       console.warn('[AUPYGO] Turnstile render failed', e);
     }
@@ -91,7 +95,6 @@
         var t = getToken();
         if (t) return resolve(t);
         if (Date.now() - start > maxMs) return resolve(null);
-        // Au bout de 3s sans token, tenter un re-render
         if (Date.now() - start > 3000) ensureWidgetRendered();
         setTimeout(tick, 300);
       }
@@ -107,7 +110,6 @@
     setTimeout(function () { waitForClient(cb, tries + 1); }, 250);
   }
 
-  // Callbacks globaux
   var prevVerified = window.onTurnstileVerified;
   window.onTurnstileVerified = function (token) {
     setToken(token);
@@ -119,23 +121,19 @@
     if (typeof prevExpired === 'function') prevExpired();
   };
 
-  // Rendre le widget des que l'API Turnstile est prete
+  // Boot sans turnstile.ready() (incompatible avec script async/defer)
   function bootWidget() {
-    if (window.turnstile && window.turnstile.ready) {
-      window.turnstile.ready(function () {
+    var n = 0;
+    var iv = setInterval(function () {
+      n++;
+      if (window.turnstile && typeof window.turnstile.render === 'function') {
+        clearInterval(iv);
         ensureWidgetRendered();
-      });
-    } else {
-      // Poll jusqu'a dispo
-      var n = 0;
-      var iv = setInterval(function () {
-        n++;
-        if (window.turnstile) {
-          clearInterval(iv);
-          ensureWidgetRendered();
-        } else if (n > 40) clearInterval(iv);
-      }, 250);
-    }
+      } else if (n > 60) {
+        clearInterval(iv);
+        console.warn('[AUPYGO] Turnstile API non chargee apres 15s');
+      }
+    }, 250);
   }
   if (document.readyState === 'loading') {
     document.addEventListener('DOMContentLoaded', bootWidget);
@@ -164,7 +162,6 @@
       });
     }
 
-    // --- Patch signUp ---
     if (typeof auth.signUp === 'function' && !auth.__aupygoCaptchaPatchedSignup) {
       var origSignUp = auth.signUp.bind(auth);
       auth.signUp = function (credentials) {
@@ -178,7 +175,6 @@
       auth.__aupygoCaptchaPatchedSignup = true;
     }
 
-    // --- Patch signInWithPassword ---
     if (typeof auth.signInWithPassword === 'function' && !auth.__aupygoCaptchaPatchedLogin) {
       var origLogin = auth.signInWithPassword.bind(auth);
       auth.signInWithPassword = function (credentials) {
@@ -192,7 +188,6 @@
       auth.__aupygoCaptchaPatchedLogin = true;
     }
 
-    // --- Patch resetPasswordForEmail ---
     if (typeof auth.resetPasswordForEmail === 'function' && !auth.__aupygoCaptchaPatchedReset) {
       var origReset = auth.resetPasswordForEmail.bind(auth);
       auth.resetPasswordForEmail = function (email, options) {
@@ -205,6 +200,6 @@
       auth.__aupygoCaptchaPatchedReset = true;
     }
 
-    console.log('[AUPYGO] captcha-auth-fix.js v2 : wait token + re-render Turnstile');
+    console.log('[AUPYGO] captcha-auth-fix.js v3 : explicit render, no turnstile.ready');
   });
 })();
