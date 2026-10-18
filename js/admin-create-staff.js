@@ -1,5 +1,6 @@
-/* AUPYGO — admin-create-staff.js v1.3
+/* AUPYGO — admin-create-staff.js v1.4
  * Affiche le détail des erreurs 400 (profile_failed, create_failed, etc.)
+ * v1.4 : suppression du modal « Définis ton mot de passe » (doublon avec js/forgot-password.js)
  */
 (function () {
   'use strict';
@@ -21,9 +22,6 @@
     profile_failed: 'Profil non créé (trigger/SQL). Vérifie SUPABASE_ADMIN_CREATE_STAFF.sql.',
     server_error: 'Erreur serveur Edge Function.'
   };
-
-  var isRecoveryLink = /type=recovery/.test(location.hash) || /type=recovery/.test(location.search);
-  var passwordModalShown = false;
 
   function client() { return window.supabaseClient || null; }
 
@@ -249,67 +247,6 @@
   setTimeout(syncButton, 400);
   setTimeout(syncButton, 1200);
   setTimeout(syncButton, 3000);
-  console.log('[AUPYGO] admin-create-staff.js v1.3');
+  console.log('[AUPYGO] admin-create-staff.js v1.4 — recovery modal removed');
 
-  function openPasswordModal() {
-    if (passwordModalShown) return;
-    passwordModalShown = true;
-    var p1 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: '10 caractères minimum' });
-    var p2 = h('input', { type: 'password', autocomplete: 'new-password', style: INPUT_CSS, placeholder: 'Répète le mot de passe' });
-    var msg = h('div', { style: 'font-size:13px;min-height:18px;margin-bottom:8px;color:#b91c1c;' });
-    var overlay = h('div', { id: 'aupygoPasswordModal', style: OVERLAY_CSS });
-    var submit = h('button', { style: BTN_CSS + 'background:#2563eb;color:#fff;', text: 'Enregistrer' });
-    submit.addEventListener('click', async function () {
-      msg.textContent = '';
-      if (p1.value.length < 10) { msg.textContent = 'Au moins 10 caractères.'; return; }
-      if (p1.value !== p2.value) { msg.textContent = 'Les deux mots de passe sont différents.'; return; }
-      var c = client();
-      if (!c) { msg.textContent = 'Connexion indisponible.'; return; }
-      submit.disabled = true;
-      try {
-        var res = await c.auth.updateUser({ password: p1.value });
-        if (res.error) { msg.textContent = res.error.message; return; }
-        toast('Mot de passe enregistré.', 'success');
-        overlay.remove();
-        try { history.replaceState(null, '', location.pathname); } catch (e) { /* ignore */ }
-      } catch (e) {
-        msg.textContent = (e && e.message) || 'Erreur réseau.';
-      } finally {
-        submit.disabled = false;
-      }
-    });
-    overlay.appendChild(h('div', { style: CARD_CSS }, [
-      h('h3', { style: 'margin:0 0 4px;font-size:18px;', text: 'Définis ton mot de passe' }),
-      h('p', { style: 'margin:0 0 14px;font-size:13px;color:#475569;', text: 'Choisis le mot de passe AUPYGO.' }),
-      field('Nouveau mot de passe', p1),
-      field('Confirmation', p2),
-      msg,
-      h('div', { style: 'display:flex;justify-content:flex-end;' }, [submit])
-    ]));
-    document.body.appendChild(overlay);
-    p1.focus();
-  }
-
-  function watchRecovery() {
-    var c = client();
-    if (!c) return false;
-    c.auth.onAuthStateChange(function (event) {
-      if (event === 'PASSWORD_RECOVERY') openPasswordModal();
-    });
-    return true;
-  }
-
-  var tries = 0;
-  var subscribed = false;
-  var timer = setInterval(function () {
-    tries++;
-    var c = client();
-    if (c && !subscribed) { subscribed = watchRecovery(); }
-    if (isRecoveryLink && c) {
-      c.auth.getSession().then(function (r) {
-        if (r && r.data && r.data.session) openPasswordModal();
-      });
-    }
-    if (tries > 40 || passwordModalShown) clearInterval(timer);
-  }, 500);
 })();
