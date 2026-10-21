@@ -13,19 +13,32 @@
  *   - customer.subscription.updated
  *   - customer.subscription.deleted
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import Stripe from "npm:stripe@17.7.0";
 
+// Les price_ LIVE sont lus dans les mêmes secrets que create-checkout-session.
 const PRICE_TO_PLAN: Record<string, string> = {
-  price_1UOMwUPetij5LBkM4uymFy8D: "STANDARD",
-  price_1UOMwwPetij5LBkMj0nbSGWh: "PREMIUM",
-  price_1UOMwyPetij5LBkMOCACAtTV: "STANDARD",
-  price_1UOMwzPetij5LBkMMCuqU3Bc: "PREMIUM",
+  price_1UOMwUPetij5LBkM4uymFy8D: "STANDARD", // test
+  price_1UOMwwPetij5LBkMj0nbSGWh: "PREMIUM", // test
+  price_1UOMwyPetij5LBkMOCACAtTV: "STANDARD", // test
+  price_1UOMwzPetij5LBkMMCuqU3Bc: "PREMIUM", // test
   standard_monthly: "STANDARD",
   premium_monthly: "PREMIUM",
   standard_6m: "STANDARD",
   premium_6m: "PREMIUM",
 };
+
+for (
+  const [env, plan] of [
+    ["STRIPE_PRICE_STANDARD_MONTHLY", "STANDARD"],
+    ["STRIPE_PRICE_PREMIUM_MONTHLY", "PREMIUM"],
+    ["STRIPE_PRICE_STANDARD_6M", "STANDARD"],
+    ["STRIPE_PRICE_PREMIUM_6M", "PREMIUM"],
+  ]
+) {
+  const id = (Deno.env.get(env) || "").trim();
+  if (id) PRICE_TO_PLAN[id] = plan;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -56,6 +69,8 @@ Deno.serve(async (req) => {
     apiVersion: "2024-12-18.acacia",
     httpClient: Stripe.createFetchHttpClient(),
   });
+  // Deno n'a que WebCrypto (asynchrone) : provider dédié + constructEventAsync
+  const cryptoProvider = Stripe.createSubtleCryptoProvider();
 
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
@@ -65,7 +80,13 @@ Deno.serve(async (req) => {
   const body = await req.text();
   let event: Stripe.Event;
   try {
-    event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
+    event = await stripe.webhooks.constructEventAsync(
+      body,
+      signature,
+      webhookSecret,
+      undefined,
+      cryptoProvider,
+    );
   } catch (err) {
     console.error("[stripe-webhook] signature", err);
     return json({ error: "invalid_signature" }, 400);
@@ -101,7 +122,7 @@ Deno.serve(async (req) => {
         console.log(`[stripe-webhook] ignored ${event.type}`);
     }
   } catch (e) {
-    console.error("[stripe-webhook] handler", e);
+    console.error("[stripe-webhook] handler", e, (e as Error)?.stack || "");
     return json({ error: "handler_error", message: String(e) }, 500);
   }
 
