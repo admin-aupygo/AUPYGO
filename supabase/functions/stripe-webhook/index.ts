@@ -28,14 +28,12 @@ const PRICE_TO_PLAN: Record<string, string> = {
   premium_6m: "PREMIUM",
 };
 
-for (
-  const [env, plan] of [
-    ["STRIPE_PRICE_STANDARD_MONTHLY", "STANDARD"],
-    ["STRIPE_PRICE_PREMIUM_MONTHLY", "PREMIUM"],
-    ["STRIPE_PRICE_STANDARD_6M", "STANDARD"],
-    ["STRIPE_PRICE_PREMIUM_6M", "PREMIUM"],
-  ]
-) {
+for (const [env, plan] of [
+  ["STRIPE_PRICE_STANDARD_MONTHLY", "STANDARD"],
+  ["STRIPE_PRICE_PREMIUM_MONTHLY", "PREMIUM"],
+  ["STRIPE_PRICE_STANDARD_6M", "STANDARD"],
+  ["STRIPE_PRICE_PREMIUM_6M", "PREMIUM"],
+]) {
   const id = (Deno.env.get(env) || "").trim();
   if (id) PRICE_TO_PLAN[id] = plan;
 }
@@ -69,9 +67,9 @@ Deno.serve(async (req) => {
     apiVersion: "2024-12-18.acacia",
     httpClient: Stripe.createFetchHttpClient(),
   });
+
   // Deno n'a que WebCrypto (asynchrone) : provider dédié + constructEventAsync
   const cryptoProvider = Stripe.createSubtleCryptoProvider();
-
   const signature = req.headers.get("stripe-signature");
   if (!signature) {
     return json({ error: "no_signature" }, 400);
@@ -94,7 +92,18 @@ Deno.serve(async (req) => {
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
   const serviceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-  const admin = createClient(supabaseUrl, serviceKey);
+
+  if (!serviceKey) {
+    console.error("[stripe-webhook] missing SUPABASE_SERVICE_ROLE_KEY");
+    return json({ error: "missing_service_key" }, 500);
+  }
+
+  const admin = createClient(supabaseUrl, serviceKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    },
+  });
 
   try {
     switch (event.type) {
@@ -139,7 +148,6 @@ async function resolveUserId(
 ): Promise<string | null> {
   if (opts.metadataUserId) return opts.metadataUserId;
   if (opts.clientReferenceId) return opts.clientReferenceId;
-
   if (opts.customerId) {
     const { data } = await admin
       .from("profiles")
@@ -205,11 +213,12 @@ async function handleCheckoutCompleted(
 
   if (error) {
     console.error("[checkout.completed] update", error);
-  } else {
-    console.log(
-      `[checkout.completed] user=${userId} plan=${plan} billing=${billing}`,
-    );
+    throw error; // ← maintenant on remonte l’erreur
   }
+
+  console.log(
+    `[checkout.completed] user=${userId} plan=${plan} billing=${billing}`,
+  );
 }
 
 async function handleInvoicePaid(
@@ -239,7 +248,7 @@ async function handleInvoicePaid(
       ? "PREMIUM"
       : "STANDARD";
 
-  await admin
+  const { error } = await admin
     .from("profiles")
     .update({
       subscription: plan,
@@ -247,6 +256,11 @@ async function handleInvoicePaid(
       subscription_expires_at: null,
     })
     .eq("id", userId);
+
+  if (error) {
+    console.error("[invoice.paid] update", error);
+    throw error;
+  }
 
   console.log(`[invoice.paid] user=${userId} plan=${plan}`);
 }
@@ -270,19 +284,25 @@ async function handleSubscriptionUpdated(
         "STANDARD").toUpperCase() === "PREMIUM"
         ? "PREMIUM"
         : "STANDARD";
-    await admin
+
+    const { error } = await admin
       .from("profiles")
       .update({
         subscription: plan,
         stripe_subscription_id: sub.id,
       })
       .eq("id", userId);
+
+    if (error) {
+      console.error("[subscription.updated] update", error);
+      throw error;
+    }
   } else if (
     sub.status === "canceled" ||
     sub.status === "unpaid" ||
     sub.status === "incomplete_expired"
   ) {
-    await admin
+    const { error } = await admin
       .from("profiles")
       .update({
         subscription: "FREE",
@@ -290,6 +310,11 @@ async function handleSubscriptionUpdated(
         subscription_expires_at: null,
       })
       .eq("id", userId);
+
+    if (error) {
+      console.error("[subscription.updated] cancel update", error);
+      throw error;
+    }
   }
 }
 
@@ -304,7 +329,7 @@ async function handleSubscriptionDeleted(
   });
   if (!userId) return;
 
-  await admin
+  const { error } = await admin
     .from("profiles")
     .update({
       subscription: "FREE",
@@ -312,6 +337,11 @@ async function handleSubscriptionDeleted(
       subscription_expires_at: null,
     })
     .eq("id", userId);
+
+  if (error) {
+    console.error("[subscription.deleted] update", error);
+    throw error;
+  }
 
   console.log(`[subscription.deleted] user=${userId} → FREE`);
 }
