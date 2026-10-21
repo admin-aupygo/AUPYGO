@@ -6,12 +6,15 @@
  * Auth: Bearer JWT utilisateur (obligatoire)
  *
  * Secrets requis (Supabase Dashboard → Edge Functions → Secrets) :
- *   STRIPE_SECRET_KEY   (sk_test_... en mode test)
+ *   STRIPE_SECRET_KEY   (sk_test_... en test, sk_live_... en production)
+ *   Prix LIVE (obligatoires dès que la clé est sk_live_) :
+ *     STRIPE_PRICE_STANDARD_MONTHLY, STRIPE_PRICE_PREMIUM_MONTHLY,
+ *     STRIPE_PRICE_STANDARD_6M,      STRIPE_PRICE_PREMIUM_6M   (valeurs price_...)
  *   SITE_URL            (https://aupygo.com)
  *   SUPABASE_URL / SUPABASE_ANON_KEY / SUPABASE_SERVICE_ROLE_KEY (auto)
  */
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.1";
-import Stripe from "https://esm.sh/stripe@17.7.0?target=deno";
+import { createClient } from "npm:@supabase/supabase-js@2.49.1";
+import Stripe from "npm:stripe@17.7.0";
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -19,32 +22,44 @@ const CORS = {
     "authorization, x-client-info, apikey, content-type",
 };
 
-/** Price IDs mode Test — à remplacer par les price_ live lors du passage en production */
-const PRICE_MAP: Record<
-  string,
-  { priceId: string; mode: "subscription" | "payment"; plan: string }
-> = {
+type Offer = { mode: "subscription" | "payment"; plan: string; env: string; testPriceId: string };
+
+/** Définition des 4 offres. Les price_ de test ne servent QUE si la clé est sk_test_. */
+const OFFERS: Record<string, Offer> = {
   standard_monthly: {
-    priceId: "price_1UOMwUPetij5LBkM4uymFy8D",
     mode: "subscription",
     plan: "STANDARD",
+    env: "STRIPE_PRICE_STANDARD_MONTHLY",
+    testPriceId: "price_1UOMwUPetij5LBkM4uymFy8D",
   },
   premium_monthly: {
-    priceId: "price_1UOMwwPetij5LBkMj0nbSGWh",
     mode: "subscription",
     plan: "PREMIUM",
+    env: "STRIPE_PRICE_PREMIUM_MONTHLY",
+    testPriceId: "price_1UOMwwPetij5LBkMj0nbSGWh",
   },
   standard_6m: {
-    priceId: "price_1UOMwyPetij5LBkMOCACAtTV",
     mode: "payment",
     plan: "STANDARD",
+    env: "STRIPE_PRICE_STANDARD_6M",
+    testPriceId: "price_1UOMwyPetij5LBkMOCACAtTV",
   },
   premium_6m: {
-    priceId: "price_1UOMwzPetij5LBkMMCuqU3Bc",
     mode: "payment",
     plan: "PREMIUM",
+    env: "STRIPE_PRICE_PREMIUM_6M",
+    testPriceId: "price_1UOMwzPetij5LBkMMCuqU3Bc",
   },
 };
+
+/** Secret d'abord (production), sinon price_ de test uniquement si clé de test. */
+function resolvePriceId(offer: Offer, stripeKey: string): string | null {
+  const fromEnv = (Deno.env.get(offer.env) || "").trim();
+  if (fromEnv) return fromEnv;
+  const isTestKey = stripeKey.startsWith("sk_test_") ||
+    stripeKey.startsWith("rk_test_");
+  return isTestKey ? offer.testPriceId : null;
+}
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -90,15 +105,23 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const priceKey = String(body.price_key || "").trim();
-    const offer = PRICE_MAP[priceKey];
+    const offer = OFFERS[priceKey];
     if (!offer) {
       return json(
         {
           error: "invalid_price_key",
-          allowed: Object.keys(PRICE_MAP),
+          allowed: Object.keys(OFFERS),
         },
         400,
       );
+    }
+
+    const priceId = resolvePriceId(offer, stripeKey);
+    if (!priceId) {
+      console.error(
+        `[create-checkout] clé live sans secret ${offer.env} (price_key=${priceKey})`,
+      );
+      return json({ error: "live_price_not_configured", secret: offer.env }, 500);
     }
 
     const stripe = new Stripe(stripeKey, {
@@ -116,6 +139,25 @@ Deno.serve(async (req) => {
 
     let customerId = profile?.stripe_customer_id || null;
 
+    // Un customer créé en mode Test n'existe pas en Live (et inversement) :
+    // on vérifie qu'il existe pour la clé actuelle, sinon on en recrée un.
+    if (customerId) {
+      try {
+        const existing = await stripe.customers.retrieve(customerId);
+        if ((existing as { deleted?: boolean }).deleted) customerId = null;
+      } catch (e) {
+        const code = (e as { code?: string })?.code;
+        if (code === "resource_missing") {
+          console.warn(
+            `[create-checkout] customer ${customerId} introuvable avec cette clé Stripe → recréation`,
+          );
+          customerId = null;
+        } else {
+          throw e;
+        }
+      }
+    }
+
     if (!customerId) {
       const customer = await stripe.customers.create({
         email: user.email || undefined,
@@ -132,7 +174,7 @@ Deno.serve(async (req) => {
     const sessionParams: Stripe.Checkout.SessionCreateParams = {
       customer: customerId,
       client_reference_id: user.id,
-      line_items: [{ price: offer.priceId, quantity: 1 }],
+      line_items: [{ price: priceId, quantity: 1 }],
       mode: offer.mode,
       success_url: `${siteUrl}/?checkout=success&plan=${offer.plan}`,
       cancel_url: `${siteUrl}/?checkout=cancel`,
@@ -180,7 +222,12 @@ Deno.serve(async (req) => {
       session_id: session.id,
     });
   } catch (e) {
-    console.error("[create-checkout]", e);
+    const err = e as { message?: string; type?: string; code?: string; stack?: string };
+    console.error(
+      "[create-checkout] ERREUR",
+      JSON.stringify({ message: err?.message, type: err?.type, code: err?.code }),
+      err?.stack || "",
+    );
     return json(
       {
         error: "server_error",
