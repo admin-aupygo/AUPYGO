@@ -683,3 +683,278 @@
 
   console.log('[AUPYGO] handleDeleteProfile → Edge Function delete-user');
 })();
+/* ===== AUPYGO — Tarifs sorties + descriptif au clic (abonnés) ===== */
+(function () {
+  'use strict';
+
+  function plan() {
+    try {
+      return String(window.currentPlan || (typeof currentPlan !== 'undefined' ? currentPlan : 'FREE') || 'FREE').toUpperCase();
+    } catch (e) { return 'FREE'; }
+  }
+
+  function isAmiral() {
+    try {
+      if (typeof isAmiral === 'function' && window.isAmiral !== isAmiral && isAmiral()) return true;
+    } catch (e) {}
+    try {
+      if (typeof window.isAmiral === 'function' && window.isAmiral()) return true;
+      if (typeof isAdmin === 'function' && isAdmin()) return true;
+      var p = window.currentUserProfile;
+      if (p && (p.is_admin === true || String(p.role || '').toLowerCase() === 'amiral')) return true;
+    } catch (e2) {}
+    return false;
+  }
+
+  function isStaffEv(ev) {
+    if (!ev) return false;
+    if (ev.is_special_aupygo === true || ev.is_special_aupygo === 'true') return true;
+    if (ev.visibility === 'admin' || ev.visibility === 'admin_only') return true;
+    if (String(ev.type || '') === 'special') return true;
+    try {
+      var c = (window.profiles || []).find(function (x) { return x && x.id === ev.creator_id; });
+      if (!c) return false;
+      if (c.is_admin === true) return true;
+      var r = String(c.role || '').toLowerCase();
+      return ['amiral','admin_general','admin','host','moderator','major_staff','sergent_staff','major_moderateur','sergent_moderateur'].indexOf(r) !== -1;
+    } catch (e) { return false; }
+  }
+
+  function isPaidEv(ev) {
+    return !!(ev && (ev.is_paid === true || ev.is_paid === 'true') && Number(ev.price) > 0);
+  }
+
+  function priceTxt(ev) {
+    if (!isPaidEv(ev)) return '';
+    return Number(ev.price).toFixed(2).replace(/\.00$/, '') + ' €';
+  }
+
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+
+  /** Libellé tarif affiché sur les cartes */
+  function tariffLabel(ev) {
+    if (isPaidEv(ev)) {
+      if (isStaffEv(ev)) {
+        // Événement AUPYGO payant : note dédiée + montant
+        return '💶 Événement AUPYGO payant — ' + priceTxt(ev) + ' (voir descriptif)';
+      }
+      return '💶 Entrée payante (voir descriptif)';
+    }
+    return '🆓 Gratuit — entrée libre';
+  }
+
+  /** Note d'attention sous le titre */
+  function attentionNote(ev) {
+    if (isPaidEv(ev) && isStaffEv(ev)) {
+      return '⚠️ Sortie AUPYGO monétisée — l’entrée est payante. Détails et tarif dans le descriptif.';
+    }
+    if (isPaidEv(ev)) {
+      return '⚠️ Entrée payante — consulte le descriptif avant de t’inscrire.';
+    }
+    return '✅ Entrée gratuite — libre d’accès selon les places disponibles.';
+  }
+
+  /* ---------- 1) Formulaire création : libellés + Amiral seul pour payant ---------- */
+  function fixCreateFormLabels() {
+    var hint = document.querySelector('.wizard-step-hint');
+    if (hint && /payante|monétisée|Gratuit par défaut/i.test(hint.textContent || '')) {
+      hint.textContent = 'Tarif de la sortie — Gratuit par défaut. Seul l’admin AUPYGO (Amiral) peut publier une sortie payante monétisée.';
+    }
+
+    var freeLab = document.querySelector('label[for="eventPaidFree"], #eventPaidFree');
+    if (freeLab) {
+      var freeSpan = freeLab.closest('label') || freeLab.parentElement;
+      if (freeSpan) {
+        var fs = freeSpan.querySelector('span');
+        if (fs) fs.innerHTML = '🆓 <strong>Gratuit</strong> — entrée libre';
+      }
+    }
+
+    var paidLab = document.querySelector('label[for="eventPaidPaid"], #eventPaidPaid');
+    if (paidLab) {
+      var paidWrap = paidLab.closest('label') || paidLab.parentElement;
+      if (paidWrap) {
+        var ps = paidWrap.querySelector('span');
+        if (ps) {
+          ps.innerHTML = isAmiral()
+            ? '💶 <strong>Payant</strong> — montant personnalisé (Amiral)'
+            : '💶 <strong>Entrée payante</strong> (voir descriptif) — réservé à l’Amiral';
+        }
+      }
+    }
+
+    // Non-Amiral : forcer gratuit, cacher montant
+    if (!isAmiral()) {
+      var paidRadio = document.getElementById('eventPaidPaid');
+      var freeRadio = document.getElementById('eventPaidFree');
+      var priceWrap = document.getElementById('createEventPriceWrap');
+      var priceInput = document.getElementById('createEventPrice');
+      var priceStep = document.getElementById('wizardStep_price');
+      if (paidRadio) {
+        paidRadio.checked = false;
+        paidRadio.disabled = true;
+      }
+      if (freeRadio) freeRadio.checked = true;
+      if (priceWrap) priceWrap.style.display = 'none';
+      if (priceInput) { priceInput.value = ''; priceInput.disabled = true; }
+      if (priceStep) priceStep.style.display = 'none';
+      if (paidLab) {
+        var hide = paidLab.closest('label') || paidLab.parentElement;
+        if (hide) hide.style.opacity = '0.45';
+      }
+    } else {
+      var paidRadio2 = document.getElementById('eventPaidPaid');
+      if (paidRadio2) paidRadio2.disabled = false;
+      var priceStep2 = document.getElementById('wizardStep_price');
+      if (priceStep2) priceStep2.style.display = '';
+    }
+  }
+
+  /* ---------- 2) Badges tarif sur les cartes ---------- */
+  function applyTariffBadges() {
+    (window.cachedEvents || []).forEach(function (ev) {
+      if (!ev || !ev.id) return;
+      document.querySelectorAll('[data-event-id="' + ev.id + '"]').forEach(function (card) {
+        var line = card.querySelector('.aupygo-tariff-line');
+        if (!line) {
+          line = document.createElement('p');
+          line.className = 'event-details aupygo-tariff-line';
+          line.style.cssText = 'font-weight:700;margin:6px 0 2px;font-size:13px';
+          card.insertBefore(line, card.firstChild.nextSibling || card.firstChild);
+        }
+        line.textContent = tariffLabel(ev);
+        line.style.color = isPaidEv(ev) ? '#7c3aed' : '#15803d';
+
+        var note = card.querySelector('.aupygo-attention-note');
+        if (!note) {
+          note = document.createElement('p');
+          note.className = 'event-details aupygo-attention-note';
+          note.style.cssText = 'font-size:12px;color:#64748b;margin:0 0 6px';
+          line.parentNode.insertBefore(note, line.nextSibling);
+        }
+        note.textContent = attentionNote(ev);
+
+        // Clic carte → descriptif (abonnés STANDARD / PREMIUM + staff)
+        if (!card._aupygoDescBound) {
+          card._aupygoDescBound = true;
+          card.style.cursor = 'pointer';
+          card.addEventListener('click', function (e) {
+            // ne pas intercepter boutons / liens
+            if (e.target && (e.target.closest('button') || e.target.closest('a') || e.target.closest('input'))) return;
+            openEventDescModal(ev);
+          });
+        }
+      });
+    });
+  }
+
+  /* ---------- 3) Modal descriptif (abonnés) ---------- */
+  function ensureDescModal() {
+    if (document.getElementById('aupygoDescOverlay')) return;
+    var ov = document.createElement('div');
+    ov.id = 'aupygoDescOverlay';
+    ov.style.cssText =
+      'display:none;position:fixed;inset:0;z-index:10070;background:rgba(15,23,42,.55);' +
+      'align-items:center;justify-content:center;padding:16px';
+    ov.innerHTML =
+      '<div id="aupygoDescCard" style="background:#fff;border-radius:16px;max-width:440px;width:100%;' +
+      'padding:20px;max-height:90vh;overflow:auto;box-shadow:0 20px 50px rgba(0,0,0,.25)"></div>';
+    ov.addEventListener('click', function (e) {
+      if (e.target === ov) closeDescModal();
+    });
+    document.body.appendChild(ov);
+  }
+
+  function closeDescModal() {
+    var ov = document.getElementById('aupygoDescOverlay');
+    if (ov) ov.style.display = 'none';
+  }
+  window.aupygoCloseDescModal = closeDescModal;
+
+  function openEventDescModal(ev) {
+    if (!ev) return;
+    var p = plan();
+    var staff = false;
+    try { staff = typeof isStaff === 'function' && isStaff(); } catch (e) {}
+
+    // FREE : peut voir le tarif, mais pas le descriptif complet → inviter à upgrader
+    // (sauf si tu veux aussi le montrer aux FREE : retire ce bloc)
+    if (p === 'FREE' && !staff && !isAmiral()) {
+      if (typeof showToast === 'function') {
+        showToast('🔒 Le descriptif détaillé est réservé aux abonnés STANDARD / PREMIUM.', 'info');
+      }
+      // Afficher quand même un aperçu minimal (tarif + note)
+      ensureDescModal();
+      var card0 = document.getElementById('aupygoDescCard');
+      if (!card0) return;
+      card0.innerHTML =
+        '<button type="button" onclick="aupygoCloseDescModal()" style="float:right;border:0;background:0;font-size:22px;cursor:pointer">×</button>' +
+        '<div style="font-size:28px">' + esc(ev.emoji || '🎉') + '</div>' +
+        '<h3 style="margin:8px 0">' + esc(ev.title || '') + '</h3>' +
+        '<p style="font-weight:700;color:' + (isPaidEv(ev) ? '#7c3aed' : '#15803d') + '">' + esc(tariffLabel(ev)) + '</p>' +
+        '<p style="font-size:13px;color:#64748b">' + esc(attentionNote(ev)) + '</p>' +
+        '<p style="margin-top:12px;font-size:13px">Passe en STANDARD pour lire le descriptif complet et t’inscrire aux sorties.</p>' +
+        '<button type="button" class="btn btn-primary" style="width:100%;margin-top:12px" onclick="aupygoCloseDescModal();if(typeof go===\'function\')go(\'plans\')">Voir les forfaits</button>';
+      document.getElementById('aupygoDescOverlay').style.display = 'flex';
+      return;
+    }
+
+    // STANDARD / PREMIUM / staff : descriptif complet
+    ensureDescModal();
+    var card = document.getElementById('aupygoDescCard');
+    if (!card) return;
+
+    var dateStr = typeof formatEventDate === 'function' ? formatEventDate(ev.event_date) : String(ev.event_date || '');
+    var desc = String(ev.description || '')
+      .replace(/\[STAFF_EVENT\]/g, '')
+      .replace(/\[STAFF_PRESENCE\]/g, '')
+      .replace(/\[HOST_COUNTRY:[^\]]*\]/g, '')
+      .replace(/\[EN_ATTENTE_VALIDATION_ADMIN\]/g, '')
+      .trim();
+
+    card.innerHTML =
+      '<button type="button" onclick="aupygoCloseDescModal()" style="float:right;border:0;background:0;font-size:22px;cursor:pointer">×</button>' +
+      '<div style="font-size:28px">' + esc(ev.emoji || '🎉') + '</div>' +
+      '<h3 style="margin:8px 0">' + esc(ev.title || '') + '</h3>' +
+      '<p style="margin:4px 0;color:#64748b;font-size:13px">📍 ' + esc(ev.address || '') + '</p>' +
+      '<p style="margin:4px 0;color:#64748b;font-size:13px">🕐 ' + esc(dateStr) + '</p>' +
+      '<p style="font-weight:700;margin:10px 0 4px;color:' + (isPaidEv(ev) ? '#7c3aed' : '#15803d') + '">' +
+      esc(tariffLabel(ev)) + '</p>' +
+      '<p style="font-size:12px;color:#64748b;margin:0 0 10px">' + esc(attentionNote(ev)) + '</p>' +
+      (desc
+        ? '<div style="margin:12px 0;padding:12px;border-radius:12px;background:#f8fafc;border:1px solid #e2e8f0;font-size:14px;white-space:pre-wrap">' +
+          esc(desc) + '</div>'
+        : '<p style="color:#94a3b8;font-size:13px">Pas de descriptif pour cette sortie.</p>') +
+      '<button type="button" class="btn btn-secondary" style="width:100%;margin-top:8px" onclick="aupygoCloseDescModal()">Fermer</button>';
+
+    document.getElementById('aupygoDescOverlay').style.display = 'flex';
+  }
+  window.openEventDescModal = openEventDescModal;
+
+  function boot() {
+    fixCreateFormLabels();
+    applyTariffBadges();
+  }
+
+  boot();
+  setInterval(boot, 1500);
+  setTimeout(boot, 400);
+  setTimeout(boot, 1200);
+
+  // Après chaque rechargement d’événements
+  if (typeof window.loadAndRenderEvents === 'function' && !window._aupygoTariffLoadPatched) {
+    window._aupygoTariffLoadPatched = true;
+    var origLoad = window.loadAndRenderEvents;
+    window.loadAndRenderEvents = async function () {
+      var r = await origLoad.apply(this, arguments);
+      setTimeout(boot, 50);
+      setTimeout(boot, 300);
+      return r;
+    };
+  }
+
+  console.log('[AUPYGO] tarifs sorties + descriptif au clic — ready');
+})();
