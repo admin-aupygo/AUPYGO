@@ -577,3 +577,109 @@
 
   console.log('[AUPYGO] cdc-fixes.js — 7 points CDC actifs');
 })();
+/* ===== AUPYGO — suppression compte via Edge Function delete-user (Resend) ===== */
+(function () {
+  'use strict';
+
+  window.handleDeleteProfile = async function handleDeleteProfile() {
+    if (!window.currentUser) {
+      if (typeof showToast === 'function') {
+        showToast(
+          typeof t === 'function' ? t('profile.delete_login_required') : 'Connecte-toi',
+          'error'
+        );
+      }
+      return;
+    }
+
+    var confirmed = confirm(
+      'Vous êtes sur le point de supprimer définitivement votre compte.\n\n' +
+      'Cette action est irréversible.\n\n' +
+      'Toutes vos données personnelles, vos informations de profil, vos amis, vos messages et vos contenus associés seront supprimés définitivement.\n\n' +
+      'Votre abonnement ne sera pas remboursé pour la période en cours.\n' +
+      'Son renouvellement automatique sera annulé.\n\n' +
+      'Continuer ?'
+    );
+    if (!confirmed) return;
+
+    var client = window.supabaseClient || window.supabase;
+    if (!client) {
+      if (typeof showToast === 'function') showToast('Connexion indisponible', 'error');
+      return;
+    }
+
+    try {
+      if (typeof showToast === 'function') showToast('Suppression du compte...', 'success');
+
+      var sessionRes = await client.auth.getSession();
+      var token = sessionRes && sessionRes.data && sessionRes.data.session && sessionRes.data.session.access_token;
+      if (!token) throw new Error('Session expirée, reconnecte-toi.');
+
+      var base =
+        (window.SUPABASE_URL || window.supabaseUrl || client.supabaseUrl || '').replace(/\/$/, '');
+      if (!base) throw new Error('SUPABASE_URL manquant');
+
+      var anon =
+        window.SUPABASE_ANON_KEY ||
+        window.supabaseAnonKey ||
+        (window.AUPYGO_CONFIG && window.AUPYGO_CONFIG.supabaseAnonKey) ||
+        '';
+
+      var res = await fetch(base + '/functions/v1/delete-user', {
+        method: 'POST',
+        headers: {
+          Authorization: 'Bearer ' + token,
+          apikey: anon,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      var body = {};
+      try { body = await res.json(); } catch (e) {}
+      if (!res.ok) {
+        throw new Error(body.error || body.message || ('HTTP ' + res.status));
+      }
+
+      console.log('[delete-user]', body);
+
+      if (typeof showToast === 'function') {
+        showToast(
+          (typeof t === 'function' && t('profile.delete_done')) ||
+            'Compte supprimé définitivement. À bientôt.',
+          'success'
+        );
+      }
+
+      try { if (typeof stopIdleWatch === 'function') stopIdleWatch(); } catch (e) {}
+      try { if (typeof teardownMessagesRealtime === 'function') teardownMessagesRealtime(); } catch (e) {}
+      try { if (typeof setOnlineStatus === 'function') await setOnlineStatus(false); } catch (e) {}
+
+      localStorage.clear();
+      sessionStorage.clear();
+
+      try {
+        await client.auth.signOut({ scope: 'global' });
+      } catch (e) {
+        try { await client.auth.signOut(); } catch (e2) {}
+      }
+
+      window.currentUser = null;
+      try { currentUser = null; } catch (e) {}
+      window.currentPlan = 'FREE';
+      try { currentPlan = 'FREE'; } catch (e) {}
+      window.profileSaved = false;
+      try { profileSaved = false; } catch (e) {}
+
+      if (typeof unlockIdentityFields === 'function') unlockIdentityFields();
+      if (typeof updatePlanUI === 'function') updatePlanUI();
+      if (typeof go === 'function') go('plans');
+    } catch (e) {
+      console.error('[handleDeleteProfile]', e);
+      if (typeof showToast === 'function') {
+        showToast((e && e.message) || 'Erreur suppression', 'error');
+      }
+    }
+  };
+
+  console.log('[AUPYGO] handleDeleteProfile → Edge Function delete-user');
+})();
