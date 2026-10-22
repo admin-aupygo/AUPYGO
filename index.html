@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261017-turnstile-explicit';
+  var CACHE_V = 'fix-20261022-staff-logo';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -44,15 +44,8 @@
   html = html.replace('</head>', '<script src="js/theme-toggle.js?v=' + CACHE_V + '"><\/script>\n</head>');
   html = html.replace(/<link[^>]*dark-theme[^>]*>\s*/gi, '');
   html = html.replace('</head>',
-    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@db5475e729cf6a249698d245618279a09f50060d/dark-theme.css?v=' + CACHE_V + '">\n' +
-    '<link rel="stylesheet" href="dark-theme-admin.css?v=' + CACHE_V + '">\n</head>');
+    '<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@db5475e729cf6a249698d245618279a09f50060d/dark-theme.css?v=' + CACHE_V + '">\n</head>');
 
-  // --- FIX Turnstile : explicit, SANS async/defer (evite TurnstileError) ---
-  html = html.replace(
-    /<script[^>]*src=["']https:\/\/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js[^"']*["'][^>]*><\/script>/gi,
-    '<script src="https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"><\/script>'
-  );
-  // Conteneur : mode explicit (pas de classe cf-turnstile pour eviter double render)
   html = html.replace(
     /<div\s+id="turnstileContainer"[^>]*>/i,
     '<div id="turnstileContainer">'
@@ -85,6 +78,7 @@
     'js/promo-expire-fix.js',
     'js/priority-fixes.js',
     'js/cdc-fixes.js',
+    'js/aupygo-staff-logo.js',
     'js/staff-event-notify.js',
     'js/free-aupygo-join.js',
     'js/staff-status.js',
