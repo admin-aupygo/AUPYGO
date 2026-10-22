@@ -1,1 +1,125 @@
-/* see file */
+/* AUPYGO dark-theme-admin — restored + admin force 22/10/2026 */
+
+html[data-theme="dark"] body [style*="background:#fff"],
+html[data-theme="dark"] body [style*="background: #fff"],
+html[data-theme="dark"] body [style*="background:#ffffff"],
+html[data-theme="dark"] body [style*="background: #ffffff"],
+html[data-theme="dark"] body [style*="background:#FFF"],
+html[data-theme="dark"] body [style*="background:#f8fafc"],
+html[data-theme="dark"] body [style*="background: #f8fafc"],
+html[data-theme="dark"] body [style*="background:#f1f5f9"],
+html[data-theme="dark"] body [style*="background: #f1f5f9"],
+html[data-theme="dark"] body [style*="background:#fafafa"],
+html[data-theme="dark"] body [style*="background:#f9fafb"],
+html[data-theme="dark"] body [style*="background:#f7f5fb"],
+html[data-theme="dark"] body [style*="background:#faf8ff"],
+html[data-theme="dark"] body [style*="background:#fff7ed"],
+html[data-theme="dark"] body [style*="background:#fff8e7"],
+html[data-theme="dark"] body [style*="background:#f0fdf4"],
+html[data-theme="dark"] body [style*="background:#faf5ff"] {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body [style*="color:#334155"],
+html[data-theme="dark"] body [style*="color:#1e293b"],
+html[data-theme="dark"] body [style*="color:#0f172a"],
+html[data-theme="dark"] body [style*="color:#64748b"] {
+  color: var(--d-text-soft) !important;
+}
+
+html[data-theme="dark"] body #admin,
+html[data-theme="dark"] body #administration {
+  color: var(--d-text) !important;
+}
+
+html[data-theme="dark"] body #admin > div,
+html[data-theme="dark"] body #admin section,
+html[data-theme="dark"] body #admin .card,
+html[data-theme="dark"] body #aupygo-plan-panel,
+html[data-theme="dark"] body #planUserList,
+html[data-theme="dark"] body #promoList,
+html[data-theme="dark"] body .admin-panel,
+html[data-theme="dark"] body .admin-card {
+  background: var(--d-surface) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body #admin table,
+html[data-theme="dark"] body #admin thead,
+html[data-theme="dark"] body #admin th,
+html[data-theme="dark"] body #admin td,
+html[data-theme="dark"] body #admin tr,
+html[data-theme="dark"] body table {
+  background: var(--d-surface) !important;
+  color: var(--d-text-soft) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body #admin thead,
+html[data-theme="dark"] body #admin th,
+html[data-theme="dark"] body thead,
+html[data-theme="dark"] body th {
+  background: var(--d-surface-2) !important;
+  color: var(--d-muted) !important;
+}
+
+html[data-theme="dark"] body #admin input,
+html[data-theme="dark"] body #admin select,
+html[data-theme="dark"] body #admin textarea,
+html[data-theme="dark"] body #aupygo-plan-panel input,
+html[data-theme="dark"] body #aupygo-plan-panel select,
+html[data-theme="dark"] body #aupygo-plan-panel textarea {
+  background: var(--d-surface-2) !important;
+  color: var(--d-text) !important;
+  border-color: var(--d-border) !important;
+}
+
+html[data-theme="dark"] body #admin h1,
+html[data-theme="dark"] body #admin h2,
+html[data-theme="dark"] body #admin h3,
+html[data-theme="dark"] body #admin h4,
+html[data-theme="dark"] body #admin p,
+html[data-theme="dark"] body #admin label {
+  color: var(--d-text) !important;
+}
+
+html[data-theme="dark"] body #admin .muted,
+html[data-theme="dark"] body #admin small,
+html[data-theme="dark"] body .text-muted,
+html[data-theme="dark"] body .muted {
+  color: var(--d-muted) !important;
+}
+
+html[data-theme="dark"] body .aupygo-btn-descriptif,
+html[data-theme="dark"] body button.aupygo-btn-descriptif {
+  background: #ffffff !important;
+  color: #5b21b6 !important;
+  border: 1px solid #c4b5fd !important;
+}
+
+html[data-theme="dark"] body .aupygo-fp-free {
+  background: rgba(34, 197, 94, .18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, .4) !important;
+}
+html[data-theme="dark"] body .aupygo-fp-paid {
+  background: rgba(124, 58, 237, .22) !important;
+  color: #c4b0ff !important;
+  border-color: rgba(124, 58, 237, .45) !important;
+}
+
+html[data-theme="dark"] body .plan-ind-base.plan-ind-free,
+html[data-theme="dark"] body .plan-ind-base.plan-ind-standard,
+html[data-theme="dark"] body .plan-ind-base.plan-ind-premium {
+  background: rgba(34, 197, 94, .18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, .4) !important;
+}
+
+html[data-theme="dark"],
+html[data-theme="dark"] body {
+  background-color: var(--d-bg) !important;
+}
