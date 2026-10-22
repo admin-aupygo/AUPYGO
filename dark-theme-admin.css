@@ -1,6 +1,7 @@
 /* =====================================================================
    EXTENSION — Admin, tableaux, inline styles blancs, composants dynamiques
    + indicateurs forfaits (vert base / orange promo zébré)
+   + Descriptif blanc + badges Gratuit/Payant (22/10/2026)
    ===================================================================== */
 
 /* ---- Catch-all inline white / light gray ---- */
@@ -387,4 +388,31 @@ html[data-theme="dark"] body * {
 html[data-theme="dark"],
 html[data-theme="dark"] body {
   background-color: var(--d-bg) !important;
+}
+
+/* ---- Descriptif button always white (clair + sombre) ---- */
+.aupygo-btn-descriptif,
+button.aupygo-btn-descriptif {
+  background: #ffffff !important;
+  color: #5b21b6 !important;
+  border: 1px solid #c4b5fd !important;
+  font-weight: 700 !important;
+}
+html[data-theme="dark"] body .aupygo-btn-descriptif,
+html[data-theme="dark"] body button.aupygo-btn-descriptif {
+  background: #ffffff !important;
+  color: #5b21b6 !important;
+  border: 1px solid #c4b5fd !important;
+}
+
+/* ---- Badge Gratuit / Payant dans les vignettes ---- */
+html[data-theme="dark"] body .aupygo-fp-free {
+  background: rgba(34, 197, 94, .18) !important;
+  color: #86efac !important;
+  border-color: rgba(34, 197, 94, .4) !important;
+}
+html[data-theme="dark"] body .aupygo-fp-paid {
+  background: rgba(124, 58, 237, .22) !important;
+  color: #c4b0ff !important;
+  border-color: rgba(124, 58, 237, .45) !important;
 }
