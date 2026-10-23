@@ -12,7 +12,13 @@
       xhr.open('GET', urls[i], false);
       xhr.send(null);
       if (xhr.status >= 200 && xhr.status < 300 && xhr.responseText && xhr.responseText.indexOf('supabaseClient') !== -1) {
-        (0, eval)(xhr.responseText);
+        // <script> inline (et non eval indirect) : les `let`/`const` d'app.js
+        // (messagesChannel, myConversationIds, activeConversation, myGroups…)
+        // deviennent visibles des correctifs js/*.js. Avec eval ils restaient
+        // enfermés dans la portée de l'eval -> "messagesChannel is not defined".
+        var sc = document.createElement('script');
+        sc.text = xhr.responseText + '\n//# sourceURL=aupygo-app.js';
+        (document.head || document.documentElement).appendChild(sc);
         loaded = true;
         console.log('[AUPYGO] app.js sync OK via', urls[i]);
       }
