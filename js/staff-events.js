@@ -61,6 +61,13 @@
   function filterEventsByHostCountry(list) {
     if (!Array.isArray(list)) return list;
     if (typeof isStaff === 'function' && isStaff()) return list;
+    // v4 : la zone géographique (≤ 100 km autour de la ville du profil) est gérée par
+    // events-region-filter.js. On ne filtre plus par pays ici, sinon un utilisateur à
+    // Genève ne verrait plus les sorties d'Annemasse / Annecy (France, < 100 km).
+    // Reste uniquement : masquer les sorties en attente de validation.
+    if (typeof window.aupygoFilterEventsByRegion === 'function') {
+      return list.filter(function (ev) { return !isPendingApproval(ev); });
+    }
     var viewerCountry = normalizeCountry(getViewerCountry());
     return list.filter(function (ev) {
       if (isPendingApproval(ev)) return false;
