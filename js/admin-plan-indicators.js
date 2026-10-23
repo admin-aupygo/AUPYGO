@@ -78,7 +78,34 @@
     return '<span class="' + cls + '" title="' + tip + '">' + esc(plan) + '</span>';
   }
 
+  function injectCss() {
+    if (document.getElementById('aupygo-plan-ind-css')) return;
+    var st = document.createElement('style');
+    st.id = 'aupygo-plan-ind-css';
+    st.textContent =
+      '.plan-ind-legend{display:flex;flex-wrap:wrap;align-items:center;gap:8px 12px;margin:6px 0 14px;font-size:13px;opacity:.9}' +
+      '.plan-ind{display:inline-block;padding:3px 10px;border-radius:999px;font-size:11px;font-weight:800;letter-spacing:.03em;' +
+        'border:1px solid transparent;vertical-align:middle;white-space:nowrap}' +
+      '.plan-ind-base{background:rgba(34,197,94,.16);color:#15803d;border-color:rgba(34,197,94,.45)}' +
+      '.plan-ind-promo{color:#b45309;border-color:rgba(245,158,11,.65);' +
+        'background:repeating-linear-gradient(45deg,rgba(245,158,11,.22) 0 7px,rgba(245,158,11,.08) 7px 14px)}' +
+      '.plan-ind-row{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:10px;' +
+        'padding:10px 12px;margin:0 0 8px;border-radius:12px;border:1px solid rgba(128,128,128,.25);background:rgba(128,128,128,.06)}' +
+      '.plan-ind-row-promo{border-color:rgba(245,158,11,.55)}' +
+      '.plan-ind-name{display:flex;flex-wrap:wrap;align-items:center;gap:8px;min-width:0}' +
+      '#planUserList .admin-actions{display:flex;flex-wrap:wrap;gap:6px}' +
+      '#planUserList .admin-act-btn{padding:6px 12px;border-radius:999px;font-size:12px;font-weight:700;cursor:pointer;' +
+        'border:1px solid rgba(124,58,237,.45);background:rgba(124,58,237,.12);color:inherit}' +
+      '#planUserList .admin-act-btn:hover{background:rgba(124,58,237,.28)}' +
+      '#planUserList span.admin-act-btn{background:rgba(34,197,94,.18);border-color:rgba(34,197,94,.5)}' +
+      '.plan-ind-empty{opacity:.7;padding:8px 0}' +
+      'html[data-theme="dark"] .plan-ind-base{color:#86efac}' +
+      'html[data-theme="dark"] .plan-ind-promo{color:#fcd34d}';
+    (document.head || document.documentElement).appendChild(st);
+  }
+
   function renderList() {
+    injectCss();
     var box = document.getElementById('planUserList');
     if (!box) return;
     var search = (document.getElementById('planUserSearch') || {}).value || '';
