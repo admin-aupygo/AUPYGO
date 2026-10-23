@@ -1,7 +1,8 @@
-/* AUPYGO — events-region-filter.js v2
- * Centre = ville du PROFIL (pas GPS). Rayon 100 km.
- * S'applique aussi aux sorties staff / AUPYGO.
- * Staff / Amiral / Admin voient tout.
+/* AUPYGO — events-region-filter.js v3
+ * - Ville = profil.city (pas GPS)
+ * - Rayon 100 km pour les users
+ * - Staff/Amiral : voient tout, classés par pays
+ * - Relecture profil après changement de ville
  */
 (function () {
   'use strict';
@@ -17,9 +18,9 @@
     geneve: [46.2044, 6.1432], geneva: [46.2044, 6.1432], lausanne: [46.5197, 6.6323],
     zurich: [47.3769, 8.5417], berne: [46.9480, 7.4474], bern: [46.9480, 7.4474],
     bale: [47.5596, 7.5886], basel: [47.5596, 7.5886], nyon: [46.3833, 6.2396],
-    vevey: [46.4628, 6.8434], monterux: [46.4312, 6.9107], montreux: [46.4312, 6.9107],
-    hauterive: [46.9667, 6.8833], saconnex: [46.2333, 6.1167],
-    'petit-saconnex': [46.2333, 6.1167], 'petit saconnex': [46.2333, 6.1167],
+    vevey: [46.4628, 6.8434], montreux: [46.4312, 6.9107], hauterive: [46.9667, 6.8833],
+    saconnex: [46.2333, 6.1167], 'petit-saconnex': [46.2333, 6.1167],
+    'petit saconnex': [46.2333, 6.1167],
     bruxelles: [50.8503, 4.3517], brussels: [50.8503, 4.3517],
     anvers: [51.2194, 4.4025], antwerp: [51.2194, 4.4025], liege: [50.6326, 5.5797],
     montreal: [45.5017, -73.5673], quebec: [46.8139, -71.2080],
@@ -97,22 +98,29 @@
     var city = '';
     var country = '';
     try {
+      var uid = window.currentUser && window.currentUser.id;
       var p = window.currentUserProfile || null;
-      if (!p && window.currentUser) {
-        p = (window.profiles || []).find(function (x) {
-          return x && window.currentUser && x.id === window.currentUser.id;
-        }) || null;
+
+      if (p && p.city) city = norm(p.city);
+
+      if (uid && Array.isArray(window.profiles)) {
+        var me = window.profiles.find(function (x) { return x && x.id === uid; });
+        if (me) {
+          if (me.city) city = norm(me.city);
+          country = norm(me.host_country || me.country || country);
+          if (!window.currentUserProfile) window.currentUserProfile = me;
+          else if (me.city) window.currentUserProfile.city = me.city;
+        }
       }
-      if (p) {
-        city = norm(p.city || '');
-        country = norm(p.host_country || p.country || '');
+
+      if (p) country = norm(p.host_country || p.country || country);
+
+      if (!city) {
+        try { city = norm(localStorage.getItem('aupygo_profile_city') || ''); } catch (e) {}
       }
       if (!city) {
         var el = document.getElementById('city');
         if (el && el.value) city = norm(el.value);
-      }
-      if (!city) {
-        try { city = norm(localStorage.getItem('aupygo_city') || ''); } catch (e) {}
       }
     } catch (e) {}
     return {
@@ -121,6 +129,39 @@
       coords: coordsForCity(city)
     };
   }
+
+  async function refreshViewerCityFromDb() {
+    try {
+      var uid = window.currentUser && window.currentUser.id;
+      var client = window.supabaseClient;
+      if (!uid || !client) return getViewerCity();
+      var res = await client.from('profiles')
+        .select('id, city, country, host_country')
+        .eq('id', uid)
+        .maybeSingle();
+      if (res && res.data) {
+        if (!window.currentUserProfile) window.currentUserProfile = {};
+        window.currentUserProfile.city = res.data.city || window.currentUserProfile.city;
+        window.currentUserProfile.country = res.data.country || window.currentUserProfile.country;
+        window.currentUserProfile.host_country = res.data.host_country || window.currentUserProfile.host_country;
+        try {
+          if (res.data.city) localStorage.setItem('aupygo_profile_city', res.data.city);
+        } catch (e) {}
+        if (Array.isArray(window.profiles)) {
+          var me = window.profiles.find(function (x) { return x && x.id === uid; });
+          if (me) {
+            me.city = res.data.city;
+            me.country = res.data.country;
+            me.host_country = res.data.host_country;
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('[AUPYGO] refresh city', e);
+    }
+    return getViewerCity();
+  }
+  window.aupygoRefreshViewerCity = refreshViewerCityFromDb;
 
   function extractEventCity(ev) {
     if (!ev) return '';
@@ -138,6 +179,35 @@
     return '';
   }
 
+  function extractEventCountry(ev) {
+    if (!ev) return 'Autre';
+    var m = String(ev.description || '').match(/\[HOST_COUNTRY:([^\]]+)\]/i);
+    if (m) return m[1].trim();
+    var creator = (window.profiles || []).find(function (p) { return p && p.id === ev.creator_id; });
+    if (creator && (creator.host_country || creator.country)) {
+      return (creator.host_country || creator.country).trim();
+    }
+    var addr = norm(ev.address);
+    var map = {
+      france: 'France', suisse: 'Suisse', switzerland: 'Suisse',
+      belgique: 'Belgique', belgium: 'Belgique', canada: 'Canada',
+      espagne: 'Espagne', spain: 'Espagne', italie: 'Italie', italy: 'Italie',
+      allemagne: 'Allemagne', germany: 'Allemagne', portugal: 'Portugal',
+      'royaume-uni': 'Royaume-Uni', 'united kingdom': 'Royaume-Uni', uk: 'Royaume-Uni',
+      paris: 'France', lyon: 'France', marseille: 'France',
+      geneve: 'Suisse', geneva: 'Suisse', lausanne: 'Suisse', nyon: 'Suisse',
+      vevey: 'Suisse', zurich: 'Suisse', barcelona: 'Espagne', barcelone: 'Espagne',
+      madrid: 'Espagne'
+    };
+    var keys = Object.keys(map);
+    for (var i = 0; i < keys.length; i++) {
+      if (addr.indexOf(keys[i]) !== -1) return map[keys[i]];
+    }
+    var city = extractEventCity(ev);
+    if (city && map[city]) return map[city];
+    return 'Autre';
+  }
+
   function eventCoords(ev) {
     if (ev.approx_lat != null && ev.approx_lng != null) {
       return [Number(ev.approx_lat), Number(ev.approx_lng)];
@@ -145,10 +215,7 @@
     if (ev.lat != null && ev.lng != null) {
       return [Number(ev.lat), Number(ev.lng)];
     }
-    var city = extractEventCity(ev);
-    var c = coordsForCity(city);
-    if (c) return c;
-    return null;
+    return coordsForCity(extractEventCity(ev));
   }
 
   function eventInViewerRegion(ev, viewer) {
@@ -165,25 +232,17 @@
     var evCity = extractEventCity(ev);
 
     if (viewer.coords && eCoords) {
-      var d = haversineKm(viewer.coords[0], viewer.coords[1], eCoords[0], eCoords[1]);
-      if (d > RADIUS_KM) return false;
-      return true;
+      return haversineKm(viewer.coords[0], viewer.coords[1], eCoords[0], eCoords[1]) <= RADIUS_KM;
     }
 
     if (viewer.city && evCity) {
       if (viewer.city === evCity ||
           viewer.city.indexOf(evCity) !== -1 ||
-          evCity.indexOf(viewer.city) !== -1) {
-        return true;
-      }
+          evCity.indexOf(viewer.city) !== -1) return true;
       if (coordsForCity(viewer.city) && coordsForCity(evCity)) return false;
     }
 
     if (viewer.city && norm(ev.address).indexOf(viewer.city) !== -1) return true;
-
-    if (viewer.coords && eCoords) return false;
-    if (viewer.city && coordsForCity(evCity) && coordsForCity(viewer.city)) return false;
-
     if (viewer.city || viewer.coords) return false;
     return true;
   }
@@ -191,50 +250,85 @@
   function filterEventsForUser(list) {
     if (!Array.isArray(list)) return list || [];
     if (isPrivileged()) return list;
+    if (!list.length) return list;
     var viewer = getViewerCity();
-    var out = list.filter(function (ev) {
-      return eventInViewerRegion(ev, viewer);
-    });
-    try {
-      console.log('[AUPYGO] region filter ville=' + (viewer.city || '?') +
-        ' coords=' + (viewer.coords ? viewer.coords.join(',') : 'no') +
-        ' ' + list.length + ' → ' + out.length);
-    } catch (e) {}
+    var out = list.filter(function (ev) { return eventInViewerRegion(ev, viewer); });
+    console.log('[AUPYGO] region filter ville=' + (viewer.city || '?') +
+      ' coords=' + (viewer.coords ? viewer.coords.join(',') : 'no') +
+      ' ' + list.length + ' → ' + out.length);
     return out;
   }
   window.aupygoFilterEventsByRegion = filterEventsForUser;
 
-  function applyFilter() {
-    if (isPrivileged()) return false;
-    if (!Array.isArray(window.cachedEvents)) return false;
-    var before = window.cachedEvents.length;
-    var filtered = filterEventsForUser(window.cachedEvents);
-    if (filtered.length === before) return false;
-    window.cachedEvents = filtered;
-    return true;
+  function groupEventsByCountry(list) {
+    var groups = {};
+    (list || []).forEach(function (ev) {
+      var c = extractEventCountry(ev);
+      if (!groups[c]) groups[c] = [];
+      groups[c].push(ev);
+    });
+    var viewer = getViewerCity();
+    var keys = Object.keys(groups).sort(function (a, b) {
+      if (viewer.country && a.toLowerCase() === viewer.country) return -1;
+      if (viewer.country && b.toLowerCase() === viewer.country) return 1;
+      if (a === 'Autre') return 1;
+      if (b === 'Autre') return -1;
+      return a.localeCompare(b, 'fr');
+    });
+    return keys.map(function (k) { return { country: k, events: groups[k] }; });
+  }
+  window.aupygoGroupEventsByCountry = groupEventsByCountry;
+
+  function renderGroupedGrid(list) {
+    var grid = document.getElementById('eventGrid');
+    if (!grid) return;
+    var locked = (window.currentPlan || (typeof currentPlan !== 'undefined' ? currentPlan : 'FREE')) === 'FREE';
+    if (!list || !list.length) {
+      grid.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:16px">Aucune sortie dans un rayon de ' + RADIUS_KM + ' km autour de ta ville.</p>';
+      return;
+    }
+    if (typeof buildEventCardHtml !== 'function') return;
+
+    var groups = groupEventsByCountry(list);
+    var html = '';
+    groups.forEach(function (g) {
+      html += '<div class="aupygo-country-group" style="grid-column:1/-1;margin:12px 0 6px">' +
+        '<div style="display:flex;align-items:center;gap:8px;padding:8px 12px;border-radius:12px;' +
+        'background:rgba(124,58,237,.12);border:1px solid rgba(124,58,237,.25)">' +
+        '<span style="font-weight:800;font-size:14px">🌍 ' + g.country + '</span>' +
+        '<span style="font-size:12px;opacity:.7">(' + g.events.length + ')</span></div></div>';
+      g.events.forEach(function (ev) {
+        html += buildEventCardHtml(ev, locked);
+      });
+    });
+    grid.innerHTML = html;
   }
 
-  function reRender() {
-    if (isPrivileged()) return;
-    try {
-      var grid = document.getElementById('eventGrid');
-      if (grid && Array.isArray(window.cachedEvents)) {
-        var locked = (window.currentPlan || (typeof currentPlan !== 'undefined' ? currentPlan : 'FREE')) === 'FREE';
-        var dayFn = typeof getEventsForSelectedDay === 'function'
-          ? getEventsForSelectedDay(window.cachedEvents)
-          : window.cachedEvents;
-        if (!dayFn.length) {
-          grid.innerHTML = '<p class="footer-muted" style="grid-column:1/-1;padding:16px">Aucune sortie dans un rayon de ' + RADIUS_KM + ' km autour de ta ville.</p>';
-        } else if (typeof buildEventCardHtml === 'function') {
-          grid.innerHTML = dayFn.map(function (ev) {
-            return buildEventCardHtml(ev, locked);
-          }).join('');
-        }
+  function applyFilterAndRender() {
+    if (!Array.isArray(window.cachedEvents) || !window.cachedEvents.length) return;
+
+    if (isPrivileged()) {
+      try {
+        renderGroupedGrid(window.cachedEvents);
+        if (typeof renderSpecialEventsHero === 'function') renderSpecialEventsHero(window.cachedEvents);
+        if (typeof renderEventsAgenda === 'function') renderEventsAgenda(window.cachedEvents);
+        if (typeof renderCommunityAgenda === 'function') renderCommunityAgenda(window.cachedEvents);
+        if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(window.cachedEvents);
+      } catch (e) {
+        console.warn('[AUPYGO] staff group render', e);
       }
-      if (typeof renderSpecialEventsHero === 'function') renderSpecialEventsHero(window.cachedEvents || []);
-      if (typeof renderEventsAgenda === 'function') renderEventsAgenda(window.cachedEvents || []);
-      if (typeof renderCommunityAgenda === 'function') renderCommunityAgenda(window.cachedEvents || []);
-      if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(window.cachedEvents || []);
+      return;
+    }
+
+    var filtered = filterEventsForUser(window.cachedEvents);
+    window.cachedEvents = filtered;
+
+    try {
+      renderGroupedGrid(filtered);
+      if (typeof renderSpecialEventsHero === 'function') renderSpecialEventsHero(filtered);
+      if (typeof renderEventsAgenda === 'function') renderEventsAgenda(filtered);
+      if (typeof renderCommunityAgenda === 'function') renderCommunityAgenda(filtered);
+      if (typeof renderPersonalAgenda === 'function') renderPersonalAgenda(filtered);
       if (typeof updateMyAgendaList === 'function') updateMyAgendaList();
     } catch (e) {
       console.warn('[AUPYGO] region re-render', e);
@@ -246,60 +340,52 @@
     if (window._regionFilterWrapId === window.loadAndRenderEvents) return;
     var orig = window.loadAndRenderEvents;
     var wrapped = async function () {
+      try { await refreshViewerCityFromDb(); } catch (e) {}
       var r = await orig.apply(this, arguments);
-      applyFilter();
-      reRender();
+      setTimeout(applyFilterAndRender, 50);
+      setTimeout(applyFilterAndRender, 400);
+      setTimeout(applyFilterAndRender, 1200);
       return r;
     };
     window.loadAndRenderEvents = wrapped;
     window._regionFilterWrapId = wrapped;
-    window._regionFilterPatched = true;
   }
 
-  function forceFilterNow() {
-    if (isPrivileged()) return;
-    if (applyFilter()) reRender();
-    else {
-      var viewer = getViewerCity();
-      if (!viewer.city && !viewer.coords) return;
-      var grid = document.getElementById('eventGrid');
-      if (!grid) return;
-      var html = grid.innerHTML || '';
-      var n = norm(html);
-      if (viewer.coords) {
-        var foreign = ['paris', 'nyon', 'lausanne', 'vevey', 'geneve', 'geneva', 'lyon', 'marseille'];
-        var hit = false;
-        for (var i = 0; i < foreign.length; i++) {
-          if (n.indexOf(foreign[i]) !== -1) {
-            var fc = CITY_COORDS[foreign[i]];
-            if (fc && haversineKm(viewer.coords[0], viewer.coords[1], fc[0], fc[1]) > RADIUS_KM) {
-              hit = true;
-              break;
-            }
-          }
+  function patchSaveProfile() {
+    if (typeof window.saveProfile !== 'function' || window._regionSavePatched) return;
+    window._regionSavePatched = true;
+    var orig = window.saveProfile;
+    window.saveProfile = async function () {
+      var r = await orig.apply(this, arguments);
+      try {
+        var el = document.getElementById('city');
+        if (el && el.value) {
+          try { localStorage.setItem('aupygo_profile_city', el.value); } catch (e) {}
+          if (window.currentUserProfile) window.currentUserProfile.city = el.value;
         }
-        if (hit) {
-          window.cachedEvents = filterEventsForUser(window.cachedEvents || []);
-          reRender();
-        }
-      }
-    }
+        await refreshViewerCityFromDb();
+        if (typeof loadAndRenderEvents === 'function') await loadAndRenderEvents();
+      } catch (e) {}
+      return r;
+    };
   }
 
   function boot() {
     patchLoad();
-    forceFilterNow();
+    patchSaveProfile();
+    if (Array.isArray(window.cachedEvents) && window.cachedEvents.length) {
+      applyFilterAndRender();
+    }
   }
 
   boot();
-  setTimeout(boot, 400);
-  setTimeout(boot, 1200);
-  setTimeout(boot, 2500);
-  setTimeout(boot, 5000);
+  setTimeout(boot, 500);
+  setTimeout(boot, 1500);
+  setTimeout(boot, 3000);
   setInterval(function () {
     patchLoad();
-    forceFilterNow();
-  }, 3000);
+    patchSaveProfile();
+  }, 4000);
 
-  console.log('[AUPYGO] events-region-filter v2 — ville profil + ' + RADIUS_KM + ' km (strict, staff events inclus)');
+  console.log('[AUPYGO] events-region-filter v3 — ville profil + 100km + classement pays');
 })();
