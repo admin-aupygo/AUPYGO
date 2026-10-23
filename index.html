@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261023-city100km-v2';
+  var CACHE_V = 'fix-20261023-amiral-ui';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -57,6 +57,7 @@
     'js/agenda-week-nav.js',
     'js/staff-hierarchy.js',
     'js/admin.js',
+    'js/admin-amiral-ui.js',
     'js/admin-setrole-fix.js',
     'js/admin-set-plan.js',
     'js/admin-plan-indicators.js',
