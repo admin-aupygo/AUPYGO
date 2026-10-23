@@ -635,10 +635,27 @@
   var rawById = {};
   var rawList = [];
 
+  var discoveredKey = null;
+  function looksLikeEvents(a) {
+    return Array.isArray(a) && a.length > 0 && a[0] && typeof a[0] === 'object' &&
+      ('creator_id' in a[0]) && ('event_date' in a[0] || 'address' in a[0]);
+  }
   function getCache() {
-    if (Array.isArray(window.cachedEvents)) return window.cachedEvents;
-    try { if (typeof cachedEvents !== 'undefined' && Array.isArray(cachedEvents)) return cachedEvents; } catch (e) {}
-    return null;
+    var c = window.cachedEvents;
+    if (Array.isArray(c) && (c.length || !discoveredKey)) return c;
+    try { if (typeof cachedEvents !== 'undefined' && Array.isArray(cachedEvents) && cachedEvents.length) return cachedEvents; } catch (e) {}
+    // dernier recours : retrouver tout seul la variable globale qui contient les sorties
+    try {
+      if (discoveredKey && looksLikeEvents(window[discoveredKey])) return window[discoveredKey];
+      var keys = Object.keys(window);
+      for (var i = 0; i < keys.length; i++) {
+        var k = keys[i];
+        if (k === 'cachedEvents' || k === 'profiles') continue;
+        var v; try { v = window[k]; } catch (e2) { continue; }
+        if (looksLikeEvents(v)) { discoveredKey = k; console.log('[AUPYGO] liste des sorties trouvée dans window.' + k); return v; }
+      }
+    } catch (e3) {}
+    return Array.isArray(c) ? c : null;
   }
   function absorbCache() {
     var c = getCache();
@@ -650,7 +667,31 @@
       rawById[id] = ev;
     });
   }
-  function resetRaw() { rawById = {}; rawList = []; absorbCache(); }
+  function resetRaw() { rawById = {}; rawList = []; fetchTried = {}; absorbCache(); }
+
+  var fetchTried = {};
+  var fetchingEvents = false;
+  /** Cartes affichées dont on ne connaît pas les données : on les lit nous-mêmes dans Supabase. */
+  async function fetchMissingEvents(ids) {
+    var sb = client();
+    ids = ids.filter(function (id) { return !fetchTried[id] && !rawById[id]; });
+    if (!sb || !ids.length || fetchingEvents) return;
+    fetchingEvents = true;
+    ids.forEach(function (id) { fetchTried[id] = true; });
+    try {
+      var res = await sb.from('events').select('*, event_participants(user_id)').in('id', ids);
+      if (res && res.error) res = await sb.from('events').select('*').in('id', ids);
+      ((res && res.data) || []).forEach(function (ev) {
+        if (!ev || ev.id == null) return;
+        var id = String(ev.id);
+        if (!rawById[id]) rawList.push(ev);
+        rawById[id] = ev;
+        rawList.forEach(function (e) { eventGeo(e, true); });
+      });
+    } catch (e) { console.warn('[AUPYGO] lecture directe des sorties', e); }
+    fetchingEvents = false;
+    setTimeout(regroup, 0);
+  }
 
   /** Retire du cache les sorties hors zone (en place). Retourne le nombre retiré. */
   function syncCache() {
@@ -730,12 +771,13 @@
       children.filter(isOurs).forEach(function (n) { grid.removeChild(n); });
       children = children.filter(function (n) { return !isOurs(n); });
 
-      var others = [], cards = [], hidden = [];
+      var others = [], cards = [], hidden = [], unknownIds = [];
       children.forEach(function (node) {
         var id = cardId(node);
         if (!id) { others.push(node); return; }
         var ev = rawById[id] || null;
-        if (ev && !privileged && !allowedForUser(ev)) {
+        if (!ev) unknownIds.push(id);
+        if ((!ev && !privileged) || (ev && !privileged && !allowedForUser(ev))) {
           node.style.display = 'none';
           node.setAttribute('data-region-hidden', '1');
           hidden.push(node);
@@ -747,6 +789,8 @@
         }
         cards.push({ node: node, country: ev ? eventCountry(ev) : 'Autre' });
       });
+
+      if (unknownIds.length) setTimeout(function () { fetchMissingEvents(unknownIds); }, 0);
 
       // groupes
       var groups = {}, order = [];
