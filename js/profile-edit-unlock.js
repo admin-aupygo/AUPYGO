@@ -1,8 +1,8 @@
 /* AUPYGO profile-edit-unlock.js
- * - Profil INCOMPLET (forcé / bug inscription) : TOUT éditable (prénom, âge, genre, bio…)
- * - Profil COMPLET : identité figée, bio/ville/langues/hobbies toujours éditables
- * - Critère incomplet : pas de display_name, ou âge < 18, ou pas de genre,
- *   ou identity_locked = false / null
+ * - Profil incomplet : tous champs éditables + save complet
+ * - Profil complet : bio/ville/langues/hobbies éditables
+ * - Bouton Enregistrer re-bindé (ne dépend plus d'un onclick cassé)
+ * - Ne touche JAMAIS à subscription / promo
  */
 (function () {
   'use strict';
@@ -21,6 +21,15 @@
     return false;
   }
 
+  function client() {
+    return window.supabaseClient || window.supabase || null;
+  }
+
+  function toast(msg, type) {
+    if (typeof showToast === 'function') showToast(msg, type || 'success');
+    else console.log('[profile]', msg);
+  }
+
   function getMyProfile() {
     try {
       var uid = window.currentUser && window.currentUser.id;
@@ -36,31 +45,17 @@
     return null;
   }
 
-  /** Profil incomplet = n'a pas pu être rempli correctement */
   function isProfileIncomplete() {
     var p = getMyProfile();
-    if (!p) {
-      // Pas de ligne profil → forcément incomplet
-      return true;
-    }
-    // Flag explicite côté BDD
-    if (p.identity_locked === false || p.identity_locked === null || p.identity_locked === undefined) {
-      // Si name/âge/genre manquent → incomplet
-      var name = String(p.display_name || '').trim();
-      var age = Number(p.age);
-      var gender = String(p.gender || '').trim();
-      if (!name || name.length < 2 || !age || age < 18 || !gender) return true;
-      // identity_locked false mais données OK → on laisse éditer quand même si flag false
-      if (p.identity_locked === false) return true;
-    }
-    var name2 = String(p.display_name || '').trim();
-    var age2 = Number(p.age);
-    var gender2 = String(p.gender || '').trim();
-    if (!name2 || name2.length < 2) return true;
-    if (!age2 || age2 < 18) return true;
-    if (!gender2) return true;
-    // Nom technique type email local-part forcé
-    if (/^user[_-]?\d+$/i.test(name2) || name2 === 'Utilisateur') return true;
+    if (!p) return true;
+    if (p.identity_locked === false) return true;
+    var name = String(p.display_name || '').trim();
+    var age = Number(p.age);
+    var gender = String(p.gender || '').trim();
+    if (!name || name.length < 2) return true;
+    if (!age || age < 18) return true;
+    if (!gender) return true;
+    if (/^user[_-]?\d+$/i.test(name) || name === 'Utilisateur') return true;
     return false;
   }
 
@@ -117,16 +112,40 @@
     });
   }
 
-  function unlockSaveButton() {
-    document.querySelectorAll('#profile button, #profile .btn').forEach(function (btn) {
-      var t = (btn.textContent || '').toLowerCase();
+  function findSaveButtons() {
+    var list = [];
+    document.querySelectorAll('#profile button, #profile .btn, #profile input[type="submit"]').forEach(function (btn) {
+      var t = (btn.textContent || btn.value || '').toLowerCase();
       var oc = btn.getAttribute('onclick') || '';
-      if (/enregistrer|sauvegarder|save/i.test(t) || oc.indexOf('saveProfile') !== -1) {
-        btn.disabled = false;
-        btn.style.display = '';
-        btn.style.pointerEvents = 'auto';
-        btn.style.opacity = '1';
-        btn.removeAttribute('disabled');
+      var id = btn.id || '';
+      if (
+        /enregistrer|sauvegarder|save|enregistrer mon profil/i.test(t) ||
+        oc.indexOf('saveProfile') !== -1 ||
+        id === 'saveProfileBtn' ||
+        id === 'btnSaveProfile'
+      ) {
+        list.push(btn);
+      }
+    });
+    return list;
+  }
+
+  function unlockSaveButton() {
+    findSaveButtons().forEach(function (btn) {
+      btn.disabled = false;
+      btn.style.display = '';
+      btn.style.pointerEvents = 'auto';
+      btn.style.opacity = '1';
+      btn.style.cursor = 'pointer';
+      btn.removeAttribute('disabled');
+      // Re-bind click (contourne onclick mort / preventDefault cassé)
+      if (!btn._aupygoSaveBound) {
+        btn._aupygoSaveBound = true;
+        btn.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          window.saveProfileRobust();
+        }, true);
       }
     });
     var formCard = document.querySelector('#profile .profile-form-card');
@@ -137,45 +156,187 @@
     }
   }
 
-  function unlockAll() {
-    if (isStaffNow()) return; // staff-profile.js gère le staff
+  function readGender() {
+    if (typeof selectedGender !== 'undefined' && selectedGender) return selectedGender;
+    var active = document.querySelector(
+      '#genderGroup button.active, .gender-option.active, .gender-btn.active, [data-gender].active'
+    );
+    if (active) {
+      return active.getAttribute('data-gender') || (active.textContent || '').trim();
+    }
+    var p = getMyProfile();
+    return (p && p.gender) || null;
+  }
 
+  /** Sauvegarde robuste : identité si incomplet, sinon champs libres. Jamais subscription. */
+  window.saveProfileRobust = async function () {
+    if (isStaffNow() && typeof window.saveProfile === 'function' && window.saveProfile !== window.saveProfileRobust) {
+      // laisser staff-profile si staff
+      try { return await window.__aupygoOrigSaveProfile.apply(this, arguments); } catch (e) {}
+    }
+
+    var sb = client();
+    if (!sb) {
+      toast('Connexion indisponible', 'error');
+      return;
+    }
+
+    var auth = await sb.auth.getUser();
+    var user = auth && auth.data && auth.data.user;
+    if (!user) {
+      toast('Connecte-toi', 'error');
+      if (typeof go === 'function') go('plans');
+      return;
+    }
+
+    var name = ((document.getElementById('firstName') || {}).value || '').trim();
+    var ageValue = (document.getElementById('age') || {}).value || '';
+    var country = (document.getElementById('country') || {}).value || '';
+    var city = (document.getElementById('city') || {}).value || '';
+    var bio = (document.getElementById('bio') || {}).value || '';
+    var hostCountry = (document.getElementById('hostCountry') || {}).value || '';
+    var stayEnd = (document.getElementById('stayEnd') || {}).value || '';
+    var otherLang = (document.getElementById('otherLanguage') || {}).value || '';
+    var gender = readGender();
+    var hobbies = (typeof selectedHobbies !== 'undefined' && Array.isArray(selectedHobbies)) ? selectedHobbies : [];
+    var langs = (typeof selectedLanguages !== 'undefined' && Array.isArray(selectedLanguages)) ? selectedLanguages : [];
+    var loc = (typeof userLocation !== 'undefined') ? userLocation : { lat: null, lng: null, city: '' };
+    var incomplete = isProfileIncomplete();
+
+    if (incomplete) {
+      if (!name || name.length < 2) {
+        toast('Prénom requis', 'error');
+        return;
+      }
+      if (!ageValue || Number(ageValue) < 18) {
+        toast('Âge invalide (18+)', 'error');
+        return;
+      }
+      if (!gender) {
+        toast('Genre requis — clique sur Homme ou Femme', 'error');
+        return;
+      }
+    }
+
+    // Masque email/tel dans bio si dispo
+    if (window.AupyModeration && typeof window.AupyModeration.maskSensitive === 'function') {
+      try {
+        var m = window.AupyModeration.maskSensitive(bio);
+        if (m && m.text) bio = m.text;
+        else if (typeof m === 'string') bio = m;
+      } catch (e) {}
+    }
+
+    var payload = {
+      bio: bio,
+      interests: hobbies.join(','),
+      languages: langs.join(','),
+      other_language: otherLang,
+      host_country: hostCountry || null,
+      stay_end: stayEnd || null,
+      city: city || loc.city || null,
+      country: country || null
+    };
+
+    if (incomplete) {
+      payload.display_name = name;
+      payload.age = Number(ageValue);
+      payload.gender = gender;
+      payload.avatar = gender === 'Homme' ? '👨' : '👩';
+      payload.identity_locked = true;
+      if (loc.lat != null) payload.approx_lat = loc.lat;
+      if (loc.lng != null) payload.approx_lng = loc.lng;
+      // NE PAS toucher subscription / promo_*
+    }
+
+    try {
+      var res = await sb.from('profiles').upsert(
+        Object.assign({ id: user.id }, payload),
+        { onConflict: 'id' }
+      ).select('id, display_name, age, gender, identity_locked');
+
+      if (res.error) {
+        console.error('[saveProfileRobust]', res.error);
+        toast(res.error.message || 'Erreur enregistrement', 'error');
+        return;
+      }
+      if (!res.data || !res.data.length) {
+        toast('Profil introuvable — réessaie', 'error');
+        return;
+      }
+
+      // Mettre à jour le cache local
+      var row = res.data[0];
+      var p = getMyProfile();
+      if (p) {
+        Object.keys(payload).forEach(function (k) { p[k] = payload[k]; });
+        p.identity_locked = true;
+      }
+      if (window.currentUserProfile) {
+        Object.keys(payload).forEach(function (k) {
+          window.currentUserProfile[k] = payload[k];
+        });
+        window.currentUserProfile.identity_locked = true;
+      }
+
+      try { profileSaved = true; } catch (e2) {}
+      window.profileSaved = true;
+
+      if (typeof updateProfileCard === 'function') {
+        try {
+          updateProfileCard({
+            name: name || payload.display_name,
+            age: ageValue || payload.age,
+            hostCountry: hostCountry,
+            stayEnd: stayEnd,
+            languages: langs.slice(),
+            otherLang: otherLang,
+            hobbies: hobbies.slice()
+          });
+        } catch (e3) {}
+      }
+
+      toast(incomplete ? 'Profil enregistré !' : 'Profil mis à jour', 'success');
+
+      if (incomplete && typeof go === 'function') {
+        setTimeout(function () {
+          if (typeof lockIdentityFields === 'function') lockIdentityFields();
+          go('home');
+          if (typeof updateHomeView === 'function') updateHomeView();
+        }, 400);
+      }
+    } catch (err) {
+      console.error('[saveProfileRobust]', err);
+      toast(err.message || String(err), 'error');
+    }
+  };
+
+  function installSaveAsDefault() {
+    if (!window.__aupygoOrigSaveProfile && typeof window.saveProfile === 'function') {
+      window.__aupygoOrigSaveProfile = window.saveProfile;
+    }
+    window.saveProfile = window.saveProfileRobust;
+    try { if (typeof saveProfile !== 'undefined') saveProfile = window.saveProfileRobust; } catch (e) {}
+  }
+
+  function unlockAll() {
+    if (isStaffNow()) return;
     unlockAlwaysEditable();
     unlockSaveButton();
-
     if (isProfileIncomplete()) {
-      // Forcer mode "1ère sauvegarde" pour que saveProfile accepte identité
       try { profileSaved = false; } catch (e) {}
       window.profileSaved = false;
       unlockIdentity();
-      console.log('[AUPYGO] profil incomplet → tous les champs éditables');
     }
   }
 
-  // saveProfile : si incomplet, traiter comme 1ère sauvegarde (upsert identité)
-  function patchSave() {
-    if (typeof window.saveProfile !== 'function') return false;
-    if (window._profileIncompleteSavePatched) return true;
-    window._profileIncompleteSavePatched = true;
-    var orig = window.saveProfile;
-    window.saveProfile = async function () {
-      if (!isStaffNow() && isProfileIncomplete()) {
-        try { profileSaved = false; } catch (e) {}
-        window.profileSaved = false;
-      }
-      return orig.apply(this, arguments);
-    };
-    return true;
-  }
-
   function patchLock() {
-    if (typeof window.lockIdentityFields !== 'function') return false;
-    if (window._profileEditUnlockPatched) return true;
+    if (typeof window.lockIdentityFields !== 'function') return;
+    if (window._profileEditUnlockPatched) return;
     window._profileEditUnlockPatched = true;
     var orig = window.lockIdentityFields;
     window.lockIdentityFields = function () {
       if (isProfileIncomplete()) {
-        // Ne pas verrouiller un profil incomplet
         setTimeout(unlockAll, 30);
         return;
       }
@@ -184,32 +345,32 @@
         unlockAlwaysEditable();
         unlockSaveButton();
       }, 30);
-      setTimeout(function () {
-        unlockAlwaysEditable();
-        unlockSaveButton();
-      }, 200);
       return r;
     };
-    return true;
   }
 
   function boot() {
+    installSaveAsDefault();
     patchLock();
-    patchSave();
     unlockAll();
   }
 
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', function () {
-      setTimeout(boot, 400);
-      setTimeout(boot, 1500);
-      setTimeout(boot, 3000);
-    });
-  } else {
-    setTimeout(boot, 400);
-    setTimeout(boot, 1500);
-    setTimeout(boot, 3000);
-  }
+  setTimeout(boot, 300);
+  setTimeout(boot, 1000);
+  setTimeout(boot, 2500);
+  setTimeout(boot, 5000);
+
+  // Reprendre la main si un autre script réécrit saveProfile
+  setInterval(function () {
+    if (window.saveProfile !== window.saveProfileRobust) {
+      installSaveAsDefault();
+    }
+    try {
+      if (typeof getActivePage === 'function' && getActivePage() === 'profile') {
+        unlockAll();
+      }
+    } catch (e) {}
+  }, 2000);
 
   var origGo = window.go;
   if (typeof origGo === 'function' && !window._profileEditGoPatched) {
@@ -218,20 +379,11 @@
       var r = origGo.apply(this, arguments);
       if (page === 'profile') {
         setTimeout(boot, 100);
-        setTimeout(boot, 500);
-        setTimeout(boot, 1200);
+        setTimeout(boot, 600);
       }
       return r;
     };
   }
 
-  setInterval(function () {
-    try {
-      if (typeof getActivePage === 'function' && getActivePage() === 'profile') {
-        unlockAll();
-      }
-    } catch (e) {}
-  }, 2500);
-
-  console.log('[AUPYGO] profile-edit-unlock.js — incomplet = tout éditable');
+  console.log('[AUPYGO] profile-edit-unlock.js — save robuste + bouton re-bindé');
 })();
