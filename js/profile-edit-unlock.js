@@ -21,7 +21,6 @@
   }
 
   function unlockEditableFields() {
-    // Staff géré par staff-profile.js
     if (isStaffNow()) return;
 
     EDITABLE_IDS.forEach(function (id) {
@@ -42,17 +41,15 @@
       }
     });
 
-    // Langues / hobbies chips
+    // Langues / hobbies chips (une seule ligne pour éviter SyntaxError)
     document.querySelectorAll(
-      '#profile .lang-chip, #profile .hobby-chip, #profile .hobby-grid button,
-       #profile [data-lang], #profile [data-hobby], #profile .languages-box button'
+      '#profile .lang-chip, #profile .hobby-chip, #profile .hobby-grid button, #profile [data-lang], #profile [data-hobby], #profile .languages-box button'
     ).forEach(function (btn) {
       btn.disabled = false;
       btn.style.pointerEvents = 'auto';
       btn.style.opacity = '1';
     });
 
-    // Bouton enregistrer
     document.querySelectorAll('#profile button, #profile .btn').forEach(function (btn) {
       var t = (btn.textContent || '').toLowerCase();
       var oc = btn.getAttribute('onclick') || '';
@@ -65,7 +62,6 @@
       }
     });
 
-    // Formulaire visible
     var formCard = document.querySelector('#profile .profile-form-card');
     if (formCard) {
       formCard.style.display = '';
@@ -74,7 +70,6 @@
     }
   }
 
-  // Après lockIdentityFields (identité figée), on rouvre les champs non-identité
   function patchLock() {
     if (typeof window.lockIdentityFields !== 'function') return false;
     if (window._profileEditUnlockPatched) return true;
