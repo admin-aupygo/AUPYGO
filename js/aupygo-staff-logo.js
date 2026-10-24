@@ -1,7 +1,7 @@
 /* AUPYGO — logo staff + badge Gratuit/Payant immédiat + emoji événement + Descriptif dark-ready
  * Compte-rendu 22/10/2026 :
  * - Badge Gratuit / Payant visible dans les vignettes AVANT acceptation
- * - Logo AUPYGO immédiat sur les événements staff
+ * - Logo AUPYGO immédiat sur les événements staff (SVG inline, plus de 404 aupygo-logo.png)
  * - Emoji de l'événement (choisi par le staff) respecté, plus de 🎉 forcé sur sorties culturelles
  * - Bouton Descriptif adapté thème sombre (fond blanc / texte foncé)
  */
@@ -26,14 +26,12 @@
       '<path d="M20 88c20-8 40-4 56 8 12 8 24 10 36 6" fill="none" stroke="#ff5cad" stroke-width="8" stroke-linecap="round"/>' +
       '<path d="M100 96l12-4-2 14z" fill="#ff5cad"/>' +
       '</svg>';
+    // SVG inline uniquement — évite les 404 console sur aupygo-logo.png
     return (
       '<span class="aupygo-ev-logo" aria-label="AUPYGO" style="display:inline-flex;width:' + s +
       'px;height:' + s + 'px;border-radius:10px;overflow:hidden;vertical-align:middle;' +
       'box-shadow:0 2px 8px rgba(109,74,255,.3);background:#1a1035">' +
-      '<img src="aupygo-logo.png" alt="AUPYGO" width="' + s + '" height="' + s + '" ' +
-      'style="width:100%;height:100%;object-fit:cover;display:block" ' +
-      'onerror="this.style.display=\'none\';this.nextSibling.style.display=\'block\'" />' +
-      '<span style="display:none;width:100%;height:100%">' + svg + '</span>' +
+      svg +
       '</span>'
     );
   }
@@ -64,7 +62,7 @@
 
   function esc(s) {
     return String(s == null ? '' : s)
-      .replace(/&/g, '&').replace(/</g, '<').replace(/>/g, '>').replace(/"/g, '"');
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
 
   function isPaidEv(ev) {
@@ -84,7 +82,6 @@
     return '🆓 Gratuit — entrée libre';
   }
 
-  /** Badge compact pour les vignettes (visible AVANT acceptation) */
   function freePaidBadgeHtml(ev) {
     if (isPaidEv(ev)) {
       return (
@@ -104,7 +101,6 @@
     );
   }
 
-  /** Emoji de l'événement (celui choisi à la création) — jamais forcer 🎉 */
   function eventEmoji(ev) {
     var e = (ev && ev.emoji) ? String(ev.emoji).trim() : '';
     if (e && e !== '🎉' && e !== '⭐') return e;
@@ -173,13 +169,11 @@
   }
   window.openEventDescModal = openEventDescModal;
 
-  /** Injecte badge Gratuit/Payant + logo + emoji correct sur TOUTES les cartes */
   function enhanceAllCards() {
     (window.cachedEvents || []).forEach(function (ev) {
       if (!ev || !ev.id) return;
 
       document.querySelectorAll('[data-event-id="' + ev.id + '"]').forEach(function (card) {
-        // 1. Badge Gratuit / Payant immédiat (avant acceptation)
         if (!card.querySelector('.aupygo-fp-badge')) {
           var badge = document.createElement('div');
           badge.innerHTML = freePaidBadgeHtml(ev);
@@ -191,7 +185,6 @@
           }
         }
 
-        // 2. Logo AUPYGO immédiat pour les événements staff
         if (isStaffEv(ev) && !card.querySelector('.aupygo-ev-logo-wrap')) {
           var wrap = document.createElement('div');
           wrap.className = 'aupygo-ev-logo-wrap';
@@ -202,7 +195,6 @@
           else card.appendChild(wrap);
         }
 
-        // 3. Emoji de l'événement (celui choisi) — ne plus forcer 🎉
         var emojiEl = card.querySelector('.event-emoji, .ev-emoji, [class*="emoji"]');
         var chosen = eventEmoji(ev);
         if (emojiEl && chosen) {
@@ -224,7 +216,6 @@
           }
         }
 
-        // 4. Bouton Descriptif (style clair + classe pour dark)
         if (!card.querySelector('.aupygo-btn-descriptif')) {
           var btn = document.createElement('button');
           btn.type = 'button';
@@ -347,149 +338,25 @@
     };
   }
 
-  function patchGuestList() {
-    if (typeof window.openEventGuestList !== 'function') return false;
-    if (window._aupygoGuestListPatched === window.openEventGuestList) return true;
-
-    window.openEventGuestList = async function (eventId) {
-      if (!window.currentUser) {
-        if (typeof showToast === 'function') showToast('Connecte-toi.', 'error');
-        return;
-      }
-      var ev = getEv(eventId);
-      if (!ev) {
-        if (typeof showToast === 'function') showToast('Événement introuvable.', 'error');
-        return;
-      }
-      var isCreator = ev.creator_id === window.currentUser.id;
-      var adminOk = typeof isAdmin === 'function' && isAdmin();
-      if (!isCreator && !adminOk) {
-        if (typeof showToast === 'function') showToast('Réservé à l’organisateur.', 'error');
-        return;
-      }
-
-      var client = window.supabaseClient || window.supabase;
-      if (!client) return;
-
-      var parts = [];
-      try {
-        var res = await client
-          .from('event_participants')
-          .select('user_id, joined_at')
-          .eq('event_id', eventId)
-          .order('joined_at', { ascending: true });
-        if (res.error) throw res.error;
-        parts = res.data || [];
-      } catch (e) {
-        console.error('[guest list]', e);
-        if (typeof showToast === 'function') showToast('Impossible de charger les participants.', 'error');
-        return;
-      }
-
-      var ids = parts.map(function (p) { return p.user_id; }).filter(Boolean);
-      var profilesMap = {};
-
-      (window.profiles || []).forEach(function (p) {
-        if (p && p.id && ids.indexOf(p.id) !== -1) profilesMap[p.id] = p;
-      });
-
-      var missing = ids.filter(function (id) { return !profilesMap[id]; });
-      if (missing.length) {
-        try {
-          var pr = await client
-            .from('profiles')
-            .select('id, display_name, gender, city, country, age, role, is_admin')
-            .in('id', missing);
-          if (pr.error) {
-            var pr2 = await client
-              .from('map_profiles')
-              .select('id, display_name, gender, city, country, age, role, is_admin')
-              .in('id', missing);
-            (pr2.data || []).forEach(function (r) { profilesMap[r.id] = r; });
-          } else {
-            (pr.data || []).forEach(function (r) { profilesMap[r.id] = r; });
-          }
-        } catch (e2) {
-          console.warn('[guest list profiles]', e2);
-        }
-      }
-
-      var memberIds = ids.filter(function (uid) {
-        return !isStaffProfile(profilesMap[uid]);
-      });
-
-      var lines = memberIds.map(function (uid, i) {
-        var p = profilesMap[uid] || {};
-        var name = p.display_name || ('Participant ' + (i + 1));
-        var gender = p.gender === 'Homme' ? '👨' : (p.gender === 'Femme' ? '👩' : '👤');
-        var city = p.city || p.country || '';
-        var age = p.age ? (p.age + ' ans') : '';
-        var meta = [age, city].filter(Boolean).join(' · ');
-        return (
-          '<div style="display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid #e2e8f0">' +
-          '<span style="font-size:22px">' + gender + '</span>' +
-          '<div style="flex:1"><div style="font-weight:700">' + esc(name) + '</div>' +
-          (meta ? '<div style="font-size:12px;color:#64748b">' + esc(meta) + '</div>' : '') +
-          '</div></div>'
-        );
-      });
-
-      var html =
-        '<div style="padding:4px 0 12px">' +
-        '<h3 style="margin:0 0 4px">📋 Participants</h3>' +
-        '<p style="margin:0;font-size:13px;color:#64748b">' +
-        memberIds.length + ' membre' + (memberIds.length > 1 ? 's' : '') +
-        ' (staff exclu)</p></div>' +
-        (lines.length
-          ? lines.join('')
-          : '<p style="color:#94a3b8;font-size:14px">Aucun participant pour le moment.</p>');
-
-      ensureDescModal();
-      var card = document.getElementById('aupygoDescCard');
-      if (card) {
-        card.innerHTML =
-          '<button type="button" onclick="aupygoCloseDescModal()" style="float:right;border:0;background:0;font-size:22px;cursor:pointer">×</button>' +
-          html +
-          '<button type="button" class="btn btn-secondary" style="width:100%;margin-top:12px" onclick="aupygoCloseDescModal()">Fermer</button>';
-        document.getElementById('aupygoDescOverlay').style.display = 'flex';
-      }
-    };
-    window._aupygoGuestListPatched = window.openEventGuestList;
-    if (typeof window.openSpecialGuestList === 'function') {
-      window.openSpecialGuestList = function (id) { return window.openEventGuestList(id); };
-    }
-    return true;
-  }
-
   function boot() {
     enhanceAllCards();
     patchInviteModal();
-    patchGuestList();
   }
 
-  boot();
-  setTimeout(boot, 120);
-  setTimeout(boot, 400);
-  setTimeout(boot, 900);
+  setInterval(enhanceAllCards, 2000);
+  setTimeout(boot, 600);
+  setTimeout(boot, 2000);
 
-  if (typeof MutationObserver !== 'undefined') {
-    var obs = new MutationObserver(function () {
-      enhanceAllCards();
-    });
-    obs.observe(document.body, { childList: true, subtree: true });
-  }
-  setInterval(boot, 2000);
-
-  if (typeof window.loadAndRenderEvents === 'function' && !window._aupygoLogoLoadPatched) {
-    window._aupygoLogoLoadPatched = true;
-    var origLoad = window.loadAndRenderEvents;
-    window.loadAndRenderEvents = async function () {
-      var r = await origLoad.apply(this, arguments);
-      setTimeout(boot, 40);
+  var origGo = window.go;
+  if (typeof origGo === 'function' && !window._aupygoLogoGoPatched) {
+    window._aupygoLogoGoPatched = true;
+    window.go = function () {
+      var r = origGo.apply(this, arguments);
       setTimeout(boot, 200);
+      setTimeout(boot, 800);
       return r;
     };
   }
 
-  console.log('[AUPYGO] logo + badge Gratuit/Payant immédiat + emoji événement + Descriptif — ready');
+  console.log('[AUPYGO] logo + badge Gratuit/Payant immédiat + emoji événement + Descriptif — ready (SVG, no png 404)');
 })();
