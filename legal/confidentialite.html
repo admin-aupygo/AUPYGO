@@ -1,1 +1,56 @@
-PLACEHOLDER_CONF
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Politique de confidentialité — AUPYGO</title>
+<meta name="description" content="Politique de confidentialité du service AUPYGO (aupygo.com).">
+<link rel="icon" href="../favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="legal.css">
+<script>
+try { var th = localStorage.getItem('aupygo_theme'); if (th === 'dark' || th === 'light') document.documentElement.setAttribute('data-theme', th); } catch (e) {}
+</script>
+</head>
+<body>
+<header class="top"><div class="top-in">
+  <a class="brand" href="../index.html">AUPYGO</a>
+  <nav aria-label="Documents juridiques"><a href="mentions-legales.html">Mentions légales</a> <a href="cgu.html">CGU</a> <a href="cgv.html">CGV</a> <a href="confidentialite.html" aria-current="page">Confidentialité</a> <a href="charte-communaute.html">Charte</a> <a href="faq.html">FAQ</a></nav>
+</div></header>
+<main>
+<article class="doc">
+<h1>Politique de confidentialité</h1>
+<p class="meta">Version <span data-v="version"></span> — dernière mise à jour : <span data-v="date_maj"></span></p>
+
+<p class="lead">AUPYGO est conçu « privacy first » : aucune photo personnelle, aucune position GPS exacte, aucune publicité. Cette politique décrit les traitements conformément au RGPD.</p>
+
+<h2 id="responsable">1. Responsable du traitement</h2>
+<p><span data-v="editeur_nom"></span>, <span data-v="editeur_adresse"></span>. Contact : <a data-v="contact_email" data-mailto></a>.</p>
+
+<h2 id="donnees">2. Données traitées</h2>
+<div class="tablewrap"><table>
+<thead><tr><th>Catégorie</th><th>Données</th><th>Finalité</th><th>Base</th><th>Durée</th></tr></thead>
+<tbody>
+<tr><td>Compte / profil</td><td>E-mail, mot de passe haché, prénom, âge, genre, pays, ville, langues, bio, forfait</td><td>Fournir le Service</td><td>Contrat</td><td>Durée du compte</td></tr>
+<tr><td>Localisation approx.</td><td>Coordonnées arrondies ~1 km</td><td>Carte</td><td>Contrat + consentement géoloc</td><td>Durée du compte</td></tr>
+<tr><td>Messages / social</td><td>Contenu messages, amis, sorties</td><td>Fonctions sociales</td><td>Contrat ; intérêt légitime sécurité</td><td>Durée du compte</td></tr>
+<tr><td>Paiement</td><td>Identifiants Stripe (pas de n° de carte chez AUPYGO)</td><td>Abonnements</td><td>Contrat ; obligation légale</td><td>10 ans (compta)</td></tr>
+<tr><td>Sécurité / modération</td><td>Signalements, logs, décisions</td><td>Sécurité, LCEN, DSA</td><td>Intérêt légitime ; obligation légale</td><td>Jusqu’à 5 ans si litige</td></tr>
+<tr><td><strong>Vérification d’identité (cas par cas)</strong></td><td>Copie ou extrait de pièce d’identité / passeport demandée uniquement en cas de suspicion ou signalement</td><td>Vérifier âge / identité, lutter contre faux profils</td><td>Contrat ; intérêt légitime (sécurité)</td><td><strong>Temps strictement nécessaire</strong> puis suppression / anonymisation</td></tr>
+</tbody></table></div>
+<p>Les pièces d’identité demandées au cas par cas ne sont <strong>jamais</strong> publiées ni visibles des autres membres. Les e-mails transactionnels sont envoyés via <strong>Brevo</strong> pour le compte de AUPYGO ; l’adresse de contact demeure <strong>contact@aupygo.com</strong>.</p>
+
+<h2 id="droits">3. Vos droits</h2>
+<p>Accès, rectification, effacement, limitation, opposition, portabilité : écrire à <a data-v="contact_email" data-mailto></a>. Réclamation : <span data-v="autorite_controle"></span>.</p>
+
+<h2 id="mineurs">4. Mineurs</h2>
+<p>Service interdit aux moins de 18 ans. Tout compte mineur est supprimé.</p>
+
+<p><em>Version consolidée 1.2 — le détail historique des articles (cookies, transferts, sous-traitants Supabase/Cloudflare/Stripe) reste aligné sur la version précédente ; contactez contact@aupygo.com pour une copie étendue si besoin.</em></p>
+
+</article>
+</main>
+<footer class="legal-foot">© AUPYGO — <a href="mentions-legales.html">Mentions</a> · <a href="cgu.html">CGU</a> · <a href="confidentialite.html">Confidentialité</a> · <a href="charte-communaute.html">Charte</a></footer>
+<script src="legal-config.js"></script>
+<script src="legal.js"></script>
+</body>
+</html>
