@@ -7,8 +7,8 @@
  * ========================================================================== */
 window.AUPYGO_LEGAL = {
   /* ---------- Version des documents (à incrémenter à chaque modification de fond) ---------- */
-  version: '1.0',
-  date_maj: '13 octobre 2026',
+  version: '1.1',
+  date_maj: '26 octobre 2026',
 
   /* ---------- Éditeur / vendeur ---------- */
   site_url: 'https://aupygo.com',
@@ -20,7 +20,7 @@ window.AUPYGO_LEGAL = {
   editeur_tva: 'TVA non applicable, art. 293 B du CGI',
   directeur_publication: 'Svarodina & CO (représentant légal de l’entreprise)',
   contact_email: 'contact@aupygo.com',
-  contact_telephone: '',                           // facultatif ; voir LISEZ-MOI (recommandé en France)
+  contact_telephone: '',
 
   /* ---------- Prix : mention fiscale ---------- */
   mention_tva_prix: 'nets et définitifs : TVA non applicable, art. 293 B du CGI',
@@ -39,6 +39,5 @@ window.AUPYGO_LEGAL = {
   email_provider: 'l’infrastructure d’envoi d’e-mails de Supabase',
 
   /* ---------- Résiliation en ligne ---------- */
-  // Fonctionne une fois create-portal-session déployée et le portail Stripe activé (voir LISEZ-MOI §2)
   chemin_resiliation: 'Gérer / résilier mon abonnement (lien en bas de chaque page, une fois connecté)'
 };
