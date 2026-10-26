@@ -1,16 +1,11 @@
 /* ==========================================================================
  * AUPYGO — legal-config.js
  * UNIQUE endroit à remplir pour toutes les pages juridiques.
- * Chaque valeur « [À COMPLÉTER …] » apparaît en jaune sur les pages tant
- * qu'elle n'est pas remplacée, et un bandeau "BROUILLON" s'affiche en haut.
- * Quand tout est rempli, le bandeau disparaît tout seul.
  * ========================================================================== */
 window.AUPYGO_LEGAL = {
-  /* ---------- Version des documents (à incrémenter à chaque modification de fond) ---------- */
-  version: '1.1',
+  version: '1.2',
   date_maj: '26 octobre 2026',
 
-  /* ---------- Éditeur / vendeur ---------- */
   site_url: 'https://aupygo.com',
   editeur_nom: 'Svarodina & CO — EI',
   editeur_forme: 'entrepreneur individuel, micro-entreprise',
@@ -22,22 +17,19 @@ window.AUPYGO_LEGAL = {
   contact_email: 'contact@aupygo.com',
   contact_telephone: '',
 
-  /* ---------- Prix : mention fiscale ---------- */
   mention_tva_prix: 'nets et définitifs : TVA non applicable, art. 293 B du CGI',
 
-  /* ---------- Droit applicable et litiges ---------- */
   droit_applicable: 'le droit français',
   tribunaux: 'les tribunaux compétents de Paris',
   mediateur_nom: 'Médiateur-Consommation-Smp Alteritae',
   mediateur_adresse: '5 rue Salvaing 12 000 Rodez',
   mediateur_site: 'https://www.mediateur-consommation-smp.fr/',
 
-  /* ---------- Données personnelles ---------- */
   autorite_controle: 'la CNIL (France, www.cnil.fr)',
   representant_ue: 'Sans objet (éditeur établi dans l’Union européenne)',
   supabase_region: 'eu-central-1',
-  email_provider: 'l’infrastructure d’envoi d’e-mails de Supabase',
+  /* Expéditeur technique des e-mails transactionnels ; l’adresse de contact reste contact@aupygo.com */
+  email_provider: 'Brevo (Sendinblue) — envoi technique pour le compte de AUPYGO ; répondre à contact@aupygo.com',
 
-  /* ---------- Résiliation en ligne ---------- */
   chemin_resiliation: 'Gérer / résilier mon abonnement (lien en bas de chaque page, une fois connecté)'
 };
