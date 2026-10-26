@@ -2,8 +2,9 @@
  * AUPYGO — captcha-auth-fix.js
  * Turnstile + Supabase Auth (signUp / signIn / resetPassword)
  * - Explicit render (pas de turnstile.ready — incompatible avec async/defer)
+ * - Un seul widgetId, remove() avant tout re-render
  * - Attend le token avant d'envoyer
- * - Re-render le widget s'il reste bloque
+ * - Re-render uniquement si expiré / erreur / container vide
  * - Fallback lecture input hidden cf-turnstile-response
  * ========================================================================== */
 (function () {
@@ -13,6 +14,8 @@
 
   var SITEKEY = '0x4AAAAAAEl5_H-ALybBhria';
   var widgetId = null;
+  var renderInFlight = false;
+  var lastRenderAt = 0;
 
   function getToken() {
     if (typeof turnstileToken !== 'undefined' && turnstileToken) return turnstileToken;
@@ -31,13 +34,30 @@
     } catch (e) {}
   }
 
+  function safeRemoveWidget() {
+    if (!window.turnstile) return;
+    try {
+      if (widgetId != null) {
+        window.turnstile.remove(widgetId);
+      }
+    } catch (e) {}
+    widgetId = null;
+    try {
+      var el = document.getElementById('turnstileContainer');
+      if (el) el.innerHTML = '';
+    } catch (e) {}
+  }
+
   function resetToken() {
     try {
       if (typeof turnstileToken !== 'undefined') turnstileToken = null;
       window.turnstileToken = null;
       if (window.turnstile) {
-        if (widgetId != null) window.turnstile.reset(widgetId);
-        else window.turnstile.reset();
+        if (widgetId != null) {
+          try { window.turnstile.reset(widgetId); } catch (e) {}
+        } else {
+          try { window.turnstile.reset(); } catch (e) {}
+        }
       }
     } catch (e) {}
   }
@@ -47,19 +67,33 @@
     else console.warn('[captcha]', msg);
   }
 
-  function ensureWidgetRendered() {
+  function ensureWidgetRendered(force) {
     if (!window.turnstile || typeof window.turnstile.render !== 'function') return;
     var el = document.getElementById('turnstileContainer');
     if (!el) return;
-    // Deja un iframe / response → OK
-    if (el.querySelector('iframe') || (el.querySelector('input[name="cf-turnstile-response"]') && getToken())) return;
+
+    // Déjà un iframe + token → OK
+    if (!force && el.querySelector('iframe') && getToken()) return;
+    // Widget déjà rendu récemment et iframe présent → ne pas re-créer
+    if (!force && widgetId != null && el.querySelector('iframe')) return;
+    // Throttle : pas plus d'un render toutes les 2 s
+    var now = Date.now();
+    if (!force && renderInFlight) return;
+    if (!force && now - lastRenderAt < 2000) return;
+
+    renderInFlight = true;
+    lastRenderAt = now;
+
     try {
-      // Retirer la classe implicit pour eviter double render
+      // Toujours remove() l'ancien widget pour éviter "Cannot find Widget"
+      safeRemoveWidget();
+
       el.classList.remove('cf-turnstile');
       el.removeAttribute('data-sitekey');
       el.removeAttribute('data-callback');
       el.removeAttribute('data-expired-callback');
       el.innerHTML = '';
+
       widgetId = window.turnstile.render(el, {
         sitekey: SITEKEY,
         callback: function (token) {
@@ -77,6 +111,10 @@
         'error-callback': function () {
           console.warn('[AUPYGO] Turnstile error-callback');
           setToken(null);
+          // Un seul retry après erreur, avec délai
+          setTimeout(function () {
+            if (!getToken()) ensureWidgetRendered(true);
+          }, 1500);
         },
         theme: 'auto',
         size: 'normal'
@@ -84,6 +122,9 @@
       console.log('[AUPYGO] Turnstile explicit render widgetId=', widgetId);
     } catch (e) {
       console.warn('[AUPYGO] Turnstile render failed', e);
+      widgetId = null;
+    } finally {
+      renderInFlight = false;
     }
   }
 
@@ -91,12 +132,17 @@
     maxMs = maxMs || 12000;
     return new Promise(function (resolve) {
       var start = Date.now();
+      var nudged = false;
       function tick() {
         var t = getToken();
         if (t) return resolve(t);
         if (Date.now() - start > maxMs) return resolve(null);
-        if (Date.now() - start > 3000) ensureWidgetRendered();
-        setTimeout(tick, 300);
+        // Un seul nudge de render après 4 s si toujours vide
+        if (!nudged && Date.now() - start > 4000) {
+          nudged = true;
+          ensureWidgetRendered(false);
+        }
+        setTimeout(tick, 400);
       }
       tick();
     });
@@ -128,7 +174,18 @@
       n++;
       if (window.turnstile && typeof window.turnstile.render === 'function') {
         clearInterval(iv);
-        ensureWidgetRendered();
+        // Laisser le markup implicite un court instant, sinon explicit render
+        setTimeout(function () {
+          var el = document.getElementById('turnstileContainer');
+          if (el && !el.querySelector('iframe')) {
+            ensureWidgetRendered(true);
+          } else if (el && el.querySelector('iframe')) {
+            // Widget implicite déjà là — on ne force pas un 2e render
+            console.log('[AUPYGO] Turnstile widget déjà présent (implicit ou autre)');
+          } else {
+            ensureWidgetRendered(true);
+          }
+        }, 600);
       } else if (n > 60) {
         clearInterval(iv);
         console.warn('[AUPYGO] Turnstile API non chargee apres 15s');
@@ -149,8 +206,9 @@
       return waitForToken(12000).then(function (token) {
         if (!token) {
           toast('Valide le captcha (case Cloudflare) puis reessaie.', 'error');
-          ensureWidgetRendered();
-          return Promise.reject({ message: 'captcha required' });
+          ensureWidgetRendered(true);
+          // Rejeter avec Error (pas un Object nu) pour éviter Uncaught (in promise) Object
+          return Promise.reject(new Error('captcha required'));
         }
         return run(token).then(function (res) {
           resetToken();
@@ -200,6 +258,6 @@
       auth.__aupygoCaptchaPatchedReset = true;
     }
 
-    console.log('[AUPYGO] captcha-auth-fix.js v3 : explicit render, no turnstile.ready');
+    console.log('[AUPYGO] captcha-auth-fix.js v4 : single widget + remove() + throttle');
   });
 })();
