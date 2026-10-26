@@ -1,9 +1,8 @@
 /**
  * AUPYGO — Edge Function send-profile-reminders
  *
- * Envoie un rappel "complète ton profil" aux comptes créés il y a ~5 jours
- * (2 jours avant la limite de 7 jours de la Charte), si le profil est encore
- * incomplet et qu'aucun rappel n'a déjà été envoyé.
+ * Envoie un rappel "complète ton profil" aux comptes créés il y a ~3 jours ou plus
+ * (si le profil est encore incomplet et qu'aucun rappel n'a déjà été envoyé).
  *
  * Auth : header x-cron-secret = secret CRON_SECRET (ou Authorization Bearer)
  * Secrets Supabase à définir :
@@ -13,10 +12,6 @@
  *
  * From : AUPYGO <noreply@aupygo.com>
  * Reply-To : contact@aupygo.com
- *
- * Appel quotidien (ex. cron-job.org) :
- *   POST https://<projet>.supabase.co/functions/v1/send-profile-reminders
- *   Header: x-cron-secret: <CRON_SECRET>
  */
 import { createClient } from "npm:@supabase/supabase-js@2.49.1";
 
@@ -135,7 +130,7 @@ async function sendBrevo(toEmail: string, lang: Lang, apiKey: string) {
       subject: content.subject,
       textContent: content.text,
       htmlContent: `<!DOCTYPE html><html><body style="font-family:sans-serif;line-height:1.5;color:#222">${content.html}</body></html>`,
-      tags: ["profile-reminder", "j5"],
+      tags: ["profile-reminder", "j3"],
     }),
   });
   if (!res.ok) {
@@ -171,10 +166,10 @@ Deno.serve(async (req) => {
       auth: { autoRefreshToken: false, persistSession: false },
     });
 
-    // Fenêtre J+5 : inscrits entre il y a 6 jours et il y a 5 jours
+    // Fenêtre élargie : inscrits entre il y a 15 jours et il y a 3 jours (pour rattraper le stock)
     const now = Date.now();
-    const fromIso = new Date(now - 6 * 24 * 60 * 60 * 1000).toISOString();
-    const toIso = new Date(now - 5 * 24 * 60 * 60 * 1000).toISOString();
+    const fromIso = new Date(now - 15 * 24 * 60 * 60 * 1000).toISOString();
+    const toIso = new Date(now - 3 * 24 * 60 * 60 * 1000).toISOString();
 
     const { data: rows, error: qErr } = await admin
       .from("profiles")
