@@ -1,7 +1,9 @@
 /* ==========================================================================
- * AUPYGO — free-aupygo-join.js v4
- * FREE → AUPYGO payant seulement
+ * AUPYGO — free-aupygo-join.js v5
+ * FREE → événements AUPYGO payants seulement
  * Inscription via RPC join_event() (contourne 403 RLS)
+ * Message clair : réservation de place (paiement organisateur / sur place),
+ *   PAS un débit Stripe abonnement.
  * ========================================================================== */
 (function () {
   'use strict';
@@ -98,6 +100,11 @@
     return null;
   }
 
+  function paidJoinSuccessMsg(already) {
+    if (already) return 'Tu es déjà inscrit à cette sortie.';
+    return '🎉 Place réservée ! Le montant indiqué se règle avec l\'organisateur (sur place / selon les consignes de la sortie). Aucun débit automatique sur ta carte.';
+  }
+
   async function doJoin(eventId, paid) {
     var user = window.currentUser || (typeof currentUser !== 'undefined' ? currentUser : null);
     if (!user || !user.id) {
@@ -114,7 +121,6 @@
       return;
     }
 
-    // 1) RPC join_event (security definer) — contourne 403 RLS
     try {
       var rpc = await sb.rpc('join_event', { p_event_id: eventId });
       if (!rpc.error && rpc.data) {
@@ -125,9 +131,7 @@
         if (data && data.ok) {
           if (typeof showToast === 'function') {
             showToast(
-              data.already
-                ? 'Tu es déjà inscrit.'
-                : (paid ? '🎉 Place réservée (paiement simulé — aucun débit) !' : '🎉 Tu es inscrit !'),
+              paid ? paidJoinSuccessMsg(!!data.already) : (data.already ? 'Tu es déjà inscrit.' : '🎉 Tu es inscrit !'),
               'success'
             );
           }
@@ -138,7 +142,6 @@
         }
         if (data && data.error) {
           console.warn('[free-aupygo-join] rpc error payload', data);
-          // Réponses métier définitives : pas de repli sur l'INSERT direct
           if (data.error === 'event_full') {
             if (typeof showToast === 'function') showToast('Cette sortie est complète.', 'error');
             return;
@@ -155,7 +158,6 @@
       console.warn('[free-aupygo-join] rpc exception', e3);
     }
 
-    // 2) Fallback INSERT direct
     var ins = await sb.from('event_participants').insert({
       event_id: eventId,
       user_id: user.id
@@ -171,10 +173,7 @@
         return;
       } else if (/403|42501|row-level|policy|permission|JWT/i.test(msg + code)) {
         if (typeof showToast === 'function') {
-          showToast(
-            'Inscription impossible pour cette sortie.',
-            'error'
-          );
+          showToast('Inscription impossible pour cette sortie.', 'error');
         }
         console.error('[free-aupygo-join] 403', ins.error);
         return;
@@ -184,7 +183,7 @@
         return;
       }
     } else if (typeof showToast === 'function') {
-      showToast(paid ? '🎉 Place réservée (paiement simulé — aucun débit) !' : '🎉 Tu es inscrit !', 'success');
+      showToast(paid ? paidJoinSuccessMsg(false) : '🎉 Tu es inscrit !', 'success');
     }
 
     if (typeof loadAndRenderEvents === 'function') {
@@ -204,9 +203,9 @@
       ? escapeHtml
       : function (s) {
           return String(s || '')
-            .replace(/&/g, '&')
-            .replace(/</g, '<')
-            .replace(/>/g, '>');
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;');
         };
 
     var ov = document.createElement('div');
@@ -215,7 +214,7 @@
       'position:fixed;inset:0;z-index:10080;background:rgba(15,23,42,.55);' +
       'display:flex;align-items:center;justify-content:center;padding:16px';
     ov.innerHTML =
-      '<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.25)">' +
+      '<div style="background:#fff;border-radius:16px;max-width:400px;width:100%;padding:22px;box-shadow:0 20px 50px rgba(0,0,0,.25);max-height:90vh;overflow:auto">' +
       '<button type="button" id="freeAupygoClose" style="float:right;border:0;background:0;font-size:22px;cursor:pointer;line-height:1">×</button>' +
       '<div style="font-size:28px">' + esc(ev.emoji || '🎉') + '</div>' +
       '<div style="font-size:12px;font-weight:800;color:#7c3aed;margin:8px 0 4px">⭐ Événement AUPYGO</div>' +
@@ -223,14 +222,15 @@
       '<p style="color:#64748b;font-size:13px;margin:4px 0">📍 ' + esc(ev.address || '') + '</p>' +
       '<p style="color:#64748b;font-size:13px;margin:4px 0 12px">🕐 ' + esc(dateStr) + '</p>' +
       '<div style="padding:14px;border-radius:12px;background:#faf5ff;border:1px solid #e9d5ff;text-align:center;margin-bottom:14px">' +
-      '<div style="font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:4px">MONTANT</div>' +
-      '<div style="font-size:22px;font-weight:800;color:#6b21a8">' + pl + '</div></div>' +
+      '<div style="font-size:12px;color:#7c3aed;font-weight:700;margin-bottom:4px">PARTICIPATION</div>' +
+      '<div style="font-size:22px;font-weight:800;color:#6b21a8">' + pl + '</div>' +
+      '<div style="font-size:11px;color:#64748b;margin-top:6px;line-height:1.4">À régler avec l\'organisateur (sur place / consignes de la sortie).<br>Aucun débit automatique sur ta carte bancaire.</div></div>' +
       '<label style="display:flex;gap:10px;align-items:flex-start;font-size:13px;margin:0 0 16px;cursor:pointer;color:#1e293b;line-height:1.4">' +
       '<input type="checkbox" id="freeAupygoPayConfirm" style="margin-top:3px;width:18px;height:18px;accent-color:#7c3aed;flex-shrink:0">' +
-      '<span><strong>✅ Je confirme le paiement de ' + pl + '</strong><br>' +
-      '<span style="font-size:11px;color:#64748b">Non remboursable sauf obligation légale.</span></span></label>' +
+      '<span><strong>✅ Je confirme ma participation (' + pl + ')</strong><br>' +
+      '<span style="font-size:11px;color:#64748b">Non remboursable sauf obligation légale. Place réservée après validation.</span></span></label>' +
       '<div style="display:flex;gap:8px">' +
-      '<button type="button" id="freeAupygoAccept" class="btn btn-primary" style="flex:1">Valider · ' + pl + '</button>' +
+      '<button type="button" id="freeAupygoAccept" class="btn btn-primary" style="flex:1">Réserver · ' + pl + '</button>' +
       '<button type="button" id="freeAupygoCancel" class="btn btn-secondary" style="flex:1">Annuler</button>' +
       '</div></div>';
 
@@ -244,7 +244,7 @@
       var chk = document.getElementById('freeAupygoPayConfirm');
       if (!chk || !chk.checked) {
         if (typeof showToast === 'function') {
-          showToast('Coche « Je confirme le paiement » pour continuer.', 'error');
+          showToast('Coche la confirmation pour réserver ta place.', 'error');
         }
         return;
       }
@@ -341,7 +341,7 @@
           var done = false;
           joinBtns.forEach(function (btn) {
             var tx = (btn.textContent || '').toLowerCase();
-            if (/refuser|delete|🗑️|participants|inscrit|complet|toi/i.test(tx)) return;
+            if (/refuser|delete|🔪|participants|inscrit|complet|toi/i.test(tx)) return;
             if (btn.disabled && /inscrit|complet/i.test(tx)) return;
             btn.disabled = false;
             btn.className = 'btn btn-primary event-join';
@@ -368,7 +368,7 @@
         } else if (plan() === 'FREE') {
           card.querySelectorAll('.event-join, button.btn-primary, .btn-locked, .event-upgrade').forEach(function (btn) {
             var tx = (btn.textContent || '').toLowerCase();
-            if (/refuser|delete|🗑️|participants|inscrit|complet|toi/i.test(tx)) return;
+            if (/refuser|delete|🔪|participants|inscrit|complet|toi/i.test(tx)) return;
             if (btn.disabled) return;
             btn.className = 'btn btn-locked event-upgrade';
             btn.textContent = '🔒 STANDARD';
@@ -446,5 +446,5 @@
     applyCards();
   }, 2500);
 
-  console.log('[AUPYGO] free-aupygo-join.js v4 — RPC join_event + 1 prix');
+  console.log('[AUPYGO] free-aupygo-join.js v5 — RPC join_event + messages clairs');
 })();

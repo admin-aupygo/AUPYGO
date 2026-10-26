@@ -24,7 +24,7 @@
     document.body.innerHTML = '<p style="font-family:system-ui,sans-serif;padding:24px;color:#64748b">Impossible de restaurer index.html. Réessaie dans 30 s.</p>';
     return;
   }
-  var CACHE_V = 'fix-20261026-captcha-v4';
+  var CACHE_V = 'fix-20261026-toast-center';
   html = html.replace(/\?v=[^"']*/g, '?v=' + CACHE_V);
   if (html.indexOf('favicon.svg') === -1) {
     html = html.replace('</head>', '<link rel="icon" href="favicon.svg" type="image/svg+xml">\n</head>');
@@ -97,7 +97,8 @@
     'js/profile-edit-unlock.js',
     'js/legal-consent.js',
     'js/captcha-auth-fix.js',
-    'js/forgot-password.js'
+    'js/forgot-password.js',
+    'js/toast-center-fix.js'
   ];
   scripts.forEach(function (src) {
     var re = new RegExp('<script[^>]*src="' + src.replace(/\./g, '\\.') + '[^"]*"[^>]*><\\/script>\\s*', 'gi');
