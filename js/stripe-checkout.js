@@ -29,6 +29,17 @@
     else console.log('[checkout]', type, msg);
   }
 
+  function goLogin() {
+    if (typeof goToLogin === 'function') {
+      goToLogin();
+      return;
+    }
+    if (typeof go === 'function') go('plans');
+    if (typeof switchAuthTab === 'function') {
+      try { switchAuthTab('login'); } catch (e) {}
+    }
+  }
+
   function getFunctionsBase() {
     try {
       if (typeof SUPABASE_URL === 'string' && SUPABASE_URL) {
@@ -49,7 +60,7 @@
       (typeof currentUser !== 'undefined' ? currentUser : null);
     if (!user || !user.id) {
       toast('Connecte-toi avant de choisir une offre.', 'error');
-      if (typeof go === 'function') go('login');
+      goLogin();
       return;
     }
 
@@ -68,6 +79,7 @@
         (await sb.auth.getSession()).data?.session?.access_token;
       if (!token) {
         toast('Session expirée. Reconnecte-toi.', 'error');
+        goLogin();
         return;
       }
 
@@ -88,12 +100,16 @@
 
       if (!res.ok || !data.url) {
         console.error('[checkout]', data);
-        toast(
-          data.error === 'stripe_not_configured'
-            ? 'Paiement pas encore configuré (secret Stripe manquant).'
-            : 'Impossible de démarrer le paiement. Réessaie.',
-          'error',
-        );
+        var errMsg = 'Impossible de démarrer le paiement. Réessaie.';
+        if (data.error === 'stripe_not_configured') {
+          errMsg = 'Paiement pas encore configuré (secret Stripe manquant).';
+        } else if (data.error === 'price_not_found') {
+          errMsg = 'Tarif introuvable dans Stripe. Contacte le support.';
+        } else if (data.error === 'not_authenticated') {
+          errMsg = 'Session expirée. Reconnecte-toi.';
+          goLogin();
+        }
+        toast(errMsg, 'error');
         return;
       }
 
@@ -118,11 +134,18 @@
             : '🎉 Paiement réussi ! Ton offre est active.',
           'success',
         );
-        if (typeof loadProfile === 'function') {
-          try {
-            loadProfile();
-          } catch (e) {}
+        // Recharger le profil pour afficher le bon forfait (webhook peut être légèrement en retard)
+        function refreshPlan() {
+          if (typeof loadProfile === 'function') {
+            try { loadProfile(); } catch (e) {}
+          }
+          if (typeof refreshAuthUI === 'function') {
+            try { refreshAuthUI(); } catch (e) {}
+          }
         }
+        refreshPlan();
+        setTimeout(refreshPlan, 1500);
+        setTimeout(refreshPlan, 4000);
         history.replaceState({}, '', window.location.pathname);
       } else if (status === 'cancel') {
         toast('Paiement annulé. Tu peux réessayer quand tu veux.', 'info');
@@ -137,6 +160,7 @@
       (typeof currentUser !== 'undefined' ? currentUser : null);
     if (!user) {
       toast('Connecte-toi d’abord.', 'error');
+      goLogin();
       return;
     }
     toast('Portail facturation bientôt disponible.', 'info');
