@@ -14,7 +14,7 @@
   'use strict';
 
   /* Doit rester identique à `version` dans legal/legal-config.js */
-  var VERSION = '1.0';
+  var VERSION = '1.2';
   var BASE = '/legal/';
   var PENDING_KEY = 'aupygo_legal_pending';
 
