@@ -103,16 +103,12 @@
   };
 
   // Si showToast était défini plus tard par app.js, on re-patche
-  var tries = 0;
+   var tries = 0;
   var iv = setInterval(function () {
     tries++;
-    if (window.showToast !== arguments.callee && tries < 40) {
-      // rebind if overwritten
-      var cur = window.showToast;
-      if (cur && !cur.__aupygoCentered) {
-        var our = window.showToast;
-        // already our function from above assignment — mark it
-      }
+    var cur = window.showToast;
+    if (cur && !cur.__aupygoCentered) {
+      window.showToast.__aupygoCentered = true;
     }
     if (tries > 30) clearInterval(iv);
   }, 300);
