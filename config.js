@@ -3,11 +3,11 @@ const SUPABASE_URL = 'https://zdjcjzsmoinrkcezgivs.supabase.co';
 const SUPABASE_ANON_KEY = 'sb_publishable_DzwtV1O2qUsZ6_JslOVpEg_BHoyy-Xi';
 
 /* PayPal — Client ID PUBLIC uniquement (jamais le Secret).
-   Sandbox pour tester, remplacer par le Client ID Live en production. */
-const PAYPAL_CLIENT_ID = 'COLLE_ICI_TON_CLIENT_ID_PAYPAL';
+   Sandbox pour tester. */
+const PAYPAL_CLIENT_ID = 'AY9hCh1864wP3RrC90jbPYNfzJnwslo2tEXeVIyFsmlWsgWdpEioC5m-XJrsx4pgvkCcan6HYTklxYb9';
 const PAYPAL_CURRENCY = 'EUR';
-/* IDs des plans d'abonnement créés dans PayPal (Produits → Plans d'abonnement) */
+/* IDs des plans d'abonnement (Sandbox) */
 const PAYPAL_PLANS = {
-  standard_monthly: 'P-XXXXXXXXXXXXXXXXXXXXXXXX',
-  premium_monthly: 'P-XXXXXXXXXXXXXXXXXXXXXXXX',
+  standard_monthly: 'P-5PN60901VN846653MNLQLILI',
+  premium_monthly: 'P-1NS86350AP006551DNLQLKFI',
 };
