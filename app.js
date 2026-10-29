@@ -6858,7 +6858,4 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEnterKey('age', saveProfile);
   bindEnterKey('country', saveProfile);
 
-})();   
-   
-
 });
