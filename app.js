@@ -6858,4 +6858,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEnterKey('age', saveProfile);
   bindEnterKey('country', saveProfile);
 
+   js/toast-center.js
+   
+
 });
