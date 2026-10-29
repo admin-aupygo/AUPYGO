@@ -6859,6 +6859,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   bindEnterKey('country', saveProfile);
 
    js/toast-center.js
+      js/xss-profile-card.js
 /* AUPYGO — XSS fix updateProfileCard (hostCountry, otherLang, stayTxt, hobby title)
  * Charge APRÈS app.js. Réécrit les insertions HTML non échappées.
  */
