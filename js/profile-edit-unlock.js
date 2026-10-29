@@ -250,23 +250,30 @@
     }
 
     try {
-      var res = await sb.from('profiles').upsert(
+           var res = await sb.from('profiles').upsert(
         Object.assign({ id: user.id }, payload),
         { onConflict: 'id' }
-      ).select('id, display_name, age, gender, identity_locked');
+      );
 
       if (res.error) {
         console.error('[saveProfileRobust]', res.error);
         toast(res.error.message || 'Erreur enregistrement', 'error');
         return;
       }
-      if (!res.data || !res.data.length) {
-        toast('Profil introuvable — réessaie', 'error');
+
+      var sel = await sb
+        .from('profiles')
+        .select('id, display_name, age, gender, identity_locked')
+        .eq('id', user.id)
+        .maybeSingle();
+
+      if (sel.error || !sel.data) {
+        toast('Profil enregistré, mais relecture impossible — recharge la page', 'error');
         return;
       }
 
       // Mettre à jour le cache local
-      var row = res.data[0];
+      var row = sel.data;
       var p = getMyProfile();
       if (p) {
         Object.keys(payload).forEach(function (k) { p[k] = payload[k]; });
