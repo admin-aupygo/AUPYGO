@@ -6,8 +6,7 @@ const SUPABASE_ANON_KEY = 'sb_publishable_DzwtV1O2qUsZ6_JslOVpEg_BHoyy-Xi';
    Sandbox pour tester. */
 const PAYPAL_CLIENT_ID = 'AY9hCh1864wP3RrC90jbPYNfzJnwslo2tEXeVIyFsmlWsgWdpEioC5m-XJrsx4pgvkCcan6HYTklxYb9';
 const PAYPAL_CURRENCY = 'EUR';
-/* IDs des plans d'abonnement (Sandbox) */
 const PAYPAL_PLANS = {
-  standard_monthly: 'P-5PN60901VN846653MNLQLILI',
-  premium_monthly: 'P-1NS86350AP006551DNLQLKFI',
+  standard_monthly: 'P-1FX678589Y2491304NLS6QRQ',
+  premium_monthly: 'P-71S87246B64792940NLS6TZY',
 };
