@@ -1,0 +1,39 @@
+/* AUPYGO — événements plus compacts */
+.event-cover { height: 88px !important; font-size: 34px !important; }
+.event-body { padding: 12px 14px !important; }
+.event-body h3 { font-size: 15px !important; margin-bottom: 4px !important; }
+.event-details { font-size: 12.5px !important; margin: 4px 0 !important; }
+.event-grid { gap: 12px !important; }
+@media (max-width: 900px) {
+  .event-grid { grid-template-columns: repeat(2, 1fr) !important; }
+}
+@media (max-width: 560px) {
+  .event-grid { grid-template-columns: 1fr !important; }
+}
+.special-event-banner {
+  padding: 12px 14px !important;
+  border-radius: 14px !important;
+  margin-bottom: 10px !important;
+}
+.special-event-banner h3 { font-size: 16px !important; margin: 4px 0 !important; }
+.special-event-banner p { font-size: 12.5px !important; }
+.special-invite-stage { width: min(300px, 88vw) !important; }
+.special-invite-card { padding: 18px 16px 16px !important; border-radius: 16px !important; }
+.special-invite-avatar {
+  width: 52px !important; height: 52px !important;
+  font-size: 26px !important; margin-bottom: 8px !important;
+}
+.special-invite-card h3 { font-size: 17px !important; margin: 0 0 6px !important; }
+.special-invite-card .si-badge { font-size: 10px !important; margin-bottom: 4px !important; }
+.special-invite-card .si-meta { font-size: 12.5px !important; margin: 2px 0 !important; }
+.special-invite-card .si-desc {
+  font-size: 12px !important; margin: 6px 0 12px !important;
+  max-height: 4.5em; overflow: auto;
+}
+.special-invite-actions { gap: 8px !important; }
+.special-invite-actions .btn { padding: 10px 12px !important; font-size: 13px !important; }
+.special-invite-close {
+  width: 30px !important; height: 30px !important; font-size: 16px !important;
+  top: 8px !important; right: 8px !important;
+}
+.modal-sheet { max-height: 82vh !important; max-width: 420px !important; }
