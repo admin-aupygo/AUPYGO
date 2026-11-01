@@ -1,1 +1,29 @@
-PLACEHOLDER_INDEX
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AUPYGO</title>
+<link rel="stylesheet" href="styles.css?v=20261101">
+<link rel="stylesheet" href="events-compact.css?v=20261101">
+<script>
+(function () {
+  var url = 'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0263ccb58d411977701729d9f0537edff21e2a1d/index.html';
+  fetch(url).then(function (r) { return r.text(); }).then(function (html) {
+    html = html.replace(/href="styles\.css[^"]*"/g, 'href="styles.css?v=20261101"');
+    if (html.indexOf('events-compact.css') === -1) {
+      html = html.replace('styles.css?v=20261101"', 'styles.css?v=20261101">\n<link rel="stylesheet" href="events-compact.css?v=20261101"');
+    }
+    document.open();
+    document.write(html);
+    document.close();
+  }).catch(function (e) {
+    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Chargement… Erreur: ' + e + '</p>';
+  });
+})();
+</script>
+</head>
+<body>
+<p style="font-family:sans-serif;padding:24px;color:#666">Chargement AUPYGO…</p>
+</body>
+</html>
