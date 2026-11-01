@@ -1,0 +1,20 @@
+{
+  "name": "AUPYGO",
+  "short_name": "AUPYGO",
+  "description": "Meet. Go out. Make friends. — communauté au pairs",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait-primary",
+  "background_color": "#0f172a",
+  "theme_color": "#0f172a",
+  "lang": "fr",
+  "icons": [
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
