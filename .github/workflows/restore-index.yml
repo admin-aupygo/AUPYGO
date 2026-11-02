@@ -1,0 +1,59 @@
+name: Restore index and styles
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/restore-index.yml'
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Restore full files from stable commit
+        run: |
+          set -e
+          STABLE=0263ccb58d411977701729d9f0537edff21e2a1d
+          git checkout "$STABLE" -- index.html styles.css
+
+          # styles: append compact overrides if missing
+          if ! grep -q 'special-invite-stage' styles.css; then
+            if [ -f events-compact.css ]; then
+              echo '' >> styles.css
+              cat events-compact.css >> styles.css
+            fi
+          fi
+
+          # index: bump CSS + add events-compact + nav fix
+          python3 << 'PY'
+          html = open('index.html').read()
+          html = html.replace('href="styles.css?v=20261028"', 'href="styles.css?v=20261102"')
+          html = html.replace('href="dark-theme.css?v=20261028"', 'href="dark-theme.css?v=20261102"')
+          html = html.replace('href="dark-theme-admin.css?v=20261028"', 'href="dark-theme-admin.css?v=20261102"')
+          if 'events-compact.css' not in html:
+              html = html.replace(
+                  'href="styles.css?v=20261102"/>',
+                  'href="styles.css?v=20261102"/>\n<link rel="stylesheet" href="events-compact.css?v=20261102"/>'
+              )
+          if 'nav-events-fix.js' not in html:
+              html = html.replace(
+                  '</body>',
+                  '<script src="js/nav-events-fix.js?v=20261102"></script>\n</body>'
+              )
+          open('index.html','w').write(html)
+          print('index patched', len(html))
+          PY
+
+          git config user.name "admin-aupygo"
+          git config user.email "AUPYGO@protonmail.com"
+          git add index.html styles.css
+          if git diff --cached --quiet; then
+            echo "No changes"
+          else
+            git commit -m "fix: restore full index.html and styles.css (+ compact events + nav fix)"
+            git push
+          fi
