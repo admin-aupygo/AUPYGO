@@ -15,7 +15,6 @@
     var originalGo = window.go;
 
     window.go = function (page) {
-      // Contourne le forçage vers 'profile' pour les pages listées
       if (
         typeof currentUser !== 'undefined' && currentUser &&
         typeof profileSaved !== 'undefined' && !profileSaved &&
@@ -89,16 +88,16 @@
   window.addEventListener('load', applyFix);
 })();
 
-/* Charge la section / modal vidéo promo */
+/* Charge la section / modal vidéo promo (cache-bust) */
 (function loadPromoVideo() {
   if (document.querySelector('link[data-aupygo-promo]')) return;
   var l = document.createElement('link');
   l.rel = 'stylesheet';
-  l.href = 'css/promo-video.css?v=20261102';
+  l.href = 'css/promo-video.css?v=20261102b';
   l.setAttribute('data-aupygo-promo', '1');
   document.head.appendChild(l);
   var s = document.createElement('script');
-  s.src = 'js/promo-video.js?v=20261102';
+  s.src = 'js/promo-video.js?v=20261102b';
   s.defer = true;
   document.head.appendChild(s);
 })();
