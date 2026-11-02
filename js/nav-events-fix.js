@@ -1,6 +1,4 @@
-/* AUPYGO — fix navigation : Sorties / Agenda accessibles même si profil incomplet
-   Cause : dans app.js, go() fait page = 'profile' si currentUser && !profileSaved
-   et que la page n'est pas dans GUEST_ALLOWED_PAGES (home, map, plans seulement). */
+/* AUPYGO — fix navigation : Sorties / Agenda accessibles même si profil incomplet */
 (function () {
   'use strict';
 
@@ -88,7 +86,7 @@
   window.addEventListener('load', applyFix);
 })();
 
-/* Charge la section / modal vidéo promo (cache-bust) */
+/* Promo video */
 (function loadPromoVideo() {
   if (document.querySelector('link[data-aupygo-promo]')) return;
   var l = document.createElement('link');
@@ -99,5 +97,14 @@
   var s = document.createElement('script');
   s.src = 'js/promo-video.js?v=20261102b';
   s.defer = true;
+  document.head.appendChild(s);
+})();
+
+/* 401 profiles fix — charger tôt */
+(function load401Fix() {
+  if (document.querySelector('script[data-aupygo-401]')) return;
+  var s = document.createElement('script');
+  s.src = 'js/profiles-401-fix.js?v=20261102c';
+  s.setAttribute('data-aupygo-401', '1');
   document.head.appendChild(s);
 })();
