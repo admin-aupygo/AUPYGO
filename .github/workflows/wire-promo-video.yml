@@ -1,0 +1,52 @@
+name: Wire promo video into index
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/wire-promo-video.yml'
+      - 'js/promo-video.js'
+      - 'css/promo-video.css'
+jobs:
+  wire:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Link CSS/JS in index.html
+        run: |
+          python3 << 'PY'
+          html = open('index.html').read()
+          changed = False
+          if 'promo-video.css' not in html:
+              # after styles.css link if possible
+              needle = 'events-compact.css?v=20261102"/>'
+              if needle in html:
+                  html = html.replace(
+                      needle,
+                      needle + '\n<link rel="stylesheet" href="css/promo-video.css?v=20261102"/>'
+                  )
+              else:
+                  html = html.replace(
+                      '</head>',
+                      '<link rel="stylesheet" href="css/promo-video.css?v=20261102"/>\n</head>'
+                  )
+              changed = True
+          if 'promo-video.js' not in html:
+              html = html.replace(
+                  '</body>',
+                  '<script src="js/promo-video.js?v=20261102"></script>\n</body>'
+              )
+              changed = True
+          open('index.html','w').write(html)
+          print('changed', changed, 'len', len(html))
+          PY
+          git config user.name "admin-aupygo"
+          git config user.email "AUPYGO@protonmail.com"
+          git add index.html
+          if git diff --cached --quiet; then
+            echo No index change
+          else
+            git commit -m "chore: link promo-video.css and promo-video.js in index.html"
+            git push
+          fi
