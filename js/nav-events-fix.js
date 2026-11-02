@@ -22,7 +22,6 @@
         page && ALLOW_WITHOUT_PROFILE[page]
       ) {
         try {
-          // Réplique le corps de go() sans le redirect profile
           document.querySelectorAll('.page').forEach(function (p) {
             p.classList.remove('active');
           });
@@ -88,4 +87,18 @@
 
   document.addEventListener('DOMContentLoaded', applyFix);
   window.addEventListener('load', applyFix);
+})();
+
+/* Charge la section / modal vidéo promo */
+(function loadPromoVideo() {
+  if (document.querySelector('link[data-aupygo-promo]')) return;
+  var l = document.createElement('link');
+  l.rel = 'stylesheet';
+  l.href = 'css/promo-video.css?v=20261102';
+  l.setAttribute('data-aupygo-promo', '1');
+  document.head.appendChild(l);
+  var s = document.createElement('script');
+  s.src = 'js/promo-video.js?v=20261102';
+  s.defer = true;
+  document.head.appendChild(s);
 })();
