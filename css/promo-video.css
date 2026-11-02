@@ -1,0 +1,135 @@
+/* AUPYGO — section vidéo promo + modal welcome */
+.aupygo-promo-section {
+  margin: 24px auto 8px;
+  max-width: 720px;
+  padding: 0 16px 8px;
+}
+.aupygo-promo-inner {
+  background: var(--white, #fff);
+  border: 1px solid var(--border, #e8e4ef);
+  border-radius: 18px;
+  box-shadow: var(--shadow, 0 10px 35px rgba(42,24,70,.08));
+  padding: 18px 16px 16px;
+}
+.aupygo-promo-title {
+  margin: 0 0 4px;
+  font-size: 1.15rem;
+  color: var(--text, #292638);
+}
+.aupygo-promo-sub {
+  margin: 0 0 12px;
+  font-size: 0.9rem;
+  color: var(--muted, #777386);
+}
+.aupygo-promo-player-wrap {
+  position: relative;
+  width: 100%;
+  border-radius: 14px;
+  overflow: hidden;
+  background: #0f172a;
+  aspect-ratio: 9 / 16;
+  max-height: 420px;
+  margin: 0 auto;
+}
+@media (min-width: 700px) {
+  .aupygo-promo-player-wrap {
+    aspect-ratio: 16 / 9;
+    max-height: 360px;
+  }
+}
+.aupygo-promo-video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+  background: #0f172a;
+}
+.aupygo-promo-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 12px;
+}
+.aupygo-promo-actions .btn {
+  flex: 1 1 140px;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+/* Modal 1ère visite */
+.aupygo-welcome-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 99999;
+  background: rgba(15, 23, 42, 0.72);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+.aupygo-welcome-sheet {
+  position: relative;
+  width: min(380px, 100%);
+  background: #fff;
+  border-radius: 20px;
+  padding: 20px 16px 16px;
+  box-shadow: 0 20px 60px rgba(0,0,0,.35);
+  text-align: center;
+}
+.aupygo-welcome-sheet h3 {
+  margin: 0 0 4px;
+  font-size: 1.2rem;
+  color: #292638;
+}
+.aupygo-welcome-tag {
+  margin: 0 0 12px;
+  font-size: 0.85rem;
+  color: #777386;
+}
+.aupygo-welcome-close {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 32px;
+  height: 32px;
+  border: none;
+  background: #f1f5f9;
+  border-radius: 50%;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  color: #475569;
+}
+.aupygo-welcome-video {
+  width: 100%;
+  max-height: 50vh;
+  border-radius: 12px;
+  background: #0f172a;
+  object-fit: contain;
+}
+.aupygo-welcome-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.aupygo-welcome-actions .btn {
+  flex: 1;
+  font-size: 13px;
+  padding: 10px 12px;
+}
+
+body.dark-theme .aupygo-promo-inner,
+html.dark .aupygo-promo-inner {
+  background: #1e1b2e;
+  border-color: #2e2a40;
+}
+body.dark-theme .aupygo-welcome-sheet,
+html.dark .aupygo-welcome-sheet {
+  background: #1e1b2e;
+  color: #f8fafc;
+}
+body.dark-theme .aupygo-welcome-sheet h3,
+html.dark .aupygo-welcome-sheet h3 {
+  color: #f8fafc;
+}
