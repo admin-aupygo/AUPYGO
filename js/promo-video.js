@@ -38,7 +38,6 @@
         '</div>' +
       '</div>';
 
-    // Place after hero if possible
     var hero = landing.querySelector('.hero');
     if (hero && hero.parentNode) {
       hero.parentNode.insertBefore(section, hero.nextSibling);
@@ -47,74 +46,146 @@
     }
 
     var player = document.getElementById('aupygoPromoPlayer');
-    document.getElementById('aupygoPlayWelcomeBtn').addEventListener('click', function () {
+    var bw = document.getElementById('aupygoPlayWelcomeBtn');
+    var bp = document.getElementById('aupygoPlayPromoBtn');
+    if (bw) bw.addEventListener('click', function () {
       player.src = WELCOME_SRC;
+      player.load();
       player.play().catch(function () {});
       player.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
-    document.getElementById('aupygoPlayPromoBtn').addEventListener('click', function () {
+    if (bp) bp.addEventListener('click', function () {
       player.src = PROMO_SRC;
+      player.load();
       player.play().catch(function () {});
       player.scrollIntoView({ behavior: 'smooth', block: 'center' });
     });
   }
 
+  function closeWelcomeModal() {
+    try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
+    var overlay = document.getElementById('aupygoWelcomeModal');
+    if (!overlay) return;
+    var v = document.getElementById('aupygoWelcomeVideo');
+    if (v) {
+      try { v.pause(); v.removeAttribute('src'); v.load(); } catch (e2) {}
+    }
+    if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+  }
+
   function showWelcomeModal() {
+    if (document.getElementById('aupygoWelcomeModal')) return;
     try {
       if (localStorage.getItem(STORAGE_KEY)) return;
     } catch (e) {}
 
-    // Ne pas spammer si déjà connecté avec profil (retour fréquent)
     if (typeof currentUser !== 'undefined' && currentUser && typeof profileSaved !== 'undefined' && profileSaved) {
       return;
     }
 
-    var overlay = el('div', { id: 'aupygoWelcomeModal', className: 'aupygo-welcome-overlay', role: 'dialog', 'aria-modal': 'true' });
+    var overlay = el('div', {
+      id: 'aupygoWelcomeModal',
+      className: 'aupygo-welcome-overlay',
+      role: 'dialog',
+      'aria-modal': 'true'
+    });
     overlay.innerHTML =
-      '<div class="aupygo-welcome-sheet">' +
-        '<button type="button" class="aupygo-welcome-close" id="aupygoWelcomeClose" aria-label="Fermer">×</button>' +
+      '<div class="aupygo-welcome-sheet" id="aupygoWelcomeSheet">' +
+        '<button type="button" class="aupygo-welcome-close" data-aupygo-welcome="close" aria-label="Fermer">×</button>' +
         '<h3>Welcome to AupyGo</h3>' +
         '<p class="aupygo-welcome-tag">The friendly community for au pairs</p>' +
         '<video id="aupygoWelcomeVideo" class="aupygo-welcome-video" controls playsinline autoplay muted preload="auto">' +
           '<source src="' + WELCOME_SRC + '" type="video/mp4">' +
         '</video>' +
         '<div class="aupygo-welcome-actions">' +
-          '<button type="button" class="btn btn-primary" id="aupygoWelcomeCta">Rejoindre</button>' +
-          '<button type="button" class="btn btn-secondary" id="aupygoWelcomeSkip">Plus tard</button>' +
+          '<button type="button" class="btn btn-primary" data-aupygo-welcome="join">Rejoindre</button>' +
+          '<button type="button" class="btn btn-secondary" data-aupygo-welcome="skip">Plus tard</button>' +
         '</div>' +
       '</div>';
 
     document.body.appendChild(overlay);
 
-    function close() {
-      try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
-      var v = document.getElementById('aupygoWelcomeVideo');
-      if (v) { try { v.pause(); } catch (e2) {} }
-      if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+    function handleAction(action) {
+      if (action === 'join') {
+        closeWelcomeModal();
+        setTimeout(function () {
+          try {
+            if (typeof go === 'function') go('plans');
+            else if (typeof goToLogin === 'function') goToLogin();
+            else window.location.hash = 'plans';
+          } catch (err) {
+            console.warn('[AUPYGO] welcome join', err);
+          }
+        }, 50);
+        return;
+      }
+      if (action === 'close' || action === 'skip') {
+        closeWelcomeModal();
+      }
     }
 
-    document.getElementById('aupygoWelcomeClose').onclick = close;
-    document.getElementById('aupygoWelcomeSkip').onclick = close;
-    document.getElementById('aupygoWelcomeCta').onclick = function () {
-      close();
-      if (typeof go === 'function') go('plans');
-      else if (typeof goToLogin === 'function') goToLogin();
-    };
-    overlay.addEventListener('click', function (e) {
-      if (e.target === overlay) close();
-    });
+    // Capture phase = prioritaire même si un autre script stoppe la propagation
+    function onPointer(e) {
+      var t = e.target;
+      if (!t) return;
+      var btn = t.closest ? t.closest('[data-aupygo-welcome]') : null;
+      if (!btn && t.getAttribute && t.getAttribute('data-aupygo-welcome')) btn = t;
+      if (btn) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (e.stopImmediatePropagation) e.stopImmediatePropagation();
+        handleAction(btn.getAttribute('data-aupygo-welcome'));
+        return;
+      }
+      // clic sur le fond sombre
+      if (t === overlay) {
+        e.preventDefault();
+        e.stopPropagation();
+        closeWelcomeModal();
+      }
+    }
 
-    // Auto-unmute on first user gesture inside modal
+    overlay.addEventListener('click', onPointer, true);
+    overlay.addEventListener('touchend', onPointer, true);
+
+    // Fallback direct sur chaque bouton (au cas où closest échoue)
+    var nodes = overlay.querySelectorAll('[data-aupygo-welcome]');
+    for (var i = 0; i < nodes.length; i++) {
+      (function (node) {
+        node.addEventListener('click', function (e) {
+          e.preventDefault();
+          e.stopPropagation();
+          handleAction(node.getAttribute('data-aupygo-welcome'));
+        }, true);
+      })(nodes[i]);
+    }
+
     var vid = document.getElementById('aupygoWelcomeVideo');
     if (vid) {
       vid.play().catch(function () {});
     }
+
+    // Escape
+    function onKey(e) {
+      if (e.key === 'Escape') {
+        closeWelcomeModal();
+        document.removeEventListener('keydown', onKey, true);
+      }
+    }
+    document.addEventListener('keydown', onKey, true);
   }
+
+  // API debug : aupygoResetWelcome() pour retester le modal
+  window.aupygoResetWelcome = function () {
+    try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
+    closeWelcomeModal();
+    showWelcomeModal();
+  };
+  window.aupygoCloseWelcome = closeWelcomeModal;
 
   function boot() {
     injectHomeSection();
-    // léger délai pour laisser la page se stabiliser
-    setTimeout(showWelcomeModal, 800);
+    setTimeout(showWelcomeModal, 600);
   }
 
   if (document.readyState === 'loading') {
