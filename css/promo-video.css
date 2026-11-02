@@ -56,17 +56,19 @@
   padding: 10px 12px;
 }
 
-/* Modal 1ère visite */
+/* Modal 1ère visite — au-dessus de tout (nav, captcha, overlays app) */
 .aupygo-welcome-overlay {
-  position: fixed;
-  inset: 0;
-  z-index: 99999;
+  position: fixed !important;
+  inset: 0 !important;
+  z-index: 2147483000 !important;
   background: rgba(15, 23, 42, 0.72);
-  display: flex;
+  display: flex !important;
   align-items: center;
   justify-content: center;
   padding: 16px;
   backdrop-filter: blur(4px);
+  pointer-events: auto !important;
+  -webkit-tap-highlight-color: transparent;
 }
 .aupygo-welcome-sheet {
   position: relative;
@@ -76,6 +78,8 @@
   padding: 20px 16px 16px;
   box-shadow: 0 20px 60px rgba(0,0,0,.35);
   text-align: center;
+  pointer-events: auto !important;
+  z-index: 1;
 }
 .aupygo-welcome-sheet h3 {
   margin: 0 0 4px;
@@ -91,32 +95,47 @@
   position: absolute;
   top: 8px;
   right: 10px;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border: none;
   background: #f1f5f9;
   border-radius: 50%;
-  font-size: 20px;
+  font-size: 22px;
   line-height: 1;
   cursor: pointer;
   color: #475569;
+  z-index: 5;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+}
+.aupygo-welcome-close:active {
+  background: #e2e8f0;
 }
 .aupygo-welcome-video {
   width: 100%;
-  max-height: 50vh;
+  max-height: 45vh;
   border-radius: 12px;
   background: #0f172a;
   object-fit: contain;
+  pointer-events: auto;
 }
 .aupygo-welcome-actions {
   display: flex;
   gap: 8px;
   margin-top: 12px;
+  position: relative;
+  z-index: 5;
+  pointer-events: auto !important;
 }
 .aupygo-welcome-actions .btn {
   flex: 1;
-  font-size: 13px;
-  padding: 10px 12px;
+  font-size: 14px;
+  padding: 12px 14px;
+  cursor: pointer;
+  pointer-events: auto !important;
+  touch-action: manipulation;
+  position: relative;
+  z-index: 6;
 }
 
 body.dark-theme .aupygo-promo-inner,
@@ -132,4 +151,9 @@ html.dark .aupygo-welcome-sheet {
 body.dark-theme .aupygo-welcome-sheet h3,
 html.dark .aupygo-welcome-sheet h3 {
   color: #f8fafc;
+}
+body.dark-theme .aupygo-welcome-close,
+html.dark .aupygo-welcome-close {
+  background: #334155;
+  color: #e2e8f0;
 }
