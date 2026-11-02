@@ -3,22 +3,36 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>AUPYGO</title>
-<link rel="stylesheet" href="styles.css?v=20261101">
-<link rel="stylesheet" href="events-compact.css?v=20261101">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>AUPYGO — Meet. Go out. Make friends.</title>
+<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="styles.css?v=20261102">
+<link rel="stylesheet" href="events-compact.css?v=20261102">
 <script>
+/* Charge la page complète depuis un commit stable, puis injecte le fix nav mobile */
 (function () {
   var url = 'https://cdn.jsdelivr.net/gh/admin-aupygo/AUPYGO@0263ccb58d411977701729d9f0537edff21e2a1d/index.html';
   fetch(url).then(function (r) { return r.text(); }).then(function (html) {
-    html = html.replace(/href="styles\.css[^"]*"/g, 'href="styles.css?v=20261101"');
+    // CSS local (thème + compact events)
+    html = html.replace(/href="styles\.css[^"]*"/g, 'href="styles.css?v=20261102"');
     if (html.indexOf('events-compact.css') === -1) {
-      html = html.replace('styles.css?v=20261101"', 'styles.css?v=20261101">\n<link rel="stylesheet" href="events-compact.css?v=20261101"');
+      html = html.replace(
+        /href="styles\.css\?v=20261102"\s*\/?>/,
+        'href="styles.css?v=20261102">\n<link rel="stylesheet" href="events-compact.css?v=20261102">'
+      );
+    }
+    // Injecter le fix nav avant </body>
+    if (html.indexOf('nav-events-fix.js') === -1) {
+      html = html.replace(
+        '</body>',
+        '<script src="js/nav-events-fix.js?v=20261102"><\/script>\n</body>'
+      );
     }
     document.open();
     document.write(html);
     document.close();
   }).catch(function (e) {
-    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Chargement… Erreur: ' + e + '</p>';
+    document.body.innerHTML = '<p style="font-family:sans-serif;padding:24px">Erreur de chargement AUPYGO : ' + e + '</p>';
   });
 })();
 </script>
