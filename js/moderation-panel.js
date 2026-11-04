@@ -1,9 +1,9 @@
 /* ==========================================================================
- * AUPYGO — moderation-panel.js v1
+ * AUPYGO — moderation-panel.js v2
  * Bouton + panneau réservés à : Major Modérateur + Amiral
  * (pas Sergent Modérateur, pas Staff événementiel)
  *
- * - Checklist conventionnelle conforme bonnes pratiques / CGU / droit FR
+ * - Checklist claire et actionnable avant toute sanction
  * - Rappel : email Brevo déjà envoyé (profil à compléter sous peine de ban)
  * - Actions : avertissement enregistré + ban / unban (Edge Function)
  * ========================================================================== */
@@ -14,44 +14,43 @@
 
   var FN_NAME = 'admin-moderate-user';
 
-  /** Checklist fixe — à cocher avant sanction */
+  /** Checklist claire — à cocher avant sanction */
   var CHECKLIST = [
     {
       id: 'identity',
-      label: 'Identité communautaire',
+      label: '1. Identité du compte',
       items: [
-        'Pseudo / prénom cohérent (pas de spam, pas d\'identité usurpee)',
-        'Profil renseigné : âge, genre, pays d\'accueil, langues (obligation rappelée par email Brevo)',
-        'Pas de photo personnelle (avatars universels uniquement — charte AUPYGO)'
+        'Le pseudo est correct (pas de spam, pas d’usurpation d’identité)',
+        'Le profil est bien rempli : âge, genre, pays d’accueil (rappelé par email Brevo)',
+        'Aucune photo personnelle : uniquement les avatars AUPYGO'
       ]
     },
     {
       id: 'conduct',
-      label: 'Comportement & messages',
+      label: '2. Comportement',
       items: [
-        'Pas de harcèlement, menaces, propos discriminatoires ou haineux',
-        'Pas de spam, pub, phishing, collecte de données d\'autrui',
-        'Respect de la charte communauté et des CGU AUPYGO'
+        'Aucun harcèlement, menace ou propos haineux / discriminatoires',
+        'Pas de spam, publicité, phishing ou collecte de données',
+        'Respect de la Charte et des CGU AUPYGO'
       ]
     },
     {
       id: 'legal',
-      label: 'Cadre légal (rappel)',
+      label: '3. Cadre légal',
       items: [
-        'Sanction proportionnée au manquement constaté',
-        'Trace écrite de la décision (motif + date) conservée',
-        'Droit d\'accès / rectification : l\'utilisateur peut écrire à contact@aupygo.com',
-        'Données traitées uniquement pour la sécurité de la communauté (intérêt légitime / CGU)',
-        'Mineurs : en cas de doute sur l\'\u00e2ge, suspension prudente et vérification'
+        'La sanction est proportionnée au manquement constaté',
+        'Un motif écrit (date + raison) sera conservé',
+        'L’utilisateur peut contester à contact@aupygo.com',
+        'En cas de doute sur l’âge (mineur), suspension prudente + vérification'
       ]
     },
     {
       id: 'process',
-      label: 'Processus AUPYGO',
+      label: '4. Processus AUPYGO',
       items: [
-        'Email Brevo déjà envoyé : obligation de compléter le profil sous peine de bannissement',
-        'Avertissement préalable enregistré sauf urgence (sécurité, illégalité manifeste)',
-        'Ban = impossibilité de se reconnecter (Auth Supabase) — réversible par Amiral / Major Modérateur'
+        'Email Brevo de rappel profil déjà envoyé (compléter sous peine de ban)',
+        'Avertissement préalable sauf urgence (sécurité / illégalité manifeste)',
+        'Ban = compte bloqué (Auth Supabase) — réversible par Amiral / Major Modérateur'
       ]
     }
   ];
@@ -79,10 +78,10 @@
 
   function esc(s) {
     return String(s == null ? '' : s)
-      .replace(/&/g, '&amp;')
-      .replace(/</g, '&lt;')
-      .replace(/>/g, '&gt;')
-      .replace(/"/g, '&quot;');
+      .replace(/&/g, '&')
+      .replace(/</g, '<')
+      .replace(/>/g, '>')
+      .replace(/"/g, '"');
   }
 
   function isProfileIncomplete(p) {
@@ -163,9 +162,9 @@
       btn = document.createElement('button');
       btn.id = 'aupygoModBtn';
       btn.type = 'button';
-      btn.title = 'Modération (Major Modérateur / Amiral)';
-      btn.setAttribute('aria-label', 'Ouvrir le panneau de modération');
-      btn.innerHTML = '<span aria-hidden="true">⚖️</span><span class="mod-label">Modération</span>';
+      btn.title = 'Sanctions & bannissement (Major Modérateur / Amiral)';
+      btn.setAttribute('aria-label', 'Ouvrir le panneau de sanctions et bannissement');
+      btn.innerHTML = '<span aria-hidden="true">⚖️</span><span class="mod-label">Sanctions</span>';
       btn.onclick = function (e) {
         e.preventDefault();
         openPanel();
@@ -275,25 +274,26 @@
     ov.innerHTML =
       '<div id="aupygoModCard" role="dialog" aria-modal="true" aria-labelledby="modTitle">' +
       '<div style="display:flex;justify-content:space-between;align-items:center;gap:8px">' +
-      '<h3 id="modTitle" style="margin:0;font-size:18px">⚖️ Modération</h3>' +
+      '<h3 id="modTitle" style="margin:0;font-size:18px">⚖️ Sanctions & bannissement</h3>' +
       '<button type="button" class="mod-btn-close" id="modCloseX" style="width:auto;padding:6px 12px">×</button></div>' +
-      '<p class="mod-muted" style="margin:8px 0 12px">Accès : <strong>Major Modérateur</strong> &amp; <strong>Amiral</strong> uniquement. ' +
-      'Les e-mails de rappel profil (Brevo) sont déjà envoyés aux membres ; un profil incomplet peut justifier un ban après checklist.</p>' +
+      '<p class="mod-muted" style="margin:8px 0 12px">' +
+      'Accès réservé au <strong>Major Modérateur</strong> et à l\'<strong>Amiral</strong>. ' +
+      'Les emails de rappel profil (Brevo) sont déjà envoyés. Un profil incomplet peut justifier un ban après validation de la checklist.</p>' +
       '<input class="mod-search" id="modSearch" type="search" placeholder="Rechercher un pseudo (ex. jpcabal0608)" autocomplete="off">' +
       '<div class="mod-list" id="modList"><div class="mod-muted" style="padding:12px">Chargement…</div></div>' +
       '<div id="modSelected"></div>' +
       '<div id="modChecklistWrap" style="display:none">' +
-      '<p style="font-size:13px;font-weight:700;margin:12px 0 4px">Checklist avant sanction</p>' +
+      '<p style="font-size:13px;font-weight:700;margin:12px 0 4px">Checklist obligatoire avant sanction</p>' +
       renderChecklistHtml() +
-      '<label style="font-size:13px;font-weight:600;display:block;margin-top:8px">Motif (obligatoire pour avertir / bannir)</label>' +
-      '<textarea class="mod-note" id="modNote" placeholder="Ex. : profil non complété malgré email Brevo ; comportement non conforme à la charte…"></textarea>' +
+      '<label style="font-size:13px;font-weight:600;display:block;margin-top:8px">Motif (obligatoire pour avertir ou bannir)</label>' +
+      '<textarea class="mod-note" id="modNote" placeholder="Ex. : profil non complété malgré email Brevo du [date] ; propos non conformes à la charte…"></textarea>' +
       '<div class="mod-row">' +
-      '<button type="button" class="mod-btn-warn" id="modWarn">Avertissement</button>' +
+      '<button type="button" class="mod-btn-warn" id="modWarn">Enregistrer un avertissement</button>' +
       '<button type="button" class="mod-btn-ban" id="modBan">Bannir le compte</button>' +
       '<button type="button" class="mod-btn-unban" id="modUnban">Lever le ban</button>' +
       '</div>' +
-      '<p class="mod-legal">Rappel légal : sanction proportionnée, traçabilité, possibilité de contester auprès de contact@aupygo.com. ' +
-      'Pas de traitement discriminatoire. Conservation limitée des logs de modération à des fins de sécurité et de preuve du respect des CGU.</p>' +
+      '<p class="mod-legal">Rappel : sanction proportionnée, traçabilité, possibilité de contester à contact@aupygo.com. ' +
+      'Pas de traitement discriminatoire. Logs de modération conservés uniquement pour la sécurité et le respect des CGU.</p>' +
       '</div>' +
       '<div class="mod-row" style="margin-top:12px"><button type="button" class="mod-btn-close" id="modClose">Fermer</button></div>' +
       '</div>';
@@ -365,11 +365,11 @@
     el.innerHTML =
       '<div class="mod-user">' +
       '<strong>' + esc(p.display_name || '') + '</strong>' +
-      '<span class="mod-muted">id : ' + esc(p.id) + '</span><br>' +
+      '<span class="mod-muted">id : ' + esc(p.id) + '</span><br>' +
       '<span class="mod-muted">' +
       esc([p.age ? p.age + ' ans' : null, p.gender, p.city, p.host_country || p.country].filter(Boolean).join(' · ')) +
       '</span><br>' +
-      '<span class="mod-muted">Forfait : ' + esc(p.subscription || 'FREE') +
+      '<span class="mod-muted">Forfait : ' + esc(p.subscription || 'FREE') +
       (p.is_banned ? ' · <strong style="color:#991b1b">BANNI</strong>' : '') +
       (incomplete ? ' · <strong style="color:#92400e">Profil incomplet (email Brevo applicable)</strong>' : '') +
       '</span></div>';
@@ -378,21 +378,25 @@
 
   async function runAction(action) {
     if (!selectedUser || !selectedUser.id) {
-      toast('Sélectionne un membre.', 'error');
+      toast('Sélectionne d’abord un membre.', 'error');
       return;
     }
     if (action !== 'unban' && !allChecksDone()) {
-      toast('Coche toute la checklist avant d\'avertir ou de bannir.', 'error');
+      toast('Coche toute la checklist avant d’avertir ou de bannir.', 'error');
       return;
     }
     var note = (document.getElementById('modNote') || {}).value || '';
     note = String(note).trim();
     if ((action === 'warn' || action === 'ban') && note.length < 8) {
-      toast('Indique un motif écrit (min. 8 caractères).', 'error');
+      toast('Indique un motif écrit (minimum 8 caractères).', 'error');
       return;
     }
 
-    var labels = { warn: 'enregistrer un avertissement pour', ban: 'BANNIR', unban: 'lever le ban de' };
+    var labels = {
+      warn: 'enregistrer un avertissement pour',
+      ban: 'BANNIR définitivement',
+      unban: 'lever le ban de'
+    };
     if (!confirm(
       (action === 'ban' ? '⚠️ ' : '') +
       'Confirmer : ' + (labels[action] || action) + ' « ' + (selectedUser.display_name || '') + ' » ?'
@@ -404,14 +408,14 @@
       return;
     }
 
-    toast('Traitement…', 'info');
+    toast('Traitement en cours…', 'info');
     try {
       var res = await sb.functions.invoke(FN_NAME, {
         body: {
           action: action,
           target_id: selectedUser.id,
           reason: note,
-          checklist_version: 'v1-2026-10',
+          checklist_version: 'v2-2026-11',
           profile_incomplete: isProfileIncomplete(selectedUser),
           brevo_profile_mail_acknowledged: true
         }
@@ -421,7 +425,7 @@
         var err = (res.data && res.data.error) || (res.error && res.error.message) || 'erreur';
         var detail = (res.data && (res.data.detail || res.data.message)) || '';
         console.error('[moderation]', res);
-        toast('Echec : ' + err + (detail ? ' — ' + detail : ''), 'error');
+        toast('Échec : ' + err + (detail ? ' — ' + detail : ''), 'error');
         return;
       }
 
@@ -452,5 +456,5 @@
   setTimeout(ensureBtn, 1500);
   setTimeout(ensureBtn, 3500);
 
-  console.log('[AUPYGO] moderation-panel.js v1 — Major Modérateur + Amiral');
+  console.log('[AUPYGO] moderation-panel.js v2 — Major Modérateur + Amiral');
 })();
