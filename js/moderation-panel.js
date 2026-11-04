@@ -1,5 +1,5 @@
 /* ==========================================================================
- * AUPYGO — moderation-panel.js v2
+ * AUPYGO — moderation-panel.js v2.1
  * Bouton + panneau réservés à : Major Modérateur + Amiral
  * (pas Sergent Modérateur, pas Staff événementiel)
  *
@@ -117,35 +117,52 @@
       'margin-right:8px;white-space:nowrap;flex-shrink:0}',
       '#aupygoModBtn:hover{background:#fee2e2}',
       '@media(max-width:700px){#aupygoModBtn .mod-label{display:none}}',
+
       '#aupygoModOverlay{position:fixed;inset:0;z-index:100090;background:rgba(15,23,42,.55);',
-      'display:flex;align-items:center;justify-content:center;padding:16px}',
-      '#aupygoModCard{background:#fff;color:#0f172a;border-radius:16px;width:100%;max-width:560px;',
+      'display:flex;align-items:center;justify-content:center;padding:16px;box-sizing:border-box}',
+      '#aupygoModCard{background:#fff!important;color:#0f172a!important;border-radius:16px;width:100%;max-width:560px;',
       'max-height:92vh;overflow:auto;padding:20px 18px;box-shadow:0 24px 60px rgba(0,0,0,.3);',
-      'font-family:system-ui,-apple-system,sans-serif}',
-      '.mod-section{margin:14px 0;padding:12px;border:1px solid #e2e8f0;border-radius:12px;background:#f8fafc}',
-      '.mod-section h4{margin:0 0 8px;font-size:14px;color:#7c3aed}',
-      '.mod-check{display:flex;gap:8px;align-items:flex-start;margin:6px 0;font-size:13px;line-height:1.4;cursor:pointer}',
-      '.mod-check input{margin-top:3px;flex-shrink:0;accent-color:#7c3aed}',
-      '.mod-row{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}',
-      '.mod-row button{flex:1;min-width:120px;padding:10px 12px;border:0;border-radius:10px;font-weight:700;cursor:pointer;font-size:13px}',
-      '.mod-btn-warn{background:#fef3c7;color:#92400e}',
-      '.mod-btn-ban{background:#fee2e2;color:#991b1b}',
-      '.mod-btn-unban{background:#dcfce7;color:#166534}',
-      '.mod-btn-close{background:#e2e8f0;color:#0f172a}',
-      '.mod-user{padding:10px 12px;border-radius:10px;background:#faf5ff;border:1px solid #e9d5ff;margin-bottom:10px}',
-      '.mod-user strong{display:block;font-size:16px}',
-      '.mod-muted{font-size:12px;color:#64748b}',
-      '.mod-search{width:100%;box-sizing:border-box;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:14px;margin-bottom:8px}',
-      '.mod-list{max-height:180px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px}',
-      '.mod-list button{display:block;width:100%;text-align:left;padding:10px 12px;border:0;border-bottom:1px solid #f1f5f9;',
-      'background:#fff;cursor:pointer;font-size:13px}',
-      '.mod-list button:hover{background:#f8fafc}',
-      '.mod-badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;border-radius:999px;margin-left:6px}',
-      '.mod-badge.warn{background:#fef3c7;color:#92400e}',
-      '.mod-badge.bad{background:#fee2e2;color:#991b1b}',
-      '.mod-badge.ok{background:#dcfce7;color:#166534}',
-      '.mod-note{width:100%;box-sizing:border-box;min-height:70px;padding:10px;border:1px solid #cbd5e1;border-radius:10px;font-size:13px;margin-top:8px}',
-      '.mod-legal{font-size:11px;color:#64748b;line-height:1.45;margin-top:12px}'
+      'font-family:system-ui,-apple-system,sans-serif;box-sizing:border-box;line-height:1.45}',
+      '#aupygoModCard *{box-sizing:border-box}',
+      '#aupygoModCard h3{margin:0;font-size:18px;color:#0f172a}',
+      '#aupygoModCard h4{margin:0 0 10px;font-size:14px;font-weight:700;color:#7c3aed}',
+
+      '#aupygoModCard .mod-section{display:block;margin:14px 0;padding:12px 14px;border:1px solid #e2e8f0;',
+      'border-radius:12px;background:#f8fafc}',
+      '#aupygoModCard .mod-check{display:flex!important;flex-direction:row;align-items:flex-start;gap:10px;',
+      'margin:8px 0;font-size:13px;line-height:1.45;cursor:pointer;color:#0f172a}',
+      '#aupygoModCard .mod-check input[type=checkbox]{margin:3px 0 0;flex-shrink:0;width:16px;height:16px;',
+      'accent-color:#7c3aed;cursor:pointer}',
+      '#aupygoModCard .mod-check span{flex:1;display:block}',
+
+      '#aupygoModCard .mod-row{display:flex;flex-wrap:wrap;gap:8px;margin-top:12px}',
+      '#aupygoModCard .mod-row button{flex:1 1 140px;min-width:120px;padding:11px 12px;border:0;',
+      'border-radius:10px;font-weight:700;cursor:pointer;font-size:13px;line-height:1.3}',
+      '#aupygoModCard .mod-btn-warn{background:#fef3c7;color:#92400e}',
+      '#aupygoModCard .mod-btn-ban{background:#fee2e2;color:#991b1b}',
+      '#aupygoModCard .mod-btn-unban{background:#dcfce7;color:#166534}',
+      '#aupygoModCard .mod-btn-close{background:#e2e8f0;color:#0f172a}',
+      '#aupygoModCard .mod-footer{margin-top:16px;padding-top:12px;border-top:1px solid #e2e8f0}',
+
+      '#aupygoModCard .mod-user{padding:12px 14px;border-radius:10px;background:#faf5ff;border:1px solid #e9d5ff;margin:12px 0}',
+      '#aupygoModCard .mod-user strong{display:block;font-size:16px;margin-bottom:4px;color:#0f172a}',
+      '#aupygoModCard .mod-muted{font-size:12px;color:#64748b;line-height:1.4}',
+      '#aupygoModCard .mod-search{width:100%;padding:10px 12px;border:1px solid #cbd5e1;border-radius:10px;',
+      'font-size:14px;margin:8px 0;background:#fff;color:#0f172a}',
+      '#aupygoModCard .mod-list{max-height:180px;overflow:auto;border:1px solid #e2e8f0;border-radius:10px;background:#fff}',
+      '#aupygoModCard .mod-list button{display:block;width:100%;text-align:left;padding:11px 12px;border:0;',
+      'border-bottom:1px solid #f1f5f9;background:#fff;cursor:pointer;font-size:13px;color:#0f172a}',
+      '#aupygoModCard .mod-list button:hover{background:#f8fafc}',
+      '#aupygoModCard .mod-list button:last-child{border-bottom:0}',
+      '#aupygoModCard .mod-badge{display:inline-block;font-size:11px;font-weight:800;padding:2px 8px;',
+      'border-radius:999px;margin-left:6px;vertical-align:middle}',
+      '#aupygoModCard .mod-badge.warn{background:#fef3c7;color:#92400e}',
+      '#aupygoModCard .mod-badge.bad{background:#fee2e2;color:#991b1b}',
+      '#aupygoModCard .mod-badge.ok{background:#dcfce7;color:#166534}',
+      '#aupygoModCard .mod-note{width:100%;min-height:72px;padding:10px 12px;border:1px solid #cbd5e1;',
+      'border-radius:10px;font-size:13px;margin-top:8px;resize:vertical;background:#fff;color:#0f172a}',
+      '#aupygoModCard .mod-legal{font-size:11px;color:#64748b;line-height:1.45;margin:12px 0 0}',
+      '#aupygoModCard label{display:flex}'
     ].join('');
     document.head.appendChild(st);
   }
@@ -295,8 +312,9 @@
       '<p class="mod-legal">Rappel : sanction proportionnée, traçabilité, possibilité de contester à contact@aupygo.com. ' +
       'Pas de traitement discriminatoire. Logs de modération conservés uniquement pour la sécurité et le respect des CGU.</p>' +
       '</div>' +
-      '<div class="mod-row" style="margin-top:12px"><button type="button" class="mod-btn-close" id="modClose">Fermer</button></div>' +
-      '</div>';
+      '<div class="mod-footer">' +
+      '<div class="mod-row"><button type="button" class="mod-btn-close" id="modClose" style="flex:0 0 auto;min-width:100px">Fermer</button></div>' +
+      '</div></div>';
 
     document.body.appendChild(ov);
     ov.addEventListener('click', function (e) {
@@ -338,7 +356,7 @@
       if (warns > 0 && !banned) badge += '<span class="mod-badge warn">' + warns + ' avert.</span>';
       var meta = [p.city, p.host_country || p.country, p.subscription || 'FREE'].filter(Boolean).join(' · ');
       return '<button type="button" data-id="' + esc(p.id) + '">' +
-        '<strong>' + esc(p.display_name || '(sans nom)') + '</strong>' + badge +
+        '<strong>' + esc(p.display_name || '(sans nom)') + '</strong> ' + badge +
         '<div class="mod-muted">' + esc(meta) + ' · score profil ' + profileScore(p) + '/7</div></button>';
     }).join('');
 
@@ -456,5 +474,5 @@
   setTimeout(ensureBtn, 1500);
   setTimeout(ensureBtn, 3500);
 
-  console.log('[AUPYGO] moderation-panel.js v2 — Major Modérateur + Amiral');
+  console.log('[AUPYGO] moderation-panel.js v2.1 — layout fix');
 })();
