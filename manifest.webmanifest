@@ -1,7 +1,7 @@
 {
   "name": "AUPYGO",
   "short_name": "AUPYGO",
-  "description": "Meet. Go out. Make friends. — communauté au pairs",
+  "description": "Meet. Go out. Make friends. — La communauté mondiale des au pairs",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -9,12 +9,21 @@
   "background_color": "#0f172a",
   "theme_color": "#0f172a",
   "lang": "fr",
+  "dir": "ltr",
+  "categories": ["social", "lifestyle"],
   "icons": [
     {
       "src": "favicon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
-      "purpose": "any maskable"
+      "purpose": "any"
+    },
+    {
+      "src": "favicon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "maskable"
     }
-  ]
+  ],
+  "prefer_related_applications": false
 }
