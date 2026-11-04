@@ -1,0 +1,20 @@
+{
+  "appId": "com.aupygo.app",
+  "appName": "AUPYGO",
+  "webDir": "www",
+  "server": {
+    "url": "https://aupygo.com",
+    "cleartext": false
+  },
+  "android": {
+    "allowMixedContent": false,
+    "backgroundColor": "#0f172a"
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 1500,
+      "backgroundColor": "#0f172a",
+      "showSpinner": false
+    }
+  }
+}
