@@ -1,9 +1,6 @@
 /* ==========================================================================
  * AUPYGO — toast-center-fix.js
- * Toasts / messages au CENTRE de l'écran (lisibles, pas coin bas).
- * Patch showToast + CSS injecté (sûr même si styles.css en cache).
- * - Support durée optionnelle (3e argument, ms)
- * - Toasts "pending" (inscription) : plus grands, ≥10 s, spam en plus petit
+ * Toasts au CENTRE + support durée + toast "pending" (inscription) gros + 12s + spam
  * ========================================================================== */
 (function () {
   'use strict';
@@ -119,7 +116,6 @@
           else if (lang.indexOf('es') === 0) spam = 'Mira también la carpeta de spam / correo no deseado.';
           else spam = 'Regarde aussi tes spams / courriers indésirables.';
         }
-
         t.innerHTML = '';
         var mainEl = document.createElement('div');
         mainEl.textContent = main || text;
@@ -137,41 +133,30 @@
       c.appendChild(t);
 
       var ms = 3200;
-      if (typeof durationMs === 'number' && durationMs > 0) {
-        ms = durationMs;
-      } else if (isPending) {
-        ms = 12000;
-      } else if (type === 'error') {
-        ms = 4500;
-      }
+      if (typeof durationMs === 'number' && durationMs > 0) ms = durationMs;
+      else if (isPending) ms = 12000;
+      else if (type === 'error') ms = 4500;
 
       setTimeout(function () {
         t.style.opacity = '0';
         t.style.transition = 'opacity .3s';
-        setTimeout(function () {
-          try { t.remove(); } catch (e) {}
-        }, 320);
+        setTimeout(function () { try { t.remove(); } catch (e) {} }, 320);
       }, ms);
     } catch (e) {
-      if (prev) {
-        try { prev(msg, type); } catch (e2) {}
-      } else {
-        console.log('[toast]', type, msg);
-      }
+      if (prev) try { prev(msg, type); } catch (e2) {}
+      else console.log('[toast]', type, msg);
     }
   };
 
   var tries = 0;
   var iv = setInterval(function () {
     tries++;
-    var cur = window.showToast;
-    if (cur && !cur.__aupygoCentered) {
+    if (window.showToast && !window.showToast.__aupygoCentered) {
       window.showToast.__aupygoCentered = true;
     }
     if (tries > 30) clearInterval(iv);
   }, 300);
 
   window.showToast.__aupygoCentered = true;
-
   console.log('[AUPYGO] toast-center-fix — toasts centrés + pending 12s');
 })();
