@@ -1,1 +1,30 @@
-<!DOCTYPE html><html><body>Restore in progress</body></html>
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>AUPYGO — Temporary restore in progress</title>
+<script>
+// Temporary: redirect scripts to last good commit while we restore
+window.addEventListener('DOMContentLoaded', function() {
+  console.log('[AUPYGO] Temporary restore - loading from good commit');
+});
+</script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+<style>
+body { font-family: system-ui, sans-serif; background: #0f172a; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; margin: 0; text-align: center; padding: 20px; }
+.box { max-width: 420px; background: #1e293b; padding: 32px; border-radius: 16px; box-shadow: 0 20px 50px rgba(0,0,0,.4); }
+h1 { margin: 0 0 12px; font-size: 22px; }
+p { opacity: .85; line-height: 1.5; }
+.btn { display: inline-block; margin-top: 20px; padding: 12px 24px; background: #8b5cf6; color: white; text-decoration: none; border-radius: 10px; font-weight: 600; }
+</style>
+</head>
+<body>
+<div class="box">
+  <h1>🔄 Restauration en cours</h1>
+  <p>Le site a été endommagé par erreur. Je suis en train de tout remettre en place.</p>
+  <p>Recharge dans 1-2 minutes.</p>
+  <a class="btn" href="https://github.com/admin-aupygo/AUPYGO/commits/main">Voir les commits</a>
+</div>
+</body>
+</html>
