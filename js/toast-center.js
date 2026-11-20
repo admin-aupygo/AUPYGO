@@ -44,7 +44,6 @@
       '  animation:aupygoToastIn .28s ease !important;',
       '  white-space:pre-line !important;',
       '}',
-      /* Toast inscription / pending : gros texte principal + spam plus petit */
       '.toast-container .toast.toast-pending{',
       '  padding:22px 22px 18px !important;',
       '  font-size:18px !important;',
@@ -65,7 +64,6 @@
       '  from{opacity:0;transform:scale(.94) translateY(8px);}',
       '  to{opacity:1;transform:scale(1) translateY(0);}',
       '}',
-      '/* Modales déjà centrées : s\'assurer display:flex */',
       '.member-modal-overlay.open,',
       '.geo-consent-overlay.open{',
       '  display:flex !important;',
@@ -96,11 +94,6 @@
 
   var prev = typeof window.showToast === 'function' ? window.showToast : null;
 
-  /**
-   * showToast(msg, type, durationMs)
-   * - type: 'success' | 'error' | 'info' | 'pending' (pending = gros + 12s)
-   * - durationMs: optionnel, sinon 3200 / 4500 / 12000 selon type
-   */
   window.showToast = function (msg, type, durationMs) {
     try {
       var c = ensureContainer();
@@ -118,16 +111,13 @@
       var text = String(msg == null ? '' : msg);
 
       if (isPending) {
-        // Structure : titre en gros + ligne spam en plus petit
         var main = text;
         var spam = '';
-        // Si le message contient déjà un séparateur, on le découpe
         var parts = text.split(/\n+|—|–|-/);
         if (parts.length >= 2 && /spam|courrier indésirable|junk|indésirables/i.test(text)) {
           main = parts[0].trim();
           spam = parts.slice(1).join(' ').replace(/^\s*[—–-]\s*/, '').trim();
         } else if (!/spam|courrier indésirable|junk/i.test(text)) {
-          // Ajoute la mention spam si absente
           var lang = (window.currentLang || localStorage.getItem('aupygo_lang') || 'fr').toLowerCase();
           if (lang.indexOf('en') === 0) spam = 'Also check your spam / junk folder.';
           else if (lang.indexOf('es') === 0) spam = 'Mira también la carpeta de spam / correo no deseado.';
@@ -154,7 +144,7 @@
       if (typeof durationMs === 'number' && durationMs > 0) {
         ms = durationMs;
       } else if (isPending) {
-        ms = 12000; // au moins 10 secondes
+        ms = 12000;
       } else if (type === 'error') {
         ms = 4500;
       }
@@ -175,7 +165,6 @@
     }
   };
 
-  // Si showToast était défini plus tard par app.js, on re-patche
   var tries = 0;
   var iv = setInterval(function () {
     tries++;
@@ -186,7 +175,6 @@
     if (tries > 30) clearInterval(iv);
   }, 300);
 
-  // Mark
   window.showToast.__aupygoCentered = true;
 
   console.log('[AUPYGO] toast-center-fix — toasts centrés + pending 12s');
