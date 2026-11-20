@@ -99,7 +99,7 @@
       var c = ensureContainer();
       var t = document.createElement('div');
       var isPending = (type === 'pending') ||
-        (typeof msg === 'string' && /vérifie ta boîte|check your inbox|revisa tu email|confirmer ton inscription|confirm your registration|confirmar el registro/i.test(msg));
+        (typeof msg === 'string' && /vérifie ta boîte|check your inbox|revisa tu email|confirmer ton inscription|confirm your registration|confirmar el registro|Va voir tes mails|Go check your emails|Revisa tus correos/i.test(msg));
 
       var classes = 'toast';
       if (type && type !== 'pending') classes += ' ' + type;
@@ -113,11 +113,7 @@
       if (isPending) {
         var main = text;
         var spam = '';
-        var parts = text.split(/\n+|—|–|-/);
-        if (parts.length >= 2 && /spam|courrier indésirable|junk|indésirables/i.test(text)) {
-          main = parts[0].trim();
-          spam = parts.slice(1).join(' ').replace(/^\s*[—–-]\s*/, '').trim();
-        } else if (!/spam|courrier indésirable|junk/i.test(text)) {
+        if (!/spam|courrier indésirable|junk|indésirables|no deseado/i.test(text)) {
           var lang = (window.currentLang || localStorage.getItem('aupygo_lang') || 'fr').toLowerCase();
           if (lang.indexOf('en') === 0) spam = 'Also check your spam / junk folder.';
           else if (lang.indexOf('es') === 0) spam = 'Mira también la carpeta de spam / correo no deseado.';
