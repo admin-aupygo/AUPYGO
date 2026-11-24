@@ -1,4 +1,4 @@
-/* AUPYGO — section vidéo promo + modal welcome */
+/* AUPYGO — section pub image + modal welcome */
 .aupygo-promo-section {
   margin: 24px auto 8px;
   max-width: 720px;
@@ -21,23 +21,24 @@
   font-size: 0.9rem;
   color: var(--muted, #777386);
 }
-.aupygo-promo-player-wrap {
+.aupygo-promo-player-wrap,
+.aupygo-promo-img-wrap {
   position: relative;
   width: 100%;
   border-radius: 14px;
   overflow: hidden;
   background: #0f172a;
-  aspect-ratio: 9 / 16;
-  max-height: 420px;
+  aspect-ratio: 1 / 1;
+  max-height: 480px;
   margin: 0 auto;
 }
 @media (min-width: 700px) {
-  .aupygo-promo-player-wrap {
-    aspect-ratio: 16 / 9;
-    max-height: 360px;
+  .aupygo-promo-player-wrap,
+  .aupygo-promo-img-wrap {
+    max-height: 520px;
   }
 }
-.aupygo-promo-video {
+.aupygo-promo-img {
   width: 100%;
   height: 100%;
   object-fit: contain;
@@ -54,6 +55,8 @@
   flex: 1 1 140px;
   font-size: 13px;
   padding: 10px 12px;
+  text-align: center;
+  text-decoration: none;
 }
 
 /* Modal 1ère visite — au-dessus de tout (nav, captcha, overlays app) */
@@ -111,7 +114,7 @@
 .aupygo-welcome-close:active {
   background: #e2e8f0;
 }
-.aupygo-welcome-video {
+.aupygo-welcome-img {
   width: 100%;
   max-height: 45vh;
   border-radius: 12px;
