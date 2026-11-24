@@ -1,9 +1,9 @@
-/* AUPYGO — vidéo promo / welcome sur l'accueil + modal 1ère visite */
+/* AUPYGO — pub de présentation (image) + modal 1ère visite */
 (function () {
   'use strict';
 
+  var PUB_IMG = 'media/pub-aupygo.jpg';
   var WELCOME_SRC = 'media/aupygo_welcome_web.mp4';
-  var PROMO_SRC = 'media/aupygo_promo_web.mp4';
   var STORAGE_KEY = 'aupygo_welcome_seen_v1';
 
   function el(tag, attrs, html) {
@@ -26,15 +26,12 @@
       '<div class="aupygo-promo-inner">' +
         '<h3 class="aupygo-promo-title">Découvrir AUPYGO</h3>' +
         '<p class="aupygo-promo-sub">Meet. Go out. Make friends. — la communauté des au pairs</p>' +
-        '<div class="aupygo-promo-player-wrap">' +
-          '<video id="aupygoPromoPlayer" class="aupygo-promo-video" controls playsinline preload="metadata" poster="">' +
-            '<source src="' + PROMO_SRC + '" type="video/mp4">' +
-            '<source src="' + WELCOME_SRC + '" type="video/mp4">' +
-          '</video>' +
+        '<div class="aupygo-promo-player-wrap aupygo-promo-img-wrap">' +
+          '<img id="aupygoPromoImg" class="aupygo-promo-img" src="' + PUB_IMG + '" alt="AupyGo — Meet. Go out. Make friends. Code WELCOM12 pour 15 jours STANDARD gratuit" loading="lazy">' +
         '</div>' +
         '<div class="aupygo-promo-actions">' +
-          '<button type="button" class="btn btn-primary" id="aupygoPlayWelcomeBtn">▶ Welcome (12 s)</button>' +
-          '<button type="button" class="btn btn-secondary" id="aupygoPlayPromoBtn">▶ Vidéo complète (1 min 30)</button>' +
+          '<a class="btn btn-primary" href="https://aupygo.com" target="_blank" rel="noopener">Découvrir AupyGo →</a>' +
+          '<button type="button" class="btn btn-secondary" id="aupygoPlayWelcomeBtn">▶ Welcome (vidéo 12 s)</button>' +
         '</div>' +
       '</div>';
 
@@ -45,20 +42,17 @@
       landing.appendChild(section);
     }
 
-    var player = document.getElementById('aupygoPromoPlayer');
     var bw = document.getElementById('aupygoPlayWelcomeBtn');
-    var bp = document.getElementById('aupygoPlayPromoBtn');
     if (bw) bw.addEventListener('click', function () {
-      player.src = WELCOME_SRC;
-      player.load();
-      player.play().catch(function () {});
-      player.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    });
-    if (bp) bp.addEventListener('click', function () {
-      player.src = PROMO_SRC;
-      player.load();
-      player.play().catch(function () {});
-      player.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // Optional: still allow playing the short welcome video in a simple overlay or new tab
+      var v = document.createElement('video');
+      v.src = WELCOME_SRC;
+      v.controls = true;
+      v.autoplay = true;
+      v.style.cssText = 'position:fixed;inset:0;z-index:99999;width:100%;height:100%;object-fit:contain;background:#000';
+      v.addEventListener('ended', function () { if (v.parentNode) v.parentNode.removeChild(v); });
+      v.addEventListener('click', function (e) { if (e.target === v) { try { v.pause(); } catch(e2){} if (v.parentNode) v.parentNode.removeChild(v); } });
+      document.body.appendChild(v);
     });
   }
 
@@ -94,9 +88,7 @@
         '<button type="button" class="aupygo-welcome-close" data-aupygo-welcome="close" aria-label="Fermer">×</button>' +
         '<h3>Welcome to AupyGo</h3>' +
         '<p class="aupygo-welcome-tag">The friendly community for au pairs</p>' +
-        '<video id="aupygoWelcomeVideo" class="aupygo-welcome-video" controls playsinline autoplay muted preload="auto">' +
-          '<source src="' + WELCOME_SRC + '" type="video/mp4">' +
-        '</video>' +
+        '<img class="aupygo-welcome-img" src="' + PUB_IMG + '" alt="AupyGo promo" style="width:100%;border-radius:12px;max-height:45vh;object-fit:contain;background:#0f172a">' +
         '<div class="aupygo-welcome-actions">' +
           '<button type="button" class="btn btn-primary" data-aupygo-welcome="join">Rejoindre</button>' +
           '<button type="button" class="btn btn-secondary" data-aupygo-welcome="skip">Plus tard</button>' +
@@ -124,7 +116,6 @@
       }
     }
 
-    // Capture phase = prioritaire même si un autre script stoppe la propagation
     function onPointer(e) {
       var t = e.target;
       if (!t) return;
@@ -137,7 +128,6 @@
         handleAction(btn.getAttribute('data-aupygo-welcome'));
         return;
       }
-      // clic sur le fond sombre
       if (t === overlay) {
         e.preventDefault();
         e.stopPropagation();
@@ -148,7 +138,6 @@
     overlay.addEventListener('click', onPointer, true);
     overlay.addEventListener('touchend', onPointer, true);
 
-    // Fallback direct sur chaque bouton (au cas où closest échoue)
     var nodes = overlay.querySelectorAll('[data-aupygo-welcome]');
     for (var i = 0; i < nodes.length; i++) {
       (function (node) {
@@ -159,23 +148,8 @@
         }, true);
       })(nodes[i]);
     }
-
-    var vid = document.getElementById('aupygoWelcomeVideo');
-    if (vid) {
-      vid.play().catch(function () {});
-    }
-
-    // Escape
-    function onKey(e) {
-      if (e.key === 'Escape') {
-        closeWelcomeModal();
-        document.removeEventListener('keydown', onKey, true);
-      }
-    }
-    document.addEventListener('keydown', onKey, true);
   }
 
-  // API debug : aupygoResetWelcome() pour retester le modal
   window.aupygoResetWelcome = function () {
     try { localStorage.removeItem(STORAGE_KEY); } catch (e) {}
     closeWelcomeModal();
