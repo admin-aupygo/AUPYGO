@@ -2,7 +2,7 @@
 (function () {
   'use strict';
 
-  var PUB_IMG = 'media/pub-aupygo.jpg';
+  var PUB_IMG = 'pub-aupygo.jpg';
   var WELCOME_SRC = 'media/aupygo_welcome_web.mp4';
   var STORAGE_KEY = 'aupygo_welcome_seen_v1';
 
